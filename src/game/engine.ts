@@ -1,0 +1,1268 @@
+import {
+  allPieces,
+  applyMove,
+  chebyshev,
+  cloneBoard,
+  createInitialBoard,
+  createJieqiBoard,
+  crossedRiver,
+  describeMove,
+  emptySquares,
+  getAllLegalMoves,
+  getLegalMoves,
+  findKing,
+  getPiece,
+  inCheck,
+  inPalace,
+  isAdjacent,
+  isGameOver,
+  onOwnHalf,
+  opposite,
+  pickRandom,
+  pieceLabel,
+  posEq,
+  squareName,
+} from './core';
+import { dealGenerals, findOwnedSkill, isSkillReady, sideHasSkill } from './generals';
+import type {
+  GameState,
+  GeneralRuntime,
+  Piece,
+  Pos,
+  Side,
+  SkillPayload,
+  SkillRuntime,
+} from './types';
+import { QI_MAX, QI_START } from './types';
+
+function cloneGenerals(gs: GeneralRuntime[]): GeneralRuntime[] {
+  return gs.map((g) => ({
+    ...g,
+    skills: g.skills.map((sk) => ({
+      ...sk,
+      recharge: { ...sk.recharge },
+    })),
+  }));
+}
+
+function cloneState(s: GameState): GameState {
+  return {
+    ...s,
+    board: cloneBoard(s.board),
+    redGenerals: cloneGenerals(s.redGenerals),
+    blackGenerals: cloneGenerals(s.blackGenerals),
+    lastMove: s.lastMove
+      ? { from: { ...s.lastMove.from }, to: { ...s.lastMove.to }, piece: { ...s.lastMove.piece } }
+      : null,
+    pending: {
+      awaitOverFive: s.pending.awaitOverFive,
+      awaitGuanxing: s.pending.awaitGuanxing,
+      awaitKongcheng: s.pending.awaitKongcheng,
+      wushengGuard: s.pending.wushengGuard ? { ...s.pending.wushengGuard } : undefined,
+      zhouYuFrozen: s.pending.zhouYuFrozen ? { ...s.pending.zhouYuFrozen } : undefined,
+      zhangFeiMovesLeft: s.pending.zhangFeiMovesLeft,
+      zhangFeiPieceId: s.pending.zhangFeiPieceId,
+      kongcheng: s.pending.kongcheng ? { ...s.pending.kongcheng } : undefined,
+      danjing: s.pending.danjing ? { ...s.pending.danjing } : undefined,
+      bridgeDown: s.pending.bridgeDown ? { ...s.pending.bridgeDown } : undefined,
+      awaitYingshi: s.pending.awaitYingshi,
+      yingshiMark: s.pending.yingshiMark ? { ...s.pending.yingshiMark } : undefined,
+      yingshiReload: s.pending.yingshiReload ? { ...s.pending.yingshiReload } : undefined,
+      guicaiLock: s.pending.guicaiLock ? { ...s.pending.guicaiLock } : undefined,
+    },
+    captured: {
+      red: s.captured.red.map((p) => ({ ...p })),
+      black: s.captured.black.map((p) => ({ ...p })),
+    },
+    log: s.log.slice(),
+    skillBroadcast: s.skillBroadcast ? { ...s.skillBroadcast } : null,
+    crossedRiverIds: s.crossedRiverIds.slice(),
+    noReviveIds: s.noReviveIds.slice(),
+    riverCrossCount: {
+      red: s.riverCrossCount?.red ?? 0,
+      black: s.riverCrossCount?.black ?? 0,
+    },
+    peekedIds: (s.peekedIds ?? []).slice(),
+    qi: { red: s.qi?.red ?? 0, black: s.qi?.black ?? 0 },
+  };
+}
+
+function pushLog(s: GameState, msg: string): void {
+  s.log = [...s.log, msg].slice(-40);
+}
+
+function sideGens(s: GameState, side: Side): GeneralRuntime[] {
+  return side === 'red' ? s.redGenerals : s.blackGenerals;
+}
+
+function setSideGens(s: GameState, side: Side, gens: GeneralRuntime[]): void {
+  if (side === 'red') s.redGenerals = gens;
+  else s.blackGenerals = gens;
+}
+
+function addQi(s: GameState, side: Side, n: number): void {
+  s.qi = { ...s.qi, [side]: Math.min(QI_MAX, Math.max(0, (s.qi[side] ?? 0) + n)) };
+}
+function spendQi(s: GameState, side: Side, n: number): boolean {
+  if ((s.qi[side] ?? 0) < n) return false;
+  s.qi = { ...s.qi, [side]: s.qi[side] - n };
+  return true;
+}
+
+function mapSkill(
+  s: GameState,
+  side: Side,
+  skillId: string,
+  fn: (sk: SkillRuntime) => SkillRuntime,
+): void {
+  const gens = sideGens(s, side).map((g) => ({
+    ...g,
+    skills: g.skills.map((sk) => (sk.id === skillId ? fn(sk) : sk)),
+  }));
+  setSideGens(s, side, gens);
+}
+
+function charge(s: GameState, side: Side, trigger: string, amount = 1): void {
+  const gens = sideGens(s, side).map((g) => ({
+    ...g,
+    skills: g.skills.map((sk) => {
+      if (sk.recharge.trigger !== trigger) return sk;
+      if (sk.uses >= sk.maxUses) return sk;
+      const progress = Math.min(sk.recharge.need, sk.recharge.progress + amount);
+      return { ...sk, recharge: { ...sk.recharge, progress } };
+    }),
+  }));
+  setSideGens(s, side, gens);
+}
+
+function fillSkill(s: GameState, side: Side, skillId: string): void {
+  mapSkill(s, side, skillId, (sk) => ({
+    ...sk,
+    recharge: { ...sk.recharge, progress: sk.recharge.need },
+  }));
+}
+
+function bumpSkill(s: GameState, side: Side, skillId: string, n: number): void {
+  mapSkill(s, side, skillId, (sk) => ({
+    ...sk,
+    recharge: {
+      ...sk.recharge,
+      progress: Math.min(sk.recharge.need, sk.recharge.progress + n),
+    },
+  }));
+}
+
+function countAdjacentPairs(board: GameState['board'], side: Side): number {
+  const pcs = allPieces(board, side);
+  let n = 0;
+  for (let i = 0; i < pcs.length; i++) {
+    for (let j = i + 1; j < pcs.length; j++) {
+      if (isAdjacent(pcs[i].pos, pcs[j].pos)) n++;
+    }
+  }
+  return n;
+}
+
+function applyCapturePassives(
+  s: GameState,
+  mover: Side,
+  captured: Piece,
+  moverPiece?: Piece | null,
+): void {
+  if (sideHasSkill(sideGens(s, mover), 'zhangfei-pojun')) {
+    addQi(s, mover, 1);
+  }
+  const cannonHit =
+    !!moverPiece &&
+    ((moverPiece.revealed && moverPiece.type === 'C') ||
+      (!moverPiece.revealed && moverPiece.coverType === 'C'));
+  if (cannonHit && sideHasSkill(sideGens(s, mover), 'zhouyu-huogong')) {
+    addQi(s, mover, 2);
+  }
+  if (
+    captured.revealed &&
+    (captured.type === 'R' || captured.type === 'C') &&
+    sideHasSkill(sideGens(s, captured.side), 'caocao-jianxiong')
+  ) {
+    addQi(s, captured.side, 3);
+  }
+  if (
+    s.crossedRiverIds.includes(captured.id) &&
+    sideHasSkill(sideGens(s, captured.side), 'sunshangxiang-xiaoji')
+  ) {
+    addQi(s, captured.side, 2);
+  }
+}
+
+function wushengProtectedId(s: GameState): string | undefined {
+  const g = s.pending.wushengGuard;
+  if (!g) return undefined;
+  const found = allPieces(s.board).find((x) => x.piece.id === g.pieceId);
+  if (found && !crossedRiver(found.pos.r, g.owner)) return g.pieceId;
+  return undefined;
+}
+
+function maybeClearWushengGuard(s: GameState): void {
+  const g = s.pending.wushengGuard;
+  if (!g) return;
+  const found = allPieces(s.board).find((x) => x.piece.id === g.pieceId);
+  if (!found || crossedRiver(found.pos.r, g.owner)) {
+    s.pending = { ...s.pending, wushengGuard: undefined };
+  }
+}
+
+function protectedIds(s: GameState): string[] {
+  const ids: string[] = [];
+  if (s.pending.kongcheng?.pieceId) ids.push(s.pending.kongcheng.pieceId);
+  const w = wushengProtectedId(s);
+  if (w && !ids.includes(w)) ids.push(w);
+  return ids;
+}
+
+function isProtectedPiece(s: GameState, pieceId: string): boolean {
+  return protectedIds(s).includes(pieceId);
+}
+
+export function legalOptions(s: GameState, side: Side) {
+  const frozen =
+    s.pending.zhouYuFrozen && s.pending.zhouYuFrozen.untilSide === side
+      ? { r: s.pending.zhouYuFrozen.r, c: s.pending.zhouYuFrozen.c }
+      : undefined;
+  const ids = protectedIds(s);
+  const protectedPieceId = ids[0];
+  const protectedPieceIds = ids.length > 1 ? ids : undefined;
+  const noCapturePieceId =
+    s.pending.danjing && s.pending.danjing.untilSide === side
+      ? s.pending.danjing.pieceId
+      : undefined;
+  const blockRiverCross = !!(
+    s.pending.bridgeDown && s.pending.bridgeDown.owner !== side
+  );
+  const onlyPieceId =
+    s.pending.guicaiLock && s.pending.guicaiLock.untilSide === side
+      ? s.pending.guicaiLock.pieceId
+      : undefined;
+  return { frozen, protectedPieceId, protectedPieceIds, noCapturePieceId, blockRiverCross, onlyPieceId };
+}
+
+function pendingBlocksPlay(s: GameState): boolean {
+  return !!(
+    s.pending.awaitOverFive ||
+    s.pending.awaitGuanxing ||
+    s.pending.awaitKongcheng ||
+    s.pending.awaitYingshi
+  );
+}
+
+export function listLegalMoves(s: GameState, side?: Side) {
+  if (pendingBlocksPlay(s)) return [];
+  const sd = side ?? s.side;
+  const moves = getAllLegalMoves(s.board, sd, legalOptions(s, sd));
+  const zfId = s.pending.zhangFeiMovesLeft ? s.pending.zhangFeiPieceId : undefined;
+  if (!zfId) return moves;
+  return moves.filter((m) => getPiece(s.board, m.from)?.id === zfId);
+}
+
+export function listLegalFrom(s: GameState, from: Pos): Pos[] {
+  if (pendingBlocksPlay(s)) return [];
+  const p = getPiece(s.board, from);
+  if (!p || p.side !== s.side) return [];
+  if (s.pending.zhangFeiMovesLeft && s.pending.zhangFeiPieceId && p.id !== s.pending.zhangFeiPieceId) {
+    return [];
+  }
+  if (
+    s.pending.guicaiLock &&
+    s.pending.guicaiLock.untilSide === s.side &&
+    p.id !== s.pending.guicaiLock.pieceId
+  ) {
+    return [];
+  }
+  const opt = legalOptions(s, s.side);
+  const frozen = !!(opt.frozen && opt.frozen.r === from.r && opt.frozen.c === from.c);
+  const noCapture = !!(opt.noCapturePieceId && p.id === opt.noCapturePieceId);
+  return getLegalMoves(s.board, from, s.side, {
+    frozen,
+    noCapture,
+    protectedPieceId: opt.protectedPieceId,
+    protectedPieceIds: opt.protectedPieceIds,
+    blockRiverCross: opt.blockRiverCross,
+  });
+}
+
+export function canReadyOverFive(s: GameState): boolean {
+  if (s.phase !== 'playing' || s.winner) return false;
+  if (s.skillUsedThisTurn) return false;
+  const owned = findOwnedSkill(sideGens(s, s.side), 'guanyu-wuguan');
+  if (!owned || !isSkillReady(owned.skill, s.qi[s.side] ?? 0)) return false;
+  return allPieces(s.board, s.side).some((x) => x.piece.type === 'N' && x.piece.revealed);
+}
+
+export function overFiveDests(s: GameState, from: Pos): Pos[] {
+  const p = getPiece(s.board, from);
+  if (!p || p.side !== s.side || p.type !== 'N' || !p.revealed) return [];
+  const opt = legalOptions(s, s.side);
+  const frozen = !!(opt.frozen && opt.frozen.r === from.r && opt.frozen.c === from.c);
+  if (frozen) return [];
+  const noCapture = !!(opt.noCapturePieceId && p.id === opt.noCapturePieceId);
+  return getLegalMoves(s.board, from, s.side, {
+    ignoreHorseLeg: true,
+    frozen,
+    noCapture,
+    protectedPieceId: opt.protectedPieceId,
+    protectedPieceIds: opt.protectedPieceIds,
+    blockRiverCross: opt.blockRiverCross,
+  });
+}
+
+export function skipOverFive(s0: GameState): GameState {
+  const s = cloneState(s0);
+  if (!s.pending.awaitOverFive) return s0;
+  s.pending = { ...s.pending, awaitOverFive: undefined };
+  return s;
+}
+
+export function skipKongcheng(s0: GameState): GameState {
+  const s = cloneState(s0);
+  if (!s.pending.awaitKongcheng) return s0;
+  s.pending = { ...s.pending, awaitKongcheng: undefined };
+  endTurn(s);
+  return s;
+}
+
+/** Reveal a dark piece to the 观星 owner only. Does not consume the skill or close the window. */
+export function peekDark(s0: GameState, pos: Pos): GameState {
+  const s = cloneState(s0);
+  const p = getPiece(s.board, pos);
+  if (!p || p.revealed) return s0;
+  const ids = s.peekedIds ?? [];
+  if (ids.includes(p.id)) return s0;
+  s.peekedIds = [...ids, p.id];
+  return s;
+}
+
+function finishIfOver(s: GameState, sideToMove: Side): void {
+  const { over, winner } = isGameOver(s.board, sideToMove, legalOptions(s, sideToMove));
+  if (over) {
+    s.winner = winner;
+    s.phase = 'result';
+    if (winner) {
+      pushLog(s, winner === 'red' ? '红方胜' : '黑方胜');
+    }
+  }
+}
+
+function applyXiahou(s: GameState, victimSide: Side, capturerPos: Pos): void {
+  const gens = sideGens(s, victimSide);
+  const xh = gens.find((g) => g.id === 'xiahoudun');
+  if (!xh) return;
+  if (xh.hidden) {
+    setSideGens(
+      s,
+      victimSide,
+      gens.map((g) => (g.id === 'xiahoudun' ? { ...g, hidden: false } : g)),
+    );
+    pushLog(s, `${victimSide === 'red' ? '红' : '黑'}方 夏侯惇 亮相！`);
+    s.skillBroadcast = { name: '夏侯惇', skill: '刚烈', faction: 'wei' };
+  }
+  if (Math.random() < 0.5) {
+    const cap = getPiece(s.board, capturerPos);
+    if (cap) {
+      s.board = cloneBoard(s.board);
+      s.board[capturerPos.r][capturerPos.c] = null;
+      s.captured[cap.side] = [...s.captured[cap.side], cap];
+      pushLog(s, `刚烈！${pieceLabel(cap)} 同归于尽`);
+      charge(s, cap.side, 'ownLoss', 1);
+      maybeTriggerYingshi(s, { capturedId: cap.id });
+    }
+  } else {
+    pushLog(s, '刚烈判定：未触发');
+  }
+}
+
+function afterBoardMutation(s: GameState, mover: Side, events: {
+  captured?: Piece | null;
+  movedPiece?: Piece | null;
+  from?: Pos;
+  to?: Pos;
+  pawnAdvance1?: boolean;
+  riverCrossNew?: boolean;
+  prevAdjacentEnemy?: number;
+}): void {
+  if (events.movedPiece) {
+    charge(s, mover, 'ownMove', 1);
+    const mp = events.movedPiece;
+    if ((mp.revealed && mp.type === 'N') || (!mp.revealed && mp.coverType === 'N')) {
+      charge(s, mover, 'knightMove', 1);
+    }
+  }
+  if (events.pawnAdvance1) {
+    charge(s, mover, 'pawnAdvance', 1);
+  }
+  if (events.captured) {
+    charge(s, mover, 'ownCapture', 1);
+    charge(s, events.captured.side, 'oppCaptureYou', 1);
+    charge(s, events.captured.side, 'ownLoss', 1);
+    applyCapturePassives(s, mover, events.captured, events.movedPiece);
+  }
+  if (events.riverCrossNew) {
+    charge(s, mover, 'riverCross', 1);
+    const next = (s.riverCrossCount?.[mover] ?? 0) + 1;
+    s.riverCrossCount = { ...s.riverCrossCount, [mover]: next };
+    if (
+      next > 0 &&
+      next % 5 === 0 &&
+      (sideHasSkill(sideGens(s, mover), 'ganning-chaiqiao') ||
+        sideHasSkill(sideGens(s, mover), 'ganning-fudu'))
+    ) {
+      mapSkill(s, mover, 'ganning-chaiqiao', (sk) => ({ ...sk, uses: 0 }));
+      pushLog(s, '复渡：过河拆桥已重置');
+    }
+  }
+  const nowAdj = countAdjacentPairs(s.board, mover);
+  const prev = events.prevAdjacentEnemy ?? 0;
+  if (nowAdj > prev) {
+    charge(s, opposite(mover), 'enemyAdjacent', 1);
+  }
+}
+
+function maybeRiverCross(s: GameState, piece: Piece, to: Pos): boolean {
+  if (!crossedRiver(to.r, piece.side)) return false;
+  if (s.crossedRiverIds.includes(piece.id)) return false;
+  s.crossedRiverIds = [...s.crossedRiverIds, piece.id];
+  return true;
+}
+
+function applyStartOfTurnPassives(s: GameState): void {
+  if (!inCheck(s.board, s.side)) return;
+  if (sideHasSkill(sideGens(s, s.side), 'zhaoyun-longdan')) {
+    addQi(s, s.side, 2);
+  }
+  if (sideHasSkill(sideGens(s, s.side), 'huatuo-shenyi')) {
+    addQi(s, s.side, 1);
+  }
+}
+
+
+function hasEnemyPieces(s: GameState, owner: Side): boolean {
+  return allPieces(s.board, opposite(owner)).length > 0;
+}
+
+function yingshiTargetScore(piece: Piece): number {
+  if (piece.type === 'K' && piece.revealed) return -50;
+  const typeRank = piece.type === 'R' ? 3 : piece.type === 'C' ? 2 : piece.type === 'N' ? 1 : 0;
+  return (!piece.revealed ? 20 : 0) + typeRank;
+}
+
+export function pickYingshiTarget(s: GameState, owner: Side): { pos: Pos; piece: Piece } | null {
+  const enemies = allPieces(s.board, opposite(owner));
+  if (enemies.length === 0) return null;
+  let best = enemies[0];
+  let bestV = yingshiTargetScore(best.piece);
+  for (let i = 1; i < enemies.length; i++) {
+    const v = yingshiTargetScore(enemies[i].piece);
+    if (v > bestV) {
+      best = enemies[i];
+      bestV = v;
+    }
+  }
+  return best;
+}
+
+function applyYingshiMark(s: GameState, owner: Side, piece: Piece): void {
+  const ids = s.peekedIds ?? [];
+  if (!ids.includes(piece.id)) s.peekedIds = [...ids, piece.id];
+  s.pending = {
+    ...s.pending,
+    yingshiMark: { owner, pieceId: piece.id },
+    awaitYingshi: undefined,
+  };
+}
+
+function applyBlackYingshi(s: GameState): void {
+  if (!sideHasSkill(sideGens(s, 'black'), 'simayi-yingshi')) return;
+  const t = pickYingshiTarget(s, 'black');
+  if (!t) return;
+  applyYingshiMark(s, 'black', t.piece);
+  s.skillBroadcast = { name: '司马懿', skill: '鹰视', faction: 'wei' };
+  pushLog(s, '鹰视，标记偷看一枚敌子');
+}
+
+function maybeOpenYingshiWindow(s: GameState, owner: Side): boolean {
+  if (!sideHasSkill(sideGens(s, owner), 'simayi-yingshi')) return false;
+  if (!hasEnemyPieces(s, owner)) return false;
+  s.pending = { ...s.pending, awaitYingshi: true };
+  if (owner === s.side && !s.skillBroadcast) {
+    s.skillBroadcast = { name: '司马懿', skill: '鹰视', faction: 'wei' };
+  }
+  return true;
+}
+
+function maybeOpenYingshiReload(s: GameState): void {
+  if (s.winner || s.phase !== 'playing') return;
+  const flag = s.pending.yingshiReload?.[s.side];
+  if (!flag) return;
+  const reload = { ...s.pending.yingshiReload, [s.side]: false };
+  s.pending = { ...s.pending, yingshiReload: reload };
+  maybeOpenYingshiWindow(s, s.side);
+}
+
+function maybeOpenOverFive(s: GameState): void {
+  if (s.winner || s.pending.awaitYingshi || s.pending.awaitGuanxing) return;
+  if (canReadyOverFive(s)) {
+    s.pending = { ...s.pending, awaitOverFive: true };
+    if (s.side === 'red' && !s.skillBroadcast) {
+      s.skillBroadcast = { name: '关羽', skill: '过五关', faction: 'shu' };
+    }
+  }
+}
+
+function maybeTriggerYingshi(s: GameState, opts: { flippedId?: string; capturedId?: string }): void {
+  const mark = s.pending.yingshiMark;
+  if (!mark) return;
+  const hit =
+    (opts.flippedId && opts.flippedId === mark.pieceId) ||
+    (opts.capturedId && opts.capturedId === mark.pieceId);
+  if (!hit) return;
+  const reload = { ...(s.pending.yingshiReload ?? {}), [mark.owner]: true };
+  s.pending = { ...s.pending, yingshiMark: undefined, yingshiReload: reload };
+}
+
+function endTurn(s: GameState): void {
+  if (s.pending.bridgeDown && s.pending.bridgeDown.owner !== s.side) {
+    const left = s.pending.bridgeDown.enemyTurnsLeft - 1;
+    s.pending =
+      left <= 0
+        ? { ...s.pending, bridgeDown: undefined }
+        : { ...s.pending, bridgeDown: { ...s.pending.bridgeDown, enemyTurnsLeft: left } };
+  }
+  if (s.pending.zhouYuFrozen && s.pending.zhouYuFrozen.untilSide === s.side) {
+    s.pending = { ...s.pending, zhouYuFrozen: undefined };
+  }
+  if (s.pending.danjing && s.pending.danjing.untilSide === s.side) {
+    s.pending = { ...s.pending, danjing: undefined };
+  }
+  if (s.pending.guicaiLock && s.pending.guicaiLock.untilSide === s.side) {
+    s.pending = { ...s.pending, guicaiLock: undefined };
+  }
+
+  s.qi = { ...s.qi, [s.side]: Math.min(QI_MAX, (s.qi[s.side] ?? 0) + 1) };
+  s.pending = { ...s.pending, zhangFeiMovesLeft: undefined, zhangFeiPieceId: undefined, awaitOverFive: undefined };
+  s.skillUsedThisTurn = false;
+  s.plyCount += 1;
+  charge(s, 'red', 'anyPly', 1);
+  charge(s, 'black', 'anyPly', 1);
+  s.side = opposite(s.side);
+  charge(s, s.side, 'ownTurn', 1);
+  if (s.pending.kongcheng && s.pending.kongcheng.untilSide === s.side) {
+    s.pending = { ...s.pending, kongcheng: undefined };
+  }
+  s.turnCount += 1;
+  applyStartOfTurnPassives(s);
+  finishIfOver(s, s.side);
+  maybeOpenYingshiReload(s);
+  maybeOpenOverFive(s);
+}
+
+export function createHomeState(): GameState {
+  return {
+    board: createInitialBoard(),
+    side: 'red',
+    redGenerals: [],
+    blackGenerals: [],
+    lastMove: null,
+    pending: {},
+    captured: { red: [], black: [] },
+    log: [],
+    winner: null,
+    phase: 'home',
+    skillBroadcast: null,
+    turnCount: 0,
+    skillUsedThisTurn: false,
+    crossedRiverIds: [],
+    plyCount: 0,
+    moveSerial: 0,
+    noReviveIds: [],
+    riverCrossCount: { red: 0, black: 0 },
+    peekedIds: [],
+    qi: { red: QI_START, black: QI_START },
+  };
+}
+
+function revealZhuge(s: GameState, owner: Side): void {
+  const gens = sideGens(s, owner);
+  if (!gens.some((g) => g.id === 'zhuge')) return;
+  setSideGens(
+    s,
+    owner,
+    gens.map((g) => (g.id === 'zhuge' ? { ...g, hidden: false } : g)),
+  );
+}
+
+function consumeGuanxingFor(s: GameState, owner: Side): void {
+  const gens = sideGens(s, owner);
+  setSideGens(
+    s,
+    owner,
+    gens.map((g) =>
+      g.id === 'zhuge'
+        ? {
+            ...g,
+            hidden: false,
+            skills: g.skills.map((sk) =>
+              sk.id === 'zhuge-guanxing'
+                ? { ...sk, uses: sk.uses + 1, recharge: { ...sk.recharge, progress: 0 } }
+                : sk,
+            ),
+          }
+        : g,
+    ),
+  );
+  s.skillBroadcast = { name: '诸葛亮', skill: '观星', faction: 'shu' };
+}
+
+function pickDarkIds(s: GameState, n: number): string[] {
+  const pool = allPieces(s.board).filter((x) => !x.piece.revealed);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, n).map((x) => x.piece.id);
+}
+
+function applyBlackGuanxing(s: GameState): void {
+  if (!sideHasSkill(sideGens(s, 'black'), 'zhuge-guanxing')) return;
+  const ids = pickDarkIds(s, 5);
+  s.peekedIds = ids;
+  consumeGuanxingFor(s, 'black');
+  pushLog(s, '观星，窥见五枚暗子');
+}
+
+export function startMatch(): GameState {
+  const s = createHomeState();
+  s.phase = 'playing';
+  s.side = 'red';
+  const dealt = dealGenerals();
+  s.redGenerals = dealt.red;
+  s.blackGenerals = dealt.black;
+  s.board = createJieqiBoard();
+  s.log = ['对局开始 · 红先'];
+  if (sideHasSkill(s.redGenerals, 'zhuge-guanxing')) {
+    revealZhuge(s, 'red');
+    s.pending = { ...s.pending, awaitGuanxing: true };
+    s.skillBroadcast = { name: '诸葛亮', skill: '观星', faction: 'shu' };
+  }
+  if (sideHasSkill(s.blackGenerals, 'zhuge-guanxing')) {
+    applyBlackGuanxing(s);
+  }
+  applyBlackYingshi(s);
+  if (!s.pending.awaitGuanxing && sideHasSkill(s.redGenerals, 'simayi-yingshi')) {
+    maybeOpenYingshiWindow(s, 'red');
+  }
+  if (!s.pending.awaitGuanxing && !s.pending.awaitYingshi) {
+    maybeOpenOverFive(s);
+  }
+  return s;
+}
+
+function consumeSkill(s: GameState, g: GeneralRuntime, skill: SkillRuntime): void {
+  const side = s.side;
+  if (skill.qiCost != null && skill.qiCost > 0) {
+    spendQi(s, side, skill.qiCost);
+  }
+  const gens = sideGens(s, side).map((x) =>
+    x.id === g.id
+      ? {
+          ...x,
+          hidden: false,
+          skills: x.skills.map((sk) =>
+            sk.id === skill.id
+              ? { ...sk, uses: sk.uses + 1, recharge: { ...sk.recharge, progress: 0 } }
+              : sk,
+          ),
+        }
+      : x,
+  );
+  setSideGens(s, side, gens);
+  if (skill.engineKind !== 'start' && skill.id !== 'guanyu-wuguan') {
+    s.skillUsedThisTurn = true;
+  }
+  s.skillBroadcast = { name: g.name, skill: skill.name, faction: g.faction };
+  pushLog(s, `${side === 'red' ? '红' : '黑'}方 ${g.name} 发动【${skill.name}】`);
+}
+
+export function canUseSkill(s: GameState, skillId: string): boolean {
+  if (s.phase !== 'playing' || s.winner) return false;
+  if (s.pending.awaitGuanxing) {
+    return skillId === 'zhuge-guanxing' && !!findOwnedSkill(sideGens(s, s.side), skillId);
+  }
+  if (s.pending.awaitYingshi) {
+    return skillId === 'simayi-yingshi' && !!findOwnedSkill(sideGens(s, s.side), skillId);
+  }
+  if (s.pending.awaitOverFive) {
+    if (skillId !== 'guanyu-wuguan') return false;
+    const owned = findOwnedSkill(sideGens(s, s.side), skillId);
+    return !!(owned && isSkillReady(owned.skill, s.qi[s.side] ?? 0));
+  }
+  if (s.pending.awaitKongcheng) {
+    if (skillId !== 'zhuge-kongcheng') return false;
+    const owned = findOwnedSkill(sideGens(s, s.side), skillId);
+    return !!(owned && isSkillReady(owned.skill, s.qi[s.side] ?? 0));
+  }
+  if (
+    skillId === 'guanyu-wuguan' ||
+    skillId === 'zhuge-guanxing' ||
+    skillId === 'zhuge-kongcheng' ||
+    skillId === 'simayi-yingshi'
+  ) {
+    return false;
+  }
+  if (s.skillUsedThisTurn) return false;
+  const owned = findOwnedSkill(sideGens(s, s.side), skillId);
+  if (!owned) return false;
+  return isSkillReady(owned.skill, s.qi[s.side] ?? 0);
+}
+
+function lvbuRange(s: GameState, side: Side): number {
+  return sideHasSkill(sideGens(s, side), 'lvbu-chitu') ? 3 : 2;
+}
+
+export function validSkillTargets(s: GameState, skillId: string): {
+  mode: 'none' | 'ownPiece' | 'ownPawn' | 'twoOwn' | 'emptyAfterOwn' | 'enemy' | 'lvbu' | 'diaochan' | 'captured' | 'crossed' | 'dark';
+  positions: Pos[];
+} {
+  const empty = { mode: 'none' as const, positions: [] as Pos[] };
+  if (!canUseSkill(s, skillId)) return empty;
+  const side = s.side;
+  if (skillId === 'caocao-guixin' || skillId === 'ganning-chaiqiao') {
+    return { mode: 'none', positions: [] };
+  }
+  if (skillId === 'zhangfei-paoxiao') {
+    return { mode: 'ownPiece', positions: allPieces(s.board, side).map((x) => x.pos) };
+  }
+  if (skillId === 'guanyu-wuguan') {
+    const positions = allPieces(s.board, side)
+      .filter((x) => x.piece.type === 'N' && x.piece.revealed)
+      .map((x) => x.pos);
+    return { mode: 'ownPiece', positions };
+  }
+  if (skillId === 'guanyu-wusheng') {
+    const positions = allPieces(s.board, side)
+      .filter((x) => x.piece.type !== 'K' && x.piece.revealed && !crossedRiver(x.pos.r, side))
+      .map((x) => x.pos);
+    return { mode: 'ownPiece', positions };
+  }
+  if (skillId === 'zhaoyun-longhun') {
+    return { mode: 'twoOwn', positions: allPieces(s.board, side).map((x) => x.pos) };
+  }
+  if (skillId === 'simayi-guicai') {
+    return { mode: 'enemy', positions: allPieces(s.board, opposite(side)).map((x) => x.pos) };
+  }
+  if (skillId === 'simayi-yingshi') {
+    return { mode: 'enemy', positions: allPieces(s.board, opposite(side)).map((x) => x.pos) };
+  }
+  if (skillId === 'huatuo-qingnang') {
+    return { mode: 'captured', positions: [] };
+  }
+  if (skillId === 'zhouyu-fanjian' || skillId === 'xiahoudun-danjing') {
+    return { mode: 'enemy', positions: allPieces(s.board, opposite(side)).map((x) => x.pos) };
+  }
+  if (skillId === 'sunshangxiang-lianyin') {
+    const positions = allPieces(s.board, side)
+      .filter((x) => crossedRiver(x.pos.r, side))
+      .map((x) => x.pos);
+    return { mode: 'crossed', positions };
+  }
+  if (skillId === 'zhuge-guanxing') {
+    const positions = allPieces(s.board)
+      .filter((x) => !x.piece.revealed)
+      .map((x) => x.pos);
+    return { mode: 'dark', positions };
+  }
+  if (skillId === 'zhuge-kongcheng') {
+    return { mode: 'ownPiece', positions: allPieces(s.board, side).map((x) => x.pos) };
+  }
+  if (skillId === 'lvbu-wushuang') {
+    const range = lvbuRange(s, side);
+    const mine = allPieces(s.board, side);
+    const enemies = allPieces(s.board, opposite(side));
+    const positions = enemies
+      .filter((e) => !isProtectedPiece(s, e.piece.id) && mine.some((m) => chebyshev(m.pos, e.pos) <= range))
+      .map((e) => e.pos);
+    return { mode: 'lvbu', positions };
+  }
+  if (skillId === 'diaochan-lijian') {
+    const enemies = allPieces(s.board, opposite(side));
+    const positions = enemies
+      .filter(
+        (e) =>
+          !isProtectedPiece(s, e.piece.id) &&
+          enemies.some((o) => !posEq(o.pos, e.pos) && isAdjacent(o.pos, e.pos)),
+      )
+      .map((e) => e.pos);
+    return { mode: 'diaochan', positions };
+  }
+  return empty;
+}
+
+export function simaYiLegalDests(s: GameState, from: Pos): Pos[] {
+  const p = getPiece(s.board, from);
+  if (!p || p.side !== s.side) return [];
+  return emptySquares(s.board, (r, c) => {
+    if (p.type === 'K') return inPalace(r, c, p.side);
+    return true;
+  });
+}
+
+function pieceCanSit(p: Piece, pos: Pos): boolean {
+  if (p.type === 'K') return inPalace(pos.r, pos.c, p.side);
+  return true;
+}
+
+export function useSkill(s0: GameState, skillId: string, payload: SkillPayload): GameState {
+  const s = cloneState(s0);
+  if (!canUseSkill(s, skillId)) return s0;
+  const owned = findOwnedSkill(sideGens(s, s.side), skillId);
+  if (!owned) return s0;
+  const { general: g, skill } = owned;
+  const side = s.side;
+  if (skill.qiCost != null && skill.qiCost > 0 && (s.qi[side] ?? 0) < skill.qiCost) return s0;
+
+  if (skillId === 'guanyu-wuguan') {
+    if (payload.kind !== 'fromTo') return s0;
+    if (!s.pending.awaitOverFive) return s0;
+    const p = getPiece(s.board, payload.from);
+    if (!p || p.side !== side || p.type !== 'N' || !p.revealed) return s0;
+    const dests = overFiveDests(s, payload.from);
+    if (!dests.some((d) => posEq(d, payload.to))) return s0;
+    consumeSkill(s, g, skill);
+    const prevAdj = countAdjacentPairs(s.board, p.side);
+    const { board: nb, captured } = applyMove(s.board, payload.from, payload.to);
+    s.board = nb;
+    if (captured) {
+      s.captured[captured.side] = [...s.captured[captured.side], captured];
+    }
+    const river = maybeRiverCross(s, p, payload.to);
+    s.lastMove = { from: { ...payload.from }, to: { ...payload.to }, piece: { ...p } };
+    s.moveSerial += 1;
+    pushLog(
+      s,
+      `过五关：${describeMove({
+        side,
+        from: payload.from,
+        to: payload.to,
+        piece: p,
+        flipped: !p.revealed,
+        captured,
+      })}`,
+    );
+    afterBoardMutation(s, side, {
+      captured,
+      movedPiece: p,
+      from: payload.from,
+      to: payload.to,
+      riverCrossNew: river,
+      prevAdjacentEnemy: prevAdj,
+    });
+    if (captured) applyXiahou(s, captured.side, payload.to);
+    maybeTriggerYingshi(s, {
+      flippedId: !p.revealed ? p.id : undefined,
+      capturedId: captured?.id,
+    });
+    maybeClearWushengGuard(s);
+    s.pending = { ...s.pending, awaitOverFive: undefined };
+    finishIfOver(s, s.side);
+    return s;
+  }
+
+  if (skillId === 'guanyu-wusheng') {
+    if (payload.kind !== 'pos') return s0;
+    const p = getPiece(s.board, payload.pos);
+    if (!p || p.side !== side || p.type === 'K' || !p.revealed) return s0;
+    if (crossedRiver(payload.pos.r, side)) return s0;
+    consumeSkill(s, g, skill);
+    s.pending = { ...s.pending, wushengGuard: { pieceId: p.id, owner: side } };
+    pushLog(s, `武圣：${pieceLabel(p)} 在己方半场受护`);
+    return s;
+  }
+
+  if (skillId === 'zhangfei-paoxiao') {
+    if (payload.kind !== 'pos') return s0;
+    const p = getPiece(s.board, payload.pos);
+    if (!p || p.side !== side) return s0;
+    consumeSkill(s, g, skill);
+    s.pending = { ...s.pending, zhangFeiMovesLeft: 2, zhangFeiPieceId: p.id };
+    return s;
+  }
+
+  if (skillId === 'zhaoyun-longhun') {
+    if (payload.kind !== 'twoPos') return s0;
+    const a = getPiece(s.board, payload.a);
+    const b = getPiece(s.board, payload.b);
+    if (!a || !b || a.side !== side || b.side !== side) return s0;
+    if (posEq(payload.a, payload.b)) return s0;
+    if (!pieceCanSit(a, payload.b) || !pieceCanSit(b, payload.a)) return s0;
+    consumeSkill(s, g, skill);
+    const nb = cloneBoard(s.board);
+    nb[payload.a.r][payload.a.c] = b;
+    nb[payload.b.r][payload.b.c] = a;
+    if (inCheck(nb, side)) return s0;
+    s.board = nb;
+    pushLog(s, `龙魂：${pieceLabel(a)} 与 ${pieceLabel(b)} 换位`);
+    maybeClearWushengGuard(s);
+    finishIfOver(s, s.side);
+    return s;
+  }
+
+  if (skillId === 'caocao-guixin') {
+    consumeSkill(s, g, skill);
+    const lm = s.lastMove;
+    if (!lm) {
+      pushLog(s, '天下归心：没有可撤回的一手，落空');
+      return s;
+    }
+    const occ = getPiece(s.board, lm.from);
+    const cur = getPiece(s.board, lm.to);
+    if (occ || !cur || cur.id !== lm.piece.id) {
+      pushLog(s, '天下归心：原位被占或棋子已不在，落空');
+      return s;
+    }
+    const prevAdj = countAdjacentPairs(s.board, cur.side);
+    const nb = cloneBoard(s.board);
+    const bounced = !lm.piece.revealed ? { ...cur, revealed: false } : cur;
+    nb[lm.from.r][lm.from.c] = bounced;
+    nb[lm.to.r][lm.to.c] = null;
+    s.board = nb;
+    s.lastMove = null;
+    pushLog(s, `天下归心：${pieceLabel(bounced)} 退回 ${squareName(lm.from)}`);
+    maybeRiverCross(s, cur, lm.from);
+    const nowAdj = countAdjacentPairs(s.board, cur.side);
+    if (nowAdj > prevAdj) charge(s, opposite(cur.side), 'enemyAdjacent', 1);
+    maybeClearWushengGuard(s);
+    finishIfOver(s, s.side);
+    return s;
+  }
+
+  if (skillId === 'simayi-guicai') {
+    if (payload.kind !== 'pos') return s0;
+    const p = getPiece(s.board, payload.pos);
+    if (!p || p.side === side) return s0;
+    consumeSkill(s, g, skill);
+    s.pending = { ...s.pending, guicaiLock: { pieceId: p.id, untilSide: opposite(side) } };
+    pushLog(s, `鬼才：对方下回合只能走${pieceLabel(p)}`);
+    return s;
+  }
+
+  if (skillId === 'simayi-yingshi') {
+    if (payload.kind !== 'pos') return s0;
+    if (!s.pending.awaitYingshi) return s0;
+    const p = getPiece(s.board, payload.pos);
+    if (!p || p.side === side) return s0;
+    applyYingshiMark(s, side, p);
+    setSideGens(
+      s,
+      side,
+      sideGens(s, side).map((x) => (x.id === g.id ? { ...x, hidden: false } : x)),
+    );
+    s.skillBroadcast = { name: g.name, skill: skill.name, faction: g.faction };
+    pushLog(s, `鹰视：标记偷看一枚敌子`);
+    maybeOpenOverFive(s);
+    return s;
+  }
+
+  if (skillId === 'huatuo-qingnang') {
+    if (payload.kind !== 'capturedId') return s0;
+    if (s.noReviveIds.includes(payload.id)) return s0;
+    const pool = s.captured[side];
+    const idx = pool.findIndex((p) => p.id === payload.id);
+    if (idx < 0) return s0;
+    const back = side === 'red' ? 9 : 0;
+    const spots = emptySquares(s.board, (r) => r === back);
+    consumeSkill(s, g, skill);
+    if (spots.length === 0) {
+      pushLog(s, '青囊：底线无空位，落空');
+      return s;
+    }
+    const dest = pickRandom(spots)!;
+    const piece = { ...pool[idx], revealed: true };
+    const nb = cloneBoard(s.board);
+    nb[dest.r][dest.c] = piece;
+    s.board = nb;
+    s.captured = {
+      ...s.captured,
+      [side]: pool.filter((_, i) => i !== idx),
+    };
+    pushLog(s, `青囊：${pieceLabel(piece)} 重生于 ${squareName(dest)}`);
+    finishIfOver(s, s.side);
+    return s;
+  }
+
+  if (skillId === 'zhouyu-fanjian') {
+    if (payload.kind !== 'pos') return s0;
+    const p = getPiece(s.board, payload.pos);
+    if (!p || p.side === side) return s0;
+    consumeSkill(s, g, skill);
+    s.pending = {
+      ...s.pending,
+      zhouYuFrozen: { r: payload.pos.r, c: payload.pos.c, untilSide: opposite(side) },
+    };
+    pushLog(s, `反间：${pieceLabel(p)} 下一回合无法移动`);
+    return s;
+  }
+
+  if (skillId === 'sunshangxiang-lianyin') {
+    if (payload.kind !== 'pos') return s0;
+    const p = getPiece(s.board, payload.pos);
+    if (!p || p.side !== side || !crossedRiver(payload.pos.r, side)) return s0;
+    consumeSkill(s, g, skill);
+    const spots = emptySquares(s.board, (r) => onOwnHalf(r, side));
+    if (spots.length === 0) {
+      pushLog(s, '联姻：己方半场无空位，落空');
+      return s;
+    }
+    const dest = pickRandom(spots)!;
+    const prevAdj = countAdjacentPairs(s.board, p.side);
+    const nb = cloneBoard(s.board);
+    nb[dest.r][dest.c] = p;
+    nb[payload.pos.r][payload.pos.c] = null;
+    s.board = nb;
+    pushLog(s, `联姻：${pieceLabel(p)} 回撤至 ${squareName(dest)}`);
+    afterBoardMutation(s, side, {
+      movedPiece: p,
+      from: payload.pos,
+      to: dest,
+      prevAdjacentEnemy: prevAdj,
+    });
+    maybeClearWushengGuard(s);
+    finishIfOver(s, s.side);
+    return s;
+  }
+
+  if (skillId === 'ganning-chaiqiao') {
+    consumeSkill(s, g, skill);
+    s.pending = { ...s.pending, bridgeDown: { owner: side, enemyTurnsLeft: 2 } };
+    return s;
+  }
+
+  if (skillId === 'lvbu-wushuang') {
+    if (payload.kind !== 'pos') return s0;
+    const t = validSkillTargets(s, 'lvbu-wushuang');
+    if (!t.positions.some((p) => posEq(p, payload.pos))) return s0;
+    const victim = getPiece(s.board, payload.pos);
+    if (!victim) return s0;
+    if (isProtectedPiece(s, victim.id)) return s0;
+    consumeSkill(s, g, skill);
+    const nb = cloneBoard(s.board);
+    nb[payload.pos.r][payload.pos.c] = null;
+    s.board = nb;
+    s.captured[victim.side] = [...s.captured[victim.side], victim];
+    pushLog(s, `无双：斩 ${pieceLabel(victim)} 于 ${squareName(payload.pos)}`);
+    charge(s, side, 'ownCapture', 1);
+    charge(s, victim.side, 'oppCaptureYou', 1);
+    charge(s, victim.side, 'ownLoss', 1);
+    applyCapturePassives(s, side, victim, null);
+    applyXiahou(s, victim.side, payload.pos);
+    maybeTriggerYingshi(s, { capturedId: victim.id });
+    finishIfOver(s, s.side);
+    return s;
+  }
+
+  if (skillId === 'diaochan-lijian') {
+    if (payload.kind !== 'twoPos') return s0;
+    const atk = getPiece(s.board, payload.a);
+    const vic = getPiece(s.board, payload.b);
+    if (!atk || !vic || atk.side === side || vic.side === side) return s0;
+    if (!isAdjacent(payload.a, payload.b)) return s0;
+    if (isProtectedPiece(s, vic.id)) return s0;
+    consumeSkill(s, g, skill);
+    const nb = cloneBoard(s.board);
+    nb[payload.b.r][payload.b.c] = atk;
+    nb[payload.a.r][payload.a.c] = null;
+    s.board = nb;
+    s.captured[vic.side] = [...s.captured[vic.side], vic];
+    if (sideHasSkill(sideGens(s, side), 'diaochan-biyue')) {
+      s.noReviveIds = [...s.noReviveIds, vic.id];
+    }
+    pushLog(s, `离间：${pieceLabel(atk)} 吃掉 ${pieceLabel(vic)}`);
+    charge(s, vic.side, 'ownLoss', 1);
+    charge(s, vic.side, 'oppCaptureYou', 1);
+    if (
+      vic.revealed &&
+      (vic.type === 'R' || vic.type === 'C') &&
+      sideHasSkill(sideGens(s, vic.side), 'caocao-jianxiong')
+    ) {
+      addQi(s, vic.side, 3);
+    }
+    if (
+      s.crossedRiverIds.includes(vic.id) &&
+      sideHasSkill(sideGens(s, vic.side), 'sunshangxiang-xiaoji')
+    ) {
+      addQi(s, vic.side, 2);
+    }
+    maybeTriggerYingshi(s, { capturedId: vic.id });
+    finishIfOver(s, s.side);
+    return s;
+  }
+
+  if (skillId === 'zhuge-guanxing') {
+    if (payload.kind !== 'posList') return s0;
+    if (!s.pending.awaitGuanxing) return s0;
+    if (payload.positions.length !== 5) return s0;
+    const ids: string[] = [];
+    for (const pos of payload.positions) {
+      const p = getPiece(s.board, pos);
+      if (!p || p.revealed) return s0;
+      if (ids.includes(p.id)) return s0;
+      ids.push(p.id);
+    }
+    consumeSkill(s, g, skill);
+    s.peekedIds = ids;
+    s.pending = { ...s.pending, awaitGuanxing: undefined };
+    pushLog(s, '观星，窥见五枚暗子');
+    if (sideHasSkill(sideGens(s, side), 'simayi-yingshi')) {
+      maybeOpenYingshiWindow(s, side);
+    }
+    maybeOpenOverFive(s);
+    return s;
+  }
+
+  if (skillId === 'zhuge-kongcheng') {
+    if (payload.kind !== 'pos') return s0;
+    if (!s.pending.awaitKongcheng) return s0;
+    const p = getPiece(s.board, payload.pos);
+    if (!p || p.side !== side) return s0;
+    consumeSkill(s, g, skill);
+    s.pending = {
+      ...s.pending,
+      kongcheng: { pieceId: p.id, untilSide: side },
+      awaitKongcheng: undefined,
+    };
+    pushLog(s, `空城：${pieceLabel(p)} 受到庇护，直至己方下回合`);
+    endTurn(s);
+    return s;
+  }
+
+  if (skillId === 'xiahoudun-danjing') {
+    if (payload.kind !== 'pos') return s0;
+    const p = getPiece(s.board, payload.pos);
+    if (!p || p.side === side) return s0;
+    consumeSkill(s, g, skill);
+    s.pending = { ...s.pending, danjing: { pieceId: p.id, untilSide: opposite(side) } };
+    pushLog(s, `啖睛：${pieceLabel(p)} 下一回合无法吃子`);
+    return s;
+  }
+
+  return s0;
+}
+
+function maybeAwaitKongcheng(s: GameState): boolean {
+  if (s.winner || s.phase !== 'playing') return false;
+  const owned = findOwnedSkill(sideGens(s, s.side), 'zhuge-kongcheng');
+  if (!owned || !isSkillReady(owned.skill, s.qi[s.side] ?? 0)) return false;
+  s.pending = { ...s.pending, awaitKongcheng: true, zhangFeiMovesLeft: undefined, zhangFeiPieceId: undefined };
+  s.skillBroadcast = { name: '诸葛亮', skill: '空城', faction: 'shu' };
+  return true;
+}
+
+export function makeMove(s0: GameState, from: Pos, to: Pos): GameState {
+  const s = cloneState(s0);
+  if (s.phase !== 'playing' || s.winner) return s0;
+  if (pendingBlocksPlay(s)) return s0;
+  const dests = listLegalFrom(s, from);
+  if (!dests.some((d) => posEq(d, to))) return s0;
+  const piece = getPiece(s.board, from)!;
+  const prevAdjMover = countAdjacentPairs(s.board, piece.side);
+  const { board: nb, captured } = applyMove(s.board, from, to);
+  s.board = nb;
+  if (captured) {
+    s.captured[captured.side] = [...s.captured[captured.side], captured];
+  }
+  const fwd = piece.side === 'red' ? -1 : 1;
+  const pawnAdvance1 = piece.type === 'P' && to.r - from.r === fwd && to.c === from.c;
+  const river = maybeRiverCross(s, piece, to);
+  s.lastMove = { from: { ...from }, to: { ...to }, piece: { ...piece } };
+  s.moveSerial += 1;
+  pushLog(
+    s,
+    describeMove({
+      side: piece.side,
+      from,
+      to,
+      piece,
+      flipped: !piece.revealed,
+      captured,
+    }),
+  );
+
+  afterBoardMutation(s, s.side, {
+    captured,
+    movedPiece: piece,
+    from,
+    to,
+    pawnAdvance1,
+    riverCrossNew: river,
+    prevAdjacentEnemy: prevAdjMover,
+  });
+
+  if (captured) {
+    applyXiahou(s, captured.side, to);
+  }
+
+  maybeTriggerYingshi(s, {
+    flippedId: !piece.revealed ? piece.id : undefined,
+    capturedId: captured?.id,
+  });
+
+  maybeClearWushengGuard(s);
+  if (s.pending.zhouYuFrozen && posEq(s.pending.zhouYuFrozen, from)) {
+    s.pending = { ...s.pending, zhouYuFrozen: { ...s.pending.zhouYuFrozen, r: to.r, c: to.c } };
+  }
+  if (s.pending.zhouYuFrozen && captured && posEq({ r: s.pending.zhouYuFrozen.r, c: s.pending.zhouYuFrozen.c }, to)) {
+    s.pending = { ...s.pending, zhouYuFrozen: undefined };
+  }
+
+  const zf = s.pending.zhangFeiMovesLeft;
+  if (zf && zf > 1) {
+    s.pending = { ...s.pending, zhangFeiMovesLeft: zf - 1 };
+    finishIfOver(s, s.side);
+    if (s.winner) return s;
+    return s;
+  }
+
+  const opp = opposite(s.side);
+  const oppOver = isGameOver(s.board, opp, legalOptions(s, opp));
+  const kingsGone = !findKing(s.board, 'red') || !findKing(s.board, 'black');
+  if (kingsGone || oppOver.over) {
+    endTurn(s);
+    return s;
+  }
+  if (maybeAwaitKongcheng(s)) return s;
+  endTurn(s);
+  return s;
+}
+
+export function announceOwnedSkill(s0: GameState, skillId: string): GameState {
+  const s = cloneState(s0);
+  const owned = findOwnedSkill(sideGens(s, s.side), skillId);
+  if (!owned) return s0;
+  s.skillBroadcast = {
+    name: owned.general.name,
+    skill: owned.skill.name,
+    faction: owned.general.faction,
+  };
+  return s;
+}
+
+export function clearBroadcast(s0: GameState): GameState {
+  if (!s0.skillBroadcast) return s0;
+  return { ...s0, skillBroadcast: null };
+}
+
+export function sideInCheck(s: GameState): boolean {
+  return inCheck(s.board, s.side);
+}
+
+export function capturedOf(s: GameState, side: Side): Piece[] {
+  return s.captured[side];
+}
+
+export { fillSkill, bumpSkill, lvbuRange };

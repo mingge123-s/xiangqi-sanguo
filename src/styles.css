@@ -1,0 +1,213 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #1a1510;
+  --color-ink-soft: #2a2218;
+  --color-paper: #e8dcc4;
+  --color-paper-dim: #cbb892;
+  --color-aged: #8a7349;
+  --color-line: #3d3224;
+  --color-red-piece: #9b1c1c;
+  --color-black-piece: #1a1410;
+  --color-shu: #2f6b4f;
+  --color-wei: #2c4a7c;
+  --color-wu: #8b2e2e;
+  --color-qun: #6b4c8a;
+  --font-serif: "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", "Source Han Serif SC", serif;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  height: 100%;
+  background: #0e0b08;
+  color: #e8dcc4;
+  font-family: var(--font-serif);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  overflow: hidden;
+}
+
+body {
+  background-color: #1a1510;
+  background-image:
+    repeating-radial-gradient(circle at 18% 22%, rgba(196, 172, 128, 0.07) 0 1px, transparent 1px 13px),
+    repeating-radial-gradient(circle at 82% 78%, rgba(140, 118, 86, 0.06) 0 1px, transparent 1px 17px),
+    repeating-linear-gradient(0deg, rgba(255, 236, 200, 0.015) 0 1px, transparent 1px 7px),
+    linear-gradient(180deg, #2c2418 0%, #1a1510 48%, #120e0a 100%);
+  background-blend-mode: multiply, multiply, soft-light, normal;
+}
+
+.phone-frame {
+  width: min(430px, 100vw);
+  height: 100dvh;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 80px rgba(0, 0, 0, 0.55);
+}
+
+.play-screen {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.play-generals {
+  flex: 0 0 auto;
+  padding-top: 4px;
+}
+
+.play-status {
+  flex: 0 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  color: #cbb892;
+}
+
+.play-board {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  position: relative;
+}
+
+.play-board-row {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+}
+
+.captured-rail {
+  flex: 0 0 30px;
+  width: 30px;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  align-content: center;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 0;
+  overflow: hidden;
+}
+
+.captured-rail-top {
+  justify-content: flex-start;
+}
+
+.captured-rail-bottom {
+  justify-content: flex-end;
+}
+
+.skill-center-prompt,
+.kongcheng-prompt {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.skill-center-mask {
+  position: relative;
+  padding: 18px 32px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.skill-center-mask::before {
+  content: "";
+  position: absolute;
+  inset: -40px -56px;
+  background: url("/ink-wash.svg") center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+.skill-center-mask::after {
+  content: none;
+}
+
+.skill-center-text {
+  position: relative;
+  font-size: 15px;
+  letter-spacing: 0.2em;
+  color: #2c2418;
+  text-shadow:
+    0 0 10px rgba(232, 220, 196, 0.55),
+    0 1px 0 rgba(255, 244, 220, 0.35);
+}
+
+.play-log {
+  flex: 0 0 16px;
+  overflow: hidden;
+  text-align: center;
+  font-size: 10px;
+  line-height: 16px;
+  color: rgba(203, 184, 146, 0.8);
+  padding: 0 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.play-generals-me {
+  flex: 0 0 auto;
+  padding-bottom: 6px;
+}
+
+.seal {
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 240, 210, 0.18), transparent 55%),
+    radial-gradient(circle at 70% 80%, rgba(0, 0, 0, 0.25), transparent 60%);
+}
+
+.wood-token {
+  background:
+    radial-gradient(circle at 35% 30%, #f3e2c0 0%, #d4b37a 42%, #b08950 78%, #7a5a32 100%);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 240, 210, 0.4),
+    inset 0 -2px 3px rgba(60, 30, 10, 0.28),
+    0 1px 3px rgba(0, 0, 0, 0.28);
+}
+
+
+.hidden-seal {
+  background:
+    radial-gradient(circle at 40% 30%, rgba(80, 70, 55, 0.5), #1a1510 70%);
+}
+
+.ink-splash {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(232, 220, 196, 0.16) 0 12%, transparent 42%),
+    radial-gradient(circle at 38% 50%, rgba(20, 14, 8, 0.72) 0 18%, transparent 48%),
+    radial-gradient(circle at 62% 48%, rgba(20, 14, 8, 0.68) 0 16%, transparent 46%),
+    radial-gradient(circle at 50% 50%, rgba(12, 9, 6, 0.82) 0 28%, transparent 62%);
+}
+
+.board-wood {
+  border-radius: 3px;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.28));
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
