@@ -32,14 +32,10 @@ body,
 
 body {
   background-color: #f4ead6;
-  background-image:
-    var(--ink-wash-url),
-    radial-gradient(ellipse at 20% 15%, rgba(216, 199, 164, 0.45) 0%, transparent 52%),
-    radial-gradient(ellipse at 85% 80%, rgba(106, 90, 68, 0.08) 0%, transparent 48%),
-    linear-gradient(180deg, #f7f0de 0%, #f4ead6 42%, #efe4cc 100%);
-  background-size: cover, auto, auto, auto;
-  background-position: center, center, center, center;
-  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
+  background-image: var(--rice-paper-bg-url);
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
 }
 
 .phone-frame {
@@ -48,9 +44,11 @@ body {
   margin: 0 auto;
   position: relative;
   overflow: hidden;
-  background:
-    var(--ink-wash-url) center / cover no-repeat,
-    linear-gradient(180deg, rgba(247, 240, 222, 0.55) 0%, rgba(244, 234, 214, 0.72) 50%, rgba(239, 228, 204, 0.8) 100%);
+  background-color: #f4ead6;
+  background-image: var(--rice-paper-bg-url);
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
   box-shadow: 0 0 48px rgba(61, 50, 36, 0.12);
 }
 

@@ -4,6 +4,10 @@ import App from './App';
 import './styles.css';
 
 document.documentElement.style.setProperty(
+  '--rice-paper-bg-url',
+  `url("${import.meta.env.BASE_URL}rice-paper-bg.png")`,
+);
+document.documentElement.style.setProperty(
   '--ink-wash-url',
   `url("${import.meta.env.BASE_URL}ink-wash.svg")`,
 );
