@@ -365,9 +365,10 @@ export default function App() {
               )}
               {!thinking && checked && (
                 <motion.span
-                  initial={{ opacity: 0, y: -6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-red-piece"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="play-status-check text-red-piece"
                 >
                   将军!
                 </motion.span>
@@ -488,11 +489,11 @@ export default function App() {
             )}
             {kongchengReady && turnSplash !== 'red' && (
               <div className="skill-slot-prompt">
-                <div className="skill-center-mask">
+                <div className="skill-center-mask skill-center-mask-inline">
                   <span className="skill-center-text">空城 · 点己方一子护到下回合</span>
                   <button
                     type="button"
-                    className="pointer-events-auto relative rounded border border-aged/50 px-2 py-0.5 text-[11px] tracking-widest text-aged"
+                    className="pointer-events-auto relative rounded border border-aged/50 px-2 py-0.5 text-[12px] tracking-widest text-aged"
                     onClick={() => {
                       setState((s) => skipKongcheng(s));
                       setTargeting(null);

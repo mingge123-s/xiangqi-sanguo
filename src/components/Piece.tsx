@@ -65,14 +65,16 @@ export function PieceView({
               : undefined,
         }}
       >
-        <span
-          aria-hidden
-          className="pointer-events-none absolute rounded-full"
-          style={{
-            inset: innerInset,
-            border: `${innerW}px solid ${ink}`,
-          }}
-        />
+        {!dark && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute rounded-full"
+            style={{
+              inset: innerInset,
+              border: `${innerW}px solid ${ink}`,
+            }}
+          />
+        )}
         <span
           aria-hidden
           className="pointer-events-none absolute inset-[18%] rounded-full"

@@ -36,7 +36,7 @@ export function TurnBroadcast({
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 1.02, opacity: 0 }}
               className="skill-center-text"
-              style={{ color: accent, fontSize: 16, letterSpacing: '0.28em', fontWeight: 700 }}
+              style={{ color: accent, fontSize: 18, letterSpacing: '0.28em', fontWeight: 700 }}
             >
               {label}
             </motion.div>
