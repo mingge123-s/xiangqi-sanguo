@@ -1,5 +1,6 @@
 import { FACTION_COLOR } from '../game/types';
 import type { GeneralRuntime } from '../game/types';
+import { skillTypeLabel } from '../game/generals';
 
 function portraitSrc(id: string): string {
   return `${import.meta.env.BASE_URL}generals/${id}.png`;
@@ -10,11 +11,13 @@ export function GeneralDetail({
   onClose,
   onCast,
   canCast,
+  liveState,
 }: {
   general: GeneralRuntime;
   onClose: () => void;
   onCast?: (skillId: string) => void;
   canCast?: (skillId: string) => boolean;
+  liveState?: (skillId: string) => string | null;
 }) {
   const color = FACTION_COLOR[general.faction];
   return (
@@ -45,43 +48,48 @@ export function GeneralDetail({
           </div>
         </div>
         <div className="mt-3 space-y-2.5">
-          {general.skills.map((sk) => (
-            <div key={sk.id}>
-              <div className="flex items-baseline gap-2">
-                <span
-                  className="text-[10px] tracking-widest"
-                  style={{
-                    color:
-                      sk.engineKind === 'limited'
-                        ? '#d4b37a'
-                        : sk.kind === 'active'
-                          ? '#e8dcc4'
-                          : '#8a7349',
-                  }}
-                >
-                  {sk.engineKind === 'limited'
-                    ? '限定技'
-                    : sk.kind === 'active'
-                      ? '主动技'
-                      : '锁定技'}
-                </span>
-                <span className="text-[15px] text-paper">{sk.name}</span>
+          {general.skills.map((sk) => {
+            const tag = skillTypeLabel(sk);
+            const live = liveState?.(sk.id) ?? null;
+            return (
+              <div key={sk.id}>
+                <div className="flex items-baseline gap-2">
+                  {tag && (
+                    <span
+                      className="text-[10px] tracking-widest"
+                      style={{
+                        color:
+                          tag === '限定技'
+                            ? '#d4b37a'
+                            : tag === '主动技' || tag === '回合技'
+                              ? '#e8dcc4'
+                              : '#8a7349',
+                      }}
+                    >
+                      {tag}
+                    </span>
+                  )}
+                  <span className="text-[15px] text-paper">{sk.name}</span>
+                </div>
+                {sk.qiCost != null && sk.qiCost > 0 && (
+                  <div className="text-[10px] tracking-widest text-paper-dim">消耗 {sk.qiCost} 战气</div>
+                )}
+                <p className="mt-0.5 text-[12px] leading-5 text-paper-dim">{sk.desc}</p>
+                {live && (
+                  <p className="mt-1 text-[11px] leading-4 tracking-wider text-[#c4b08a]">{live}</p>
+                )}
+                {canCast?.(sk.id) && (
+                  <button
+                    type="button"
+                    onClick={() => onCast?.(sk.id)}
+                    className="mt-1 border border-aged/45 px-2.5 py-0.5 text-[12px] tracking-[0.35em] text-paper"
+                  >
+                    发动
+                  </button>
+                )}
               </div>
-              {sk.qiCost != null && sk.qiCost > 0 && (
-                <div className="text-[10px] tracking-widest text-paper-dim">消耗 {sk.qiCost} 战气</div>
-              )}
-              <p className="mt-0.5 text-[12px] leading-5 text-paper-dim">{sk.desc}</p>
-              {canCast?.(sk.id) && (
-                <button
-                  type="button"
-                  onClick={() => onCast?.(sk.id)}
-                  className="mt-1 border border-aged/45 px-2.5 py-0.5 text-[12px] tracking-[0.35em] text-paper"
-                >
-                  发动
-                </button>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
         <button
           type="button"

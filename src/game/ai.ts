@@ -21,6 +21,7 @@ import {
   listLegalMoves,
   makeMove,
   overFiveDests,
+  peekedOf,
   pickYingshiTarget,
   skipKongcheng,
   skipOverFive,
@@ -85,14 +86,16 @@ function searchEval(
 function moveDesire(s: GameState, m: Move): number {
   const target = s.board[m.to.r][m.to.c];
   const mover = s.board[m.from.r][m.from.c];
+  const peeks = peekedOf(s, s.side);
   let v = 0;
-  if (target) v += pieceValueAt(target, m.to.r, s.peekedIds) + 12;
+  if (target) v += pieceValueAt(target, m.to.r, peeks) + 12;
   if (mover && !mover.revealed) v += 8;
   return v;
 }
 
 function searchBestMove(s: GameState, depth: number, deadline: number): { move: Move; score: number } | null {
   const side = s.side;
+  const peeks = peekedOf(s, side);
   const moves = listLegalMoves(s, side);
   if (moves.length === 0) return null;
 
@@ -106,7 +109,7 @@ function searchBestMove(s: GameState, depth: number, deadline: number): { move: 
   for (const m of moves) {
     if (Date.now() > deadline) break;
     const { board: nb } = applyMove(s.board, m.from, m.to);
-    const score = searchEval(nb, opposite(side), depth - 1, alpha, beta, side, deadline, undefined, s.peekedIds);
+    const score = searchEval(nb, opposite(side), depth - 1, alpha, beta, side, deadline, undefined, peeks);
     if (score > bestScore) {
       bestScore = score;
       best = m;

@@ -1,11 +1,13 @@
+import { useRef } from 'react';
 import { FACTION_COLOR, QI_MAX } from '../game/types';
 import type { GeneralRuntime, Piece, SkillRuntime } from '../game/types';
 import { CHAR } from '../game/types';
-import { isSkillReady } from '../game/generals';
 
 function portraitSrc(id: string): string {
   return `${import.meta.env.BASE_URL}generals/${id}.png`;
 }
+
+const LONG_PRESS_MS = 400;
 
 function QiMeter({ value, compact }: { value: number; compact?: boolean }) {
   const n = Math.min(QI_MAX, Math.max(0, value));
@@ -30,19 +32,21 @@ function QiMeter({ value, compact }: { value: number; compact?: boolean }) {
 
 function SkillName({
   skill,
-  mine,
+  ready,
   selected,
-  qi,
-  onClick,
+  onCast,
+  onInspect,
 }: {
   skill: SkillRuntime;
-  mine: boolean;
+  ready: boolean;
   selected: boolean;
-  qi: number;
-  onClick?: () => void;
+  onCast?: () => void;
+  onInspect?: () => void;
 }) {
-  const ready = mine && isSkillReady(skill, qi);
-  const passive = skill.kind === 'passive';
+  const passive = skill.kind === 'passive' || skill.engineKind === 'start' || skill.engineKind === 'passive';
+  const timer = useRef<number | null>(null);
+  const longPressed = useRef(false);
+
   let color = 'text-paper/45';
   let border = 'border-aged/70 bg-ink-soft/50';
   if (passive) {
@@ -56,14 +60,52 @@ function SkillName({
     border = 'border-aged/70 bg-ink-soft/50';
   }
   if (selected) border = 'border-paper bg-paper/20';
+
+  const clearTimer = () => {
+    if (timer.current != null) {
+      window.clearTimeout(timer.current);
+      timer.current = null;
+    }
+  };
+
+  const startPress = () => {
+    longPressed.current = false;
+    clearTimer();
+    timer.current = window.setTimeout(() => {
+      longPressed.current = true;
+      onInspect?.();
+    }, LONG_PRESS_MS);
+  };
+
+  const endPress = (fireClick: boolean) => {
+    clearTimer();
+    if (fireClick && !longPressed.current) {
+      if (ready && onCast) onCast();
+    }
+  };
+
   return (
     <button
       type="button"
-      onClick={onClick}
-      className={`block w-full truncate rounded-sm border-2 px-1 py-0.5 text-center text-[11px] leading-[13px] ${color} ${border}`}
+      className={`block w-full truncate rounded-sm border-2 px-1 py-0.5 text-center text-[11px] leading-[13px] select-none ${color} ${border} ${
+        ready ? 'cursor-pointer' : 'cursor-default'
+      }`}
+      style={{ touchAction: 'manipulation' }}
+      onPointerDown={(e) => {
+        if (e.button !== 0) return;
+        startPress();
+      }}
+      onPointerUp={() => endPress(true)}
+      onPointerLeave={() => endPress(false)}
+      onPointerCancel={() => endPress(false)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        clearTimer();
+        longPressed.current = true;
+        onInspect?.();
+      }}
     >
       {skill.name}
-      {skill.qiCost != null && skill.qiCost > 0 ? ` ${skill.qiCost}` : ''}
     </button>
   );
 }
@@ -106,7 +148,9 @@ export function GeneralPanel({
   mine,
   selectedSkillId,
   onPortrait,
-  onSkill,
+  onCastSkill,
+  onInspectSkill,
+  canCastSkill,
   captured,
   showCaptured,
   onPickCaptured,
@@ -117,7 +161,9 @@ export function GeneralPanel({
   mine: boolean;
   selectedSkillId?: string | null;
   onPortrait?: (g: GeneralRuntime) => void;
-  onSkill?: (g: GeneralRuntime, skill: SkillRuntime) => void;
+  onCastSkill?: (g: GeneralRuntime, skill: SkillRuntime) => void;
+  onInspectSkill?: (g: GeneralRuntime, skill: SkillRuntime) => void;
+  canCastSkill?: (skillId: string) => boolean;
   captured?: Piece[];
   showCaptured?: boolean;
   onPickCaptured?: (id: string) => void;
@@ -140,16 +186,19 @@ export function GeneralPanel({
               />
               <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
                 {showFace ? (
-                  g.skills.map((sk) => (
-                    <SkillName
-                      key={sk.id}
-                      skill={sk}
-                      mine={mine}
-                      qi={qi}
-                      selected={selectedSkillId === sk.id}
-                      onClick={onSkill ? () => onSkill(g, sk) : undefined}
-                    />
-                  ))
+                  g.skills.map((sk) => {
+                    const ready = !!mine && !!canCastSkill?.(sk.id);
+                    return (
+                      <SkillName
+                        key={sk.id}
+                        skill={sk}
+                        ready={ready}
+                        selected={selectedSkillId === sk.id}
+                        onCast={onCastSkill ? () => onCastSkill(g, sk) : undefined}
+                        onInspect={onInspectSkill ? () => onInspectSkill(g, sk) : undefined}
+                      />
+                    );
+                  })
                 ) : (
                   <div className="text-[11px] leading-[14px] text-paper-dim">隐匿将星</div>
                 )}

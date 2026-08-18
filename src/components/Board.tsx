@@ -119,6 +119,7 @@ export function Board({
   showPeek,
   showCoverHint,
   yingshiMarkId,
+  lockedPieceId,
 }: {
   board: (Piece | null)[][];
   selected: Pos | Pos[] | null;
@@ -131,6 +132,7 @@ export function Board({
   showPeek?: boolean;
   showCoverHint?: boolean;
   yingshiMarkId?: string;
+  lockedPieceId?: string;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
@@ -218,6 +220,12 @@ export function Board({
                         style={{ width: pieceSize + 6, height: pieceSize + 6, zIndex: 1 }}
                       />
                     )}
+                    {piece && lockedPieceId === piece.id && (
+                      <div
+                        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-[2.5px] ring-[#6b8f71]/95"
+                        style={{ width: pieceSize + 10, height: pieceSize + 10, zIndex: 1 }}
+                      />
+                    )}
                     {isLegal && !piece && (
                       <div
                         className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#3d2a14]/70"
@@ -237,6 +245,7 @@ export function Board({
                         size={pieceSize}
                         peeked={!!(showPeek && peekedIds?.includes(piece.id))}
                         peekMark={yingshiMarkId === piece.id ? '鹰' : '观'}
+                        locked={lockedPieceId === piece.id}
                         coverHint={
                           showCoverHint && !piece.revealed && piece.side === 'black'
                             ? (piece.coverType as PieceType)

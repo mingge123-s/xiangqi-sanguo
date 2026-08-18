@@ -1,6 +1,6 @@
 import { createInitialBoard, createStandardBoard, emptyBoard, getPiece, inCheck, revealAll } from './core';
-import { canUseSkill, createHomeState, listLegalFrom, listLegalMoves, makeMove, overFiveDests, peekDark, skipKongcheng, skipOverFive, startMatch, useSkill, validSkillTargets } from './engine';
-import { defToRuntime, GENERALS } from './generals';
+import { canUseSkill, createHomeState, isKongchengCaptureAttempt, listLegalFrom, listLegalMoves, makeMove, overFiveDests, peekDark, peekedOf, skipKongcheng, skipOverFive, skillLiveState, startMatch, useSkill, validSkillTargets } from './engine';
+import { defToRuntime, GENERALS, skillTypeLabel } from './generals';
 import type { GameState, GeneralRuntime, Piece, PieceType, Side, SkillRuntime } from './types';
 
 let passed = 0;
@@ -88,21 +88,24 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
     assert(!zg.hidden, 'red 诸葛亮 revealed at start (await 观星)');
     assert(s.pending.awaitGuanxing, 'red 观星 waits for a 5-pick');
     const extra = s.blackGenerals.some((x) => x.id === 'simayi') ? 1 : 0;
-    assert((s.peekedIds ?? []).length === extra, 'red 观星 does not auto-peek');
+    assert(peekedOf(s, 'red').length === 0, 'red 观星 does not auto-peek');
+    assert(peekedOf(s, 'black').length === extra, 'black 鹰视 peeks stay on black side');
   } else if (s.blackGenerals.some((x) => x.id === 'zhuge')) {
     const zg = s.blackGenerals.find((x) => x.id === 'zhuge')!;
     assert(!zg.hidden, 'black 诸葛亮 revealed after auto 观星');
     assert(!s.pending.awaitGuanxing, 'black 观星 does not block red');
-    assert((s.peekedIds ?? []).length >= 5, 'black 观星 auto-peeks 5');
+    assert(peekedOf(s, 'black').length >= 5, 'black 观星 auto-peeks 5');
+    assert(peekedOf(s, 'red').length === 0, 'red cannot see black 观星 peeks');
   } else {
     for (const g of all) {
       if (special.has(g.id)) assert(g.hidden, `${g.name} stays hidden without 观星`);
     }
     const blackYingshi = s.blackGenerals.some((x) => x.id === 'simayi');
     if (blackYingshi) {
-      assert((s.peekedIds ?? []).length === 1, 'black 鹰视 auto-marks one without 诸葛亮');
+      assert(peekedOf(s, 'black').length === 1, 'black 鹰视 auto-marks one without 诸葛亮');
+      assert(peekedOf(s, 'red').length === 0, 'red cannot see black 鹰视 peeks');
     } else {
-      assert(!(s.peekedIds && s.peekedIds.length), 'no peeks without 诸葛亮');
+      assert(peekedOf(s, 'red').length === 0 && peekedOf(s, 'black').length === 0, 'no peeks without 诸葛亮');
     }
     assert(!s.pending.awaitGuanxing, 'no awaitGuanxing without 诸葛亮');
   }
@@ -131,8 +134,9 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   const zg = s.redGenerals.find((x) => x.id === 'zhuge')!;
   assert(!zg.hidden, 'red 诸葛亮 revealed before pick');
   assert(s.pending.awaitGuanxing, 'pending.awaitGuanxing after startMatch');
-  const prePeek = s.blackGenerals.some((x) => x.id === 'simayi') ? 1 : 0;
-  assert((s.peekedIds ?? []).length === prePeek, 'peekedIds empty until useSkill (except black 鹰视)');
+  const blackExtra = s.blackGenerals.some((x) => x.id === 'simayi') ? 1 : 0;
+  assert(peekedOf(s, 'red').length === 0, 'red peekedIds empty until useSkill');
+  assert(peekedOf(s, 'black').length === blackExtra, 'black 鹰视 peeks isolated');
   assert(canUseSkill(s, 'zhuge-guanxing'), 'canUseSkill 观星 only while awaitGuanxing');
   assert(listLegalMoves(s).length === 0, 'no legal moves during awaitGuanxing');
   const dark = s.board
@@ -143,11 +147,12 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   const t = validSkillTargets(s, 'zhuge-guanxing');
   assert(t.positions.length === dark.length, '观星 targets all dark pieces');
   s = useSkill(s, 'zhuge-guanxing', { kind: 'posList', positions: five });
-  assert((s.peekedIds ?? []).length === 5, 'peekedIds length 5 after pick');
+  assert(peekedOf(s, 'red').length === 5, 'red peekedIds length 5 after pick');
+  assert(peekedOf(s, 'black').length === blackExtra, 'black peeks unchanged by red 观星');
   for (const pos of five) {
     const p = getPiece(s.board, pos);
     assert(p && !p.revealed, 'picked pieces stay face-down');
-    assert(s.peekedIds!.includes(p!.id), 'peeked id matches pick');
+    assert(peekedOf(s, 'red').includes(p!.id), 'peeked id matches pick');
   }
   assert(!s.pending.awaitGuanxing, 'awaitGuanxing cleared after pick');
   assert(s.side === 'red', '观星 does not end the turn');
@@ -162,13 +167,13 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   const piece = { ...getPiece(s.board, pos)!, revealed: false };
   s.board[6][0] = piece;
   const next = peekDark(s, pos);
-  assert((next.peekedIds ?? []).includes(piece.id), 'peekDark appends unrevealed id');
+  assert(peekedOf(next, 'red').includes(piece.id), 'peekDark appends unrevealed id');
   assert(!getPiece(next.board, pos)!.revealed, 'peekDark does not flip revealed');
   assert(next.pending.awaitGuanxing === s.pending.awaitGuanxing, 'peekDark does not close 观星');
   const again = peekDark(next, pos);
-  assert((again.peekedIds ?? []).filter((id) => id === piece.id).length === 1, 'peekDark does not duplicate');
+  assert(peekedOf(again, 'red').filter((id) => id === piece.id).length === 1, 'peekDark does not duplicate');
   const king = peekDark(s, { r: 9, c: 4 });
-  assert((king.peekedIds ?? []).length === (s.peekedIds ?? []).length, 'peekDark no-op on revealed');
+  assert(peekedOf(king, 'red').length === peekedOf(s, 'red').length, 'peekDark no-op on revealed');
 }
 
 // 观星: only black has 诸葛亮 — auto-peek 5, no await for red
@@ -180,10 +185,11 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(s.blackGenerals.some((x) => x.id === 'zhuge') && !s.redGenerals.some((x) => x.id === 'zhuge'), 'only black 诸葛亮');
   const zg = s.blackGenerals.find((x) => x.id === 'zhuge')!;
   assert(!zg.hidden, 'black 诸葛亮 revealed');
-  assert((s.peekedIds ?? []).length >= 5, 'black auto-peeks 5 immediately');
+  assert(peekedOf(s, 'black').length >= 5, 'black auto-peeks 5 immediately');
+  assert(peekedOf(s, 'red').length === 0, 'opponent cannot see black 观星 peeks');
   assert(!s.pending.awaitGuanxing, 'no awaitGuanxing for red');
   const darkIds = s.board.flat().filter((p) => p && !p.revealed).map((p) => p!.id);
-  assert((s.peekedIds ?? []).every((id) => darkIds.includes(id)), 'black peeks are dark piece ids');
+  assert(peekedOf(s, 'black').every((id) => darkIds.includes(id)), 'black peeks are dark piece ids');
   const special = new Set(['guanyu', 'xiahoudun', 'ganning', 'lvbu']);
   for (const g of s.redGenerals) {
     if (special.has(g.id)) assert(g.hidden, `观星 does not reveal ${g.name}`);
@@ -696,7 +702,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(!!enemy?.p, 'enemy dark piece exists');
   const markId = enemy!.p!.id;
   s = useSkill(s, 'simayi-yingshi', { kind: 'pos', pos: { r: enemy!.r, c: enemy!.c } });
-  assert((s.peekedIds ?? []).includes(markId), 'peekedIds has marked id');
+  assert(peekedOf(s, 'red').includes(markId), 'red peekedIds has marked id');
   assert(!getPiece(s.board, { r: enemy!.r, c: enemy!.c })!.revealed, 'marked piece stays unrevealed');
   assert(s.pending.yingshiMark?.pieceId === markId, 'yingshiMark set');
   assert(!s.pending.awaitYingshi, 'awaitYingshi cleared after mark');
@@ -764,5 +770,80 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
 }
 
 assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check');
+
+// 观星 privacy: black peeks never appear in red peekedOf
+{
+  let s = startMatch();
+  for (let i = 0; i < 80 && !(s.blackGenerals.some((x) => x.id === 'zhuge') && !s.redGenerals.some((x) => x.id === 'zhuge')); i++) {
+    s = startMatch();
+  }
+  assert(s.blackGenerals.some((x) => x.id === 'zhuge'), 'privacy test: black 诸葛亮');
+  const blackPeeks = peekedOf(s, 'black');
+  assert(blackPeeks.length >= 5, 'black has peeks');
+  assert(peekedOf(s, 'red').every((id) => !blackPeeks.includes(id)) || peekedOf(s, 'red').length === 0, 'red list excludes black peeks');
+  assert(peekedOf(s, 'red').length === 0, 'red peekedOf empty when only black 观星');
+}
+
+// 空城: capture attempt helper + no silent-only block data
+{
+  let s = base();
+  s.qi = { ...s.qi, red: Math.max(s.qi.red, 3) };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[2][0] = P('N', 'red', 'victim');
+  s.board[0][0] = P('R', 'black', 'br');
+  s.board[6][0] = P('P', 'red', 'rp');
+  s = makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 });
+  assert(!s.skillBroadcast, '空城 window opens without premature broadcast');
+  s = useSkill(s, 'zhuge-kongcheng', { kind: 'pos', pos: { r: 2, c: 0 } });
+  assert(s.skillBroadcast?.skill === '空城', '空城 broadcasts after target selected');
+  assert(s.pending.kongcheng?.pieceId === 'victim', 'kongcheng armed for prompt path');
+  assert(isKongchengCaptureAttempt(s, { r: 0, c: 0 }, { r: 2, c: 0 }), 'isKongchengCaptureAttempt true for eat');
+  assert(!isKongchengCaptureAttempt(s, { r: 0, c: 0 }, { r: 1, c: 0 }), 'empty square is not a kongcheng attempt');
+  const blocked = makeMove(s, { r: 0, c: 0 }, { r: 2, c: 0 });
+  assert(getPiece(blocked.board, { r: 2, c: 0 })?.id === 'victim', 'makeMove refuses kongcheng capture');
+  assert(skillLiveState(s, 'zhuge-kongcheng', 'red')?.includes('(2,0)'), 'live state mentions protected square');
+}
+
+// 鬼才 lock remains queryable on victim turn (for board highlight)
+{
+  let s = base();
+  s.qi = { red: 5, black: 10 };
+  const locked = getPiece(s.board, { r: 0, c: 0 })!;
+  s = useSkill(s, 'simayi-guicai', { kind: 'pos', pos: { r: 0, c: 0 } });
+  assert(s.skillBroadcast?.skill === '鬼才', '鬼才 broadcasts after target');
+  assert(skillTypeLabel(GENERALS.find((d) => d.id === 'simayi')!.skills.find((x) => x.id === 'simayi-guicai')!) === null, '鬼才 is not labeled 主动技');
+  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
+  assert(s.side === 'black', 'victim turn');
+  assert(s.pending.guicaiLock?.pieceId === locked.id, 'lock still present for highlight');
+  assert(s.pending.guicaiLock?.untilSide === 'black', 'untilSide is victim');
+  assert(skillLiveState({ ...s, side: 'red' }, 'simayi-guicai', 'red')?.includes('锁定'), 'live state reports lock');
+}
+
+// 破军: never sets skillBroadcast
+{
+  let s = base();
+  s.qi = { red: 0, black: 0 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[7][0] = P('R', 'red', 'rr');
+  s.board[0][0] = P('A', 'black', 'ba');
+  s.board[5][4] = P('P', 'red', 'block');
+  s.skillBroadcast = null;
+  s = settle(makeMove(s, { r: 7, c: 0 }, { r: 0, c: 0 }));
+  assert(s.qi.red === 2, '破军 still grants +1 qi');
+  assert(s.skillBroadcast?.skill !== '破军', '破军 never broadcasts');
+  assert(!s.skillBroadcast || s.skillBroadcast.skill !== '破军', 'no 破军 splash');
+}
+
+// 武圣 / 过五关 labeling
+{
+  const gy = GENERALS.find((d) => d.id === 'guanyu')!;
+  assert(skillTypeLabel(gy.skills.find((x) => x.id === 'guanyu-wusheng')!) === '限定技', '武圣 labeled 限定技');
+  assert(skillTypeLabel(gy.skills.find((x) => x.id === 'guanyu-wuguan')!) === '回合技', '过五关 labeled 回合技');
+  assert(skillTypeLabel(GENERALS.find((d) => d.id === 'zhangfei')!.skills.find((x) => x.id === 'zhangfei-paoxiao')!) === '主动技', '咆哮 stays 主动技');
+}
 
 console.log(`\n${passed} skill/engine checks passed`);

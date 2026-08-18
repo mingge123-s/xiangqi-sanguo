@@ -11,23 +11,25 @@ import { TurnBroadcast } from './components/TurnBroadcast';
 import { applyAITurn } from './game/ai';
 import { posEq } from './game/core';
 import {
-  announceOwnedSkill,
   canUseSkill,
   clearBroadcast,
   createHomeState,
+  isKongchengCaptureAttempt,
   listLegalFrom,
   lvbuRange,
   makeMove,
   overFiveDests,
   peekDark,
+  peekedOf,
   sideInCheck,
   skipKongcheng,
   skipOverFive,
+  skillLiveState,
   startMatch,
   useSkill,
   validSkillTargets,
 } from './game/engine';
-import { findOwnedSkill, isSkillReady, sideHasSkill } from './game/generals';
+import { sideHasSkill } from './game/generals';
 import type { GameState, GeneralRuntime, Pos, Side, SkillPayload, SkillRuntime } from './game/types';
 
 interface Targeting {
@@ -81,7 +83,17 @@ export default function App() {
   const [detail, setDetail] = useState<GeneralRuntime | null>(null);
   const [turnSplash, setTurnSplash] = useState<Side | null>(null);
   const turnSeen = useRef<{ phase: string; side: string } | null>(null);
-  const [pendingAnnounce, setPendingAnnounce] = useState<string | null>(null);
+  const [centerPrompt, setCenterPrompt] = useState<string | null>(null);
+  const promptTimer = useRef<number | null>(null);
+
+  const showCenterPrompt = useCallback((text: string) => {
+    if (promptTimer.current != null) window.clearTimeout(promptTimer.current);
+    setCenterPrompt(text);
+    promptTimer.current = window.setTimeout(() => {
+      setCenterPrompt(null);
+      promptTimer.current = null;
+    }, 1600);
+  }, []);
 
   const legal = useMemo(() => {
     if (!selected || state.phase !== 'playing') return [];
@@ -121,14 +133,17 @@ export default function App() {
     thinking ||
     state.side === 'black' ||
     !!state.winner ||
-    !!state.skillBroadcast ||
-    !!pendingAnnounce;
+    !!state.skillBroadcast;
   const showCoverFog = false;
+  const myPeeks = peekedOf(state, 'red');
   const showPeek =
     sideHasSkill(state.redGenerals, 'zhuge-guanxing') ||
     sideHasSkill(state.redGenerals, 'simayi-yingshi') ||
-    (state.peekedIds?.length ?? 0) > 0;
-
+    myPeeks.length > 0;
+  const guicaiHighlightId =
+    state.pending.guicaiLock && state.pending.guicaiLock.untilSide === state.side
+      ? state.pending.guicaiLock.pieceId
+      : undefined;
 
   useEffect(() => {
     if (state.phase !== 'playing') {
@@ -211,11 +226,9 @@ export default function App() {
     };
   }, [state.phase, state.side, state.winner, state.moveSerial, state.turnCount]);
 
+  /** Keep skillBroadcast so splash plays AFTER the click/target resolves. */
   const applyPayload = (id: string, payload: SkillPayload) => {
-    setState((s) => {
-      const ns = useSkill(s, id, payload);
-      return { ...ns, skillBroadcast: null };
-    });
+    setState((s) => useSkill(s, id, payload));
     setTargeting(null);
     setSelected(null);
   };
@@ -230,29 +243,25 @@ export default function App() {
     setTargeting({ skillId, hint: hintFor(skillId, range), picks: [] });
   };
 
+  /** Short-tap cast: open targeting / resolve first; broadcast comes from useSkill. */
   const beginCast = (skillId: string) => {
-    if (state.skillBroadcast || pendingAnnounce || inputLocked) return;
+    if (state.skillBroadcast || inputLocked) return;
     if (!canUseSkill(state, skillId)) return;
-    setPendingAnnounce(skillId);
-    setState((s) => announceOwnedSkill(s, skillId));
+    openTargeting(skillId);
   };
-
-  useEffect(() => {
-    if (!pendingAnnounce) return;
-    if (state.skillBroadcast) return;
-    const id = pendingAnnounce;
-    setPendingAnnounce(null);
-    openTargeting(id);
-  }, [state.skillBroadcast, pendingAnnounce]);
 
   const onPortrait = (g: GeneralRuntime, mine: boolean) => {
     if (!mine && g.hidden) return;
     setDetail(g);
   };
 
-  const onSkill = (g: GeneralRuntime, _skill: SkillRuntime, mine: boolean) => {
+  const onInspectSkill = (g: GeneralRuntime, _skill: SkillRuntime, mine: boolean) => {
     if (!mine && g.hidden) return;
     setDetail(g);
+  };
+
+  const onCastSkill = (_g: GeneralRuntime, skill: SkillRuntime) => {
+    beginCast(skill.id);
   };
 
   const onCell = (pos: Pos) => {
@@ -267,10 +276,7 @@ export default function App() {
         if (targeting.picks.some((p) => posEq(p, pos))) return;
         const picks = [...targeting.picks, pos];
         if (picks.length >= 5) {
-          setState((s) => {
-            const ns = useSkill(peekDark(s, pos), id, { kind: 'posList', positions: picks });
-            return { ...ns, skillBroadcast: null };
-          });
+          setState((s) => useSkill(peekDark(s, pos), id, { kind: 'posList', positions: picks }));
           setTargeting(null);
           setSelected(null);
           return;
@@ -312,10 +318,16 @@ export default function App() {
     }
 
     const piece = state.board[pos.r][pos.c];
-    if (selected && legal.some((p) => posEq(p, pos))) {
-      setState((s) => makeMove(s, selected, pos));
-      setSelected(null);
-      return;
+    if (selected) {
+      if (legal.some((p) => posEq(p, pos))) {
+        setState((s) => makeMove(s, selected, pos));
+        setSelected(null);
+        return;
+      }
+      if (isKongchengCaptureAttempt(state, selected, pos)) {
+        showCenterPrompt('此子已发动空城的技能');
+        return;
+      }
     }
     if (piece && piece.side === 'red' && state.side === 'red') {
       setSelected(pos);
@@ -340,7 +352,7 @@ export default function App() {
               qi={state.qi?.black ?? 0}
               showFactionFog={false}
               onPortrait={(g) => onPortrait(g, false)}
-              onSkill={(g, sk) => onSkill(g, sk, false)}
+              onInspectSkill={(g, sk) => onInspectSkill(g, sk, false)}
             />
           </div>
 
@@ -415,7 +427,7 @@ export default function App() {
               <div className="relative min-h-0 min-w-0 flex-1">
                 <Board
                   board={state.board}
-                  peekedIds={state.peekedIds}
+                  peekedIds={myPeeks}
                   showPeek={showPeek}
                   showCoverHint={showCoverFog}
                   yingshiMarkId={
@@ -423,6 +435,7 @@ export default function App() {
                       ? state.pending.yingshiMark.pieceId
                       : undefined
                   }
+                  lockedPieceId={guicaiHighlightId}
                   selected={
                     targeting?.skillId === 'zhuge-guanxing' || targeting?.skillId === 'simayi-yingshi'
                       ? targeting.picks
@@ -477,6 +490,13 @@ export default function App() {
                 </div>
               </div>
             )}
+            {centerPrompt && !kongchengReady && !awaitGuanxing && !awaitYingshi && (
+              <div className="skill-center-prompt">
+                <div className="skill-center-mask">
+                  <span className="skill-center-text">{centerPrompt}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="play-log">{lastLine}</div>
@@ -488,7 +508,9 @@ export default function App() {
               qi={state.qi?.red ?? 0}
               selectedSkillId={targeting?.skillId}
               onPortrait={(g) => onPortrait(g, true)}
-              onSkill={(g, sk) => onSkill(g, sk, true)}
+              onInspectSkill={(g, sk) => onInspectSkill(g, sk, true)}
+              onCastSkill={onCastSkill}
+              canCastSkill={(id) => !inputLocked && canUseSkill(state, id)}
             />
           </div>
         </div>
@@ -504,10 +526,14 @@ export default function App() {
         <GeneralDetail
           general={detail}
           onClose={() => setDetail(null)}
+          liveState={(id) => {
+            const mine = state.redGenerals.some((g) => g.id === detail.id);
+            if (!mine) return null;
+            return skillLiveState(state, id, 'red');
+          }}
           canCast={(id) => {
             if (id === 'zhuge-guanxing') return false;
-            const sk = detail.skills.find((s) => s.id === id);
-            return !inputLocked && !!sk && canUseSkill(state, id) && isSkillReady(sk, state.qi?.red ?? 0);
+            return !inputLocked && canUseSkill(state, id);
           }}
           onCast={(id) => {
             setDetail(null);

@@ -2,8 +2,15 @@ export type Side = 'red' | 'black';
 export type PieceType = 'K' | 'A' | 'B' | 'N' | 'R' | 'C' | 'P';
 export type Faction = 'shu' | 'wei' | 'wu' | 'qun';
 export type SkillUiKind = 'active' | 'passive';
-export type SkillEngineKind = 'start' | 'limited' | 'passive' | 'active';
+export type SkillEngineKind = 'start' | 'limited' | 'passive' | 'active' | 'window';
+/** Display tag in skill detail; overrides the default derived from kind/engineKind. `'none'` hides the badge. */
+export type SkillLabelKind = '主动技' | '锁定技' | '限定技' | '回合技' | 'none';
 export type Phase = 'home' | 'playing' | 'result';
+
+export interface PeekedBySide {
+  red: string[];
+  black: string[];
+}
 
 export interface Pos {
   r: number;
@@ -41,6 +48,8 @@ export interface SkillDef {
   desc: string;
   kind: SkillUiKind;
   engineKind?: SkillEngineKind;
+  /** Optional override for detail-card type badge (e.g. 过五关 → 回合技). */
+  labelKind?: SkillLabelKind;
   maxUses: number;
   rechargeNeed: number;
   rechargeTrigger: string;
@@ -103,7 +112,8 @@ export interface GameState {
   moveSerial: number;
   noReviveIds: string[];
   riverCrossCount: { red: number; black: number };
-  peekedIds?: string[];
+  /** Per-side dark-piece peeks (观星 / 鹰视). Never share across sides. */
+  peekedIds: PeekedBySide;
   qi: { red: number; black: number };
 }
 
