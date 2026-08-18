@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { SkillBroadcast as SB } from '../game/types';
 import { FACTION_COLOR } from '../game/types';
 
+/** Brief skill-name splash near the status band — never dims or covers the board. */
 export function SkillBroadcast({
   data,
   onDone,
@@ -21,25 +22,30 @@ export function SkillBroadcast({
       {data && (
         <motion.div
           key={`${data.name}-${data.skill}`}
-          className="ink-splash pointer-events-none absolute inset-0 z-40 flex items-center justify-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.28 }}
+          className="pointer-events-none absolute inset-x-0 top-[9%] z-40 flex justify-center px-4"
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ duration: 0.22 }}
         >
-          <motion.div
-            initial={{ scale: 0.7, opacity: 0, y: 10 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 1.05, opacity: 0 }}
-            className="text-center"
-          >
-            <div className="text-sm tracking-[0.6em]" style={{ color: FACTION_COLOR[data.faction] }}>
-              {data.name}
-            </div>
-            <div className="mt-2 text-4xl font-bold tracking-[0.35em] text-ink drop-shadow-[0_1px_0_rgba(255,250,235,0.6)]">
-              {data.skill}
-            </div>
-          </motion.div>
+          <div className="skill-center-mask skill-center-mask-compact">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 1.02, opacity: 0 }}
+              className="text-center"
+            >
+              <div className="text-[11px] tracking-[0.5em]" style={{ color: FACTION_COLOR[data.faction] }}>
+                {data.name}
+              </div>
+              <div
+                className="skill-center-text mt-0.5"
+                style={{ fontSize: 20, fontWeight: 700, letterSpacing: '0.28em' }}
+              >
+                {data.skill}
+              </div>
+            </motion.div>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

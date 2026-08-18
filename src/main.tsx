@@ -5,7 +5,7 @@ import './styles.css';
 
 document.documentElement.style.setProperty(
   '--rice-paper-bg-url',
-  `url("${import.meta.env.BASE_URL}rice-paper-bg.png")`,
+  `url("${import.meta.env.BASE_URL}rice-paper-bg.webp")`,
 );
 document.documentElement.style.setProperty(
   '--ink-wash-url',
