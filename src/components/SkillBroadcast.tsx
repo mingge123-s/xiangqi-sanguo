@@ -36,7 +36,7 @@ export function SkillBroadcast({
             <div className="text-sm tracking-[0.6em]" style={{ color: FACTION_COLOR[data.faction] }}>
               {data.name}
             </div>
-            <div className="mt-2 text-4xl font-bold tracking-[0.35em] text-paper drop-shadow">
+            <div className="mt-2 text-4xl font-bold tracking-[0.35em] text-ink drop-shadow-[0_1px_0_rgba(255,250,235,0.6)]">
               {data.skill}
             </div>
           </motion.div>

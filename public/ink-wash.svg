@@ -1,11 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 140" preserveAspectRatio="xMidYMid slice">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1400" preserveAspectRatio="xMidYMid slice">
   <defs>
-    <filter id="soft" x="-25%" y="-40%" width="150%" height="180%">
-      <feGaussianBlur stdDeviation="10"/>
+    <filter id="soft" x="-30%" y="-20%" width="160%" height="140%">
+      <feGaussianBlur stdDeviation="28"/>
     </filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" seed="7" result="n"/>
+      <feColorMatrix in="n" type="matrix"
+        values="0 0 0 0 0.55  0 0 0 0 0.48  0 0 0 0 0.36  0 0 0 0.045 0"/>
+    </filter>
+    <radialGradient id="washTL" cx="18%" cy="12%" r="55%">
+      <stop offset="0%" stop-color="#d8c7a4" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#efe4cc" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#f4ead6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="washBR" cx="82%" cy="88%" r="50%">
+      <stop offset="0%" stop-color="#c4b08a" stop-opacity="0.42"/>
+      <stop offset="60%" stop-color="#efe4cc" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#f4ead6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="inkBlot" cx="50%" cy="42%" r="38%">
+      <stop offset="0%" stop-color="#3d3224" stop-opacity="0.07"/>
+      <stop offset="45%" stop-color="#6a5a44" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="#f4ead6" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <ellipse cx="240" cy="70" rx="200" ry="46" fill="#efe4cc" opacity="0.55" filter="url(#soft)"/>
-  <ellipse cx="190" cy="62" rx="110" ry="34" fill="#d8c7a4" opacity="0.22" filter="url(#soft)"/>
-  <ellipse cx="300" cy="80" rx="90" ry="28" fill="#6a5a44" opacity="0.07" filter="url(#soft)"/>
-  <ellipse cx="140" cy="78" rx="50" ry="18" fill="#3d3224" opacity="0.05" filter="url(#soft)"/>
+  <rect width="800" height="1400" fill="#f4ead6"/>
+  <rect width="800" height="1400" fill="url(#washTL)"/>
+  <rect width="800" height="1400" fill="url(#washBR)"/>
+  <ellipse cx="240" cy="220" rx="280" ry="160" fill="#efe4cc" opacity="0.7" filter="url(#soft)"/>
+  <ellipse cx="560" cy="380" rx="220" ry="140" fill="#d8c7a4" opacity="0.28" filter="url(#soft)"/>
+  <ellipse cx="400" cy="700" rx="340" ry="220" fill="url(#inkBlot)" filter="url(#soft)"/>
+  <ellipse cx="160" cy="980" rx="200" ry="150" fill="#cbb892" opacity="0.22" filter="url(#soft)"/>
+  <ellipse cx="620" cy="1100" rx="260" ry="180" fill="#6a5a44" opacity="0.06" filter="url(#soft)"/>
+  <ellipse cx="380" cy="1280" rx="300" ry="120" fill="#3d3224" opacity="0.04" filter="url(#soft)"/>
+  <ellipse cx="700" cy="180" rx="90" ry="60" fill="#2a2218" opacity="0.035" filter="url(#soft)"/>
+  <rect width="800" height="1400" filter="url(#grain)" opacity="0.55"/>
 </svg>

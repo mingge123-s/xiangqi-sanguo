@@ -403,6 +403,10 @@ export function applyAITurn(s0: GameState): GameState {
   }
 
   if (s.winner) return s;
+  if (s.side !== 'black') return s;
+  if (s.pending.awaitKongcheng) {
+    return resolveKongcheng(s);
+  }
 
   const doOne = (st: GameState): GameState => {
     const mv = pickBoardMove(st);

@@ -107,6 +107,8 @@ export interface GameState {
   skillBroadcast: SkillBroadcast | null;
   turnCount: number;
   skillUsedThisTurn: boolean;
+  /** True after this side has made a chess move (含过五关跳) this turn. */
+  movedThisTurn: boolean;
   crossedRiverIds: string[];
   plyCount: number;
   moveSerial: number;
