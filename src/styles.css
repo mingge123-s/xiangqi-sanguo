@@ -65,13 +65,23 @@ body {
 }
 
 .play-status {
-  flex: 0 0 24px;
+  flex: 0 0 32px;
+  height: 32px;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 17px;
   letter-spacing: 0.16em;
   color: #5c4e3a;
+  line-height: 1.2;
+}
+
+.play-status-check {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  line-height: 1;
 }
 
 .play-board {
@@ -109,27 +119,25 @@ body {
   justify-content: flex-end;
 }
 
-/* Dedicated prompt slots outside the board — never overlay 棋面 */
+/* Dedicated prompt slots outside the board — fixed height so board never resizes */
 .skill-slot {
-  flex: 0 0 auto;
-  min-height: 0;
+  flex: 0 0 44px;
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   z-index: 5;
   padding: 0 10px;
-}
-
-.skill-slot:has(.skill-slot-prompt, .skill-slot-splash) {
-  min-height: 36px;
-  padding-top: 4px;
-  padding-bottom: 4px;
+  overflow: visible;
 }
 
 .skill-slot-prompt,
 .skill-slot-splash {
-  position: relative;
+  position: absolute;
+  inset: 0;
   width: 100%;
   display: flex;
   align-items: center;
@@ -153,6 +161,12 @@ body {
   padding: 4px 14px;
 }
 
+.skill-center-mask-inline {
+  flex-direction: row;
+  gap: 10px;
+  padding: 4px 14px;
+}
+
 /* Small ink blot — must not spill onto the board */
 .skill-center-mask::before {
   content: "";
@@ -173,21 +187,22 @@ body {
 
 .skill-center-text {
   position: relative;
-  font-size: 13px;
+  font-size: 17px;
   letter-spacing: 0.16em;
   color: #2c2418;
-  line-height: 1.35;
+  line-height: 1.25;
   text-shadow:
     0 0 10px rgba(244, 234, 214, 0.85),
     0 1px 0 rgba(255, 250, 235, 0.55);
 }
 
 .play-log {
-  flex: 0 0 16px;
+  flex: 0 0 18px;
+  height: 18px;
   overflow: hidden;
   text-align: center;
-  font-size: 10px;
-  line-height: 16px;
+  font-size: 11px;
+  line-height: 18px;
   color: rgba(61, 50, 36, 0.72);
   padding: 0 12px;
   white-space: nowrap;
