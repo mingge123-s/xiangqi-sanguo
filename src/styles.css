@@ -109,34 +109,62 @@ body {
   justify-content: flex-end;
 }
 
-.skill-center-prompt,
-.kongcheng-prompt {
-  position: absolute;
-  inset: 0;
-  z-index: 30;
+/* Dedicated prompt slots outside the board — never overlay 棋面 */
+.skill-slot {
+  flex: 0 0 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 5;
+  padding: 0 10px;
+}
+
+.skill-slot:has(.skill-slot-prompt, .skill-slot-splash) {
+  min-height: 36px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.skill-slot-prompt,
+.skill-slot-splash {
+  position: relative;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
+  z-index: 5;
 }
 
 .skill-center-mask {
   position: relative;
-  padding: 18px 32px;
+  padding: 6px 18px;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  max-width: 100%;
 }
 
+.skill-center-mask-compact {
+  padding: 4px 14px;
+}
+
+/* Small ink blot — must not spill onto the board */
 .skill-center-mask::before {
   content: "";
   position: absolute;
-  inset: -40px -56px;
+  inset: -8px -18px;
   background: var(--ink-wash-url) center / 100% 100% no-repeat;
   pointer-events: none;
-  opacity: 0.92;
+  opacity: 0.88;
+}
+
+.skill-center-mask-compact::before {
+  inset: -6px -14px;
 }
 
 .skill-center-mask::after {
@@ -145,9 +173,10 @@ body {
 
 .skill-center-text {
   position: relative;
-  font-size: 15px;
-  letter-spacing: 0.2em;
+  font-size: 13px;
+  letter-spacing: 0.16em;
   color: #2c2418;
+  line-height: 1.35;
   text-shadow:
     0 0 10px rgba(244, 234, 214, 0.85),
     0 1px 0 rgba(255, 250, 235, 0.55);

@@ -414,6 +414,13 @@ export default function App() {
             </AnimatePresence>
           </div>
 
+          {/* Opponent / black skill prompts — above the board, never over 棋面 */}
+          <div className="skill-slot skill-slot-top" aria-live="polite">
+            {turnSplash === 'black' && (
+              <TurnBroadcast side="black" onDone={() => setTurnSplash(null)} />
+            )}
+          </div>
+
           <div className="play-board">
             <div className="play-board-row">
               <CapturedRail
@@ -456,8 +463,15 @@ export default function App() {
               </div>
               <CapturedRail pieces={state.captured.black} align="bottom" />
             </div>
-            {awaitGuanxing && !state.skillBroadcast && (
-              <div className="skill-center-prompt">
+          </div>
+
+          {/* Own / red skill prompts — below the board (图2 gap), never over 棋面 */}
+          <div className="skill-slot skill-slot-bottom" aria-live="polite">
+            {turnSplash === 'red' && (
+              <TurnBroadcast side="red" onDone={() => setTurnSplash(null)} />
+            )}
+            {awaitGuanxing && !state.skillBroadcast && turnSplash !== 'red' && (
+              <div className="skill-slot-prompt">
                 <div className="skill-center-mask">
                   <span className="skill-center-text">
                     {targeting?.hint ?? '观星：点选五枚暗子偷看（不翻开）'}
@@ -465,15 +479,15 @@ export default function App() {
                 </div>
               </div>
             )}
-            {awaitYingshi && !state.skillBroadcast && (
-              <div className="skill-center-prompt">
+            {awaitYingshi && !state.skillBroadcast && turnSplash !== 'red' && (
+              <div className="skill-slot-prompt">
                 <div className="skill-center-mask">
                   <span className="skill-center-text">鹰视：点选对方一枚棋子标记偷看</span>
                 </div>
               </div>
             )}
-            {kongchengReady && (
-              <div className="skill-center-prompt kongcheng-prompt">
+            {kongchengReady && turnSplash !== 'red' && (
+              <div className="skill-slot-prompt">
                 <div className="skill-center-mask">
                   <span className="skill-center-text">空城 · 点己方一子护到下回合</span>
                   <button
@@ -490,8 +504,8 @@ export default function App() {
                 </div>
               </div>
             )}
-            {centerPrompt && !kongchengReady && !awaitGuanxing && !awaitYingshi && (
-              <div className="skill-center-prompt">
+            {centerPrompt && !kongchengReady && !awaitGuanxing && !awaitYingshi && turnSplash !== 'red' && (
+              <div className="skill-slot-prompt">
                 <div className="skill-center-mask">
                   <span className="skill-center-text">{centerPrompt}</span>
                 </div>
@@ -521,7 +535,6 @@ export default function App() {
       )}
 
       <SkillBroadcast data={state.skillBroadcast} onDone={dismissBroadcast} />
-      <TurnBroadcast side={turnSplash} onDone={() => setTurnSplash(null)} />
       {detail && (
         <GeneralDetail
           general={detail}
