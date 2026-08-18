@@ -4,7 +4,7 @@ import { CHAR } from '../game/types';
 import { isSkillReady } from '../game/generals';
 
 function portraitSrc(id: string): string {
-  return `/generals/${id}.png`;
+  return `${import.meta.env.BASE_URL}generals/${id}.png`;
 }
 
 function QiMeter({ value, compact }: { value: number; compact?: boolean }) {
