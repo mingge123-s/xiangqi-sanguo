@@ -2,7 +2,7 @@ import { FACTION_COLOR } from '../game/types';
 import type { GeneralRuntime } from '../game/types';
 
 function portraitSrc(id: string): string {
-  return `/generals/${id}.png`;
+  return `${import.meta.env.BASE_URL}generals/${id}.png`;
 }
 
 export function GeneralDetail({
