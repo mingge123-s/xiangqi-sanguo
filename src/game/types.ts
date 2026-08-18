@@ -85,6 +85,10 @@ export interface PendingEffects {
   yingshiMark?: { owner: Side; pieceId: string };
   yingshiReload?: { red?: boolean; black?: boolean };
   guicaiLock?: { pieceId: string; untilSide: Side };
+  /** 吕布无双：剩余己方回合数（发动当回合计 1，己方回合结束时递减）。 */
+  wushuang?: { owner: Side; turnsLeft: number };
+  /** 貂蝉离间：controller 在对方回合操控对方暗子。 */
+  lijianHijack?: { controller: Side };
 }
 
 export interface SkillBroadcast {
@@ -117,6 +121,8 @@ export interface GameState {
   /** Per-side dark-piece peeks (观星 / 鹰视). Never share across sides. */
   peekedIds: PeekedBySide;
   qi: { red: number; black: number };
+  /** True if the side to move has captured at least once this turn (闭月). */
+  capturedThisTurn: boolean;
 }
 
 export type SkillPayload =

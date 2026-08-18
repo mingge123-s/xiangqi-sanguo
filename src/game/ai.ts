@@ -12,11 +12,9 @@ import {
   isGameOver,
   opposite,
   pieceValueAt,
-  posEq,
 } from './core';
 import {
   canUseSkill,
-  legalOptions,
   listLegalFrom,
   listLegalMoves,
   makeMove,
@@ -161,14 +159,16 @@ function tryResolveCheckWithSkill(s: GameState): GameState | null {
   const order = [
     'zhaoyun-longhun',
     'sunshangxiang-lianyin',
+    'huatuo-qingnang',
     'caocao-guixin',
     'zhangfei-paoxiao',
     'ganning-chaiqiao',
     'lvbu-wushuang',
+    'lvbu-chitu',
   ];
   for (const id of order) {
     if (!ready.includes(id)) continue;
-    if (id === 'caocao-guixin' || id === 'ganning-chaiqiao') {
+    if (id === 'caocao-guixin' || id === 'ganning-chaiqiao' || id === 'huatuo-qingnang' || id === 'lvbu-wushuang') {
       const ns = useSkill(s, id, { kind: 'none' });
       if (tryState(ns)) return ns;
     }
@@ -203,10 +203,10 @@ function tryResolveCheckWithSkill(s: GameState): GameState | null {
         if (tryState(ns)) return ns;
       }
     }
-    if (id === 'lvbu-wushuang') {
-      const t = validSkillTargets(s, 'lvbu-wushuang');
+    if (id === 'lvbu-chitu') {
+      const t = validSkillTargets(s, 'lvbu-chitu');
       for (const p of t.positions) {
-        const ns = useSkill(s, 'lvbu-wushuang', { kind: 'pos', pos: p });
+        const ns = useSkill(s, 'lvbu-chitu', { kind: 'pos', pos: p });
         if (tryState(ns)) return ns;
       }
     }
@@ -219,16 +219,33 @@ function heuristicSkill(s: GameState): { id: string; payload: SkillPayload } | n
   if (ready.length === 0) return null;
 
   if (ready.includes('lvbu-wushuang')) {
-    const t = validSkillTargets(s, 'lvbu-wushuang');
-    const scored = t.positions
-      .map((pos) => {
-        const p = getPiece(s.board, pos);
-        return { pos, v: p ? pieceValueAt(p, pos.r) : 0, type: p?.type };
-      })
-      .sort((a, b) => b.v - a.v);
-    const kingOrRook = scored.find((x) => x.type === 'K' || x.type === 'R');
-    if (kingOrRook) return { id: 'lvbu-wushuang', payload: { kind: 'pos', pos: kingOrRook.pos } };
-    if (scored[0] && scored[0].v >= 40) return { id: 'lvbu-wushuang', payload: { kind: 'pos', pos: scored[0].pos } };
+    const king = findKing(s.board, s.side);
+    const threatened = !!(king && isAttacked(s.board, king, opposite(s.side)));
+    if (threatened || inCheck(s.board, s.side) || Math.random() < 0.35) {
+      return { id: 'lvbu-wushuang', payload: { kind: 'none' } };
+    }
+  }
+
+  if (ready.includes('caocao-guixin')) {
+    const hits = allPieces(s.board, opposite(s.side)).filter((x) => {
+      const r = x.pos.r;
+      const c = x.pos.c;
+      if (c < 3 || c > 5) return false;
+      return s.side === 'red' ? r >= 7 && r <= 9 : r >= 0 && r <= 2;
+    });
+    if (hits.length > 0) return { id: 'caocao-guixin', payload: { kind: 'none' } };
+  }
+
+  if (ready.includes('diaochan-lijian')) {
+    const dark = allPieces(s.board, opposite(s.side)).filter((x) => !x.piece.revealed);
+    if (dark.length >= 2) return { id: 'diaochan-lijian', payload: { kind: 'none' } };
+  }
+
+  if (ready.includes('lvbu-chitu')) {
+    const t = validSkillTargets(s, 'lvbu-chitu');
+    if (t.positions[0] && Math.random() < 0.4) {
+      return { id: 'lvbu-chitu', payload: { kind: 'pos', pos: t.positions[0] } };
+    }
   }
 
   if (ready.includes('simayi-guicai')) {
@@ -257,19 +274,6 @@ function heuristicSkill(s: GameState): { id: string; payload: SkillPayload } | n
     if (best) return { id: 'zhouyu-fanjian', payload: { kind: 'pos', pos: best.pos } };
   }
 
-  if (ready.includes('diaochan-lijian')) {
-    const enemies = allPieces(s.board, opposite(s.side));
-    let best: { a: Pos; b: Pos; v: number } | null = null;
-    for (const a of enemies) {
-      for (const b of enemies) {
-        if (posEq(a.pos, b.pos) || !isAdjacent(a.pos, b.pos)) continue;
-        const v = pieceValueAt(b.piece, b.pos.r);
-        if (!best || v > best.v) best = { a: a.pos, b: b.pos, v };
-      }
-    }
-    if (best && best.v >= 40) return { id: 'diaochan-lijian', payload: { kind: 'twoPos', a: best.a, b: best.b } };
-  }
-
   if (ready.includes('guanyu-wusheng')) {
     const t = validSkillTargets(s, 'guanyu-wusheng');
     const high = t.positions
@@ -282,12 +286,8 @@ function heuristicSkill(s: GameState): { id: string; payload: SkillPayload } | n
     if (high[0]) return { id: 'guanyu-wusheng', payload: { kind: 'pos', pos: high[0].pos } };
   }
 
-  if (ready.includes('huatuo-qingnang')) {
-    const pool = s.captured[s.side].filter((p) => !s.noReviveIds.includes(p.id));
-    const ranked = [...pool].sort((a, b) => pieceValueAt(b, 5) - pieceValueAt(a, 5));
-    if (ranked[0] && pieceValueAt(ranked[0], 5) >= 40) {
-      return { id: 'huatuo-qingnang', payload: { kind: 'capturedId', id: ranked[0].id } };
-    }
+  if (ready.includes('huatuo-qingnang') && Math.random() < 0.2) {
+    return { id: 'huatuo-qingnang', payload: { kind: 'none' } };
   }
 
   if (ready.includes('ganning-chaiqiao')) {
@@ -300,11 +300,20 @@ function heuristicSkill(s: GameState): { id: string; payload: SkillPayload } | n
     if (shouldFire) return { id: 'ganning-chaiqiao', payload: { kind: 'none' } };
   }
 
-  const skip = new Set(['lvbu-wushuang', 'zhouyu-fanjian', 'diaochan-lijian', 'huatuo-qingnang', 'ganning-chaiqiao', 'guanyu-wusheng', 'guanyu-wuguan']);
+  const skip = new Set([
+    'lvbu-wushuang',
+    'lvbu-chitu',
+    'zhouyu-fanjian',
+    'diaochan-lijian',
+    'huatuo-qingnang',
+    'ganning-chaiqiao',
+    'guanyu-wusheng',
+    'guanyu-wuguan',
+    'caocao-guixin',
+  ]);
   const others = ready.filter((id) => !skip.has(id));
   if (others.length && Math.random() < 0.25) {
     const id = others[Math.floor(Math.random() * others.length)];
-    if (id === 'caocao-guixin') return { id, payload: { kind: 'none' } };
     if (id === 'zhangfei-paoxiao') {
       const mine = allPieces(s.board, s.side);
       const scored = mine
@@ -377,8 +386,23 @@ function resolveOverFive(s: GameState): GameState {
 }
 
 export function applyAITurn(s0: GameState): GameState {
-  if (s0.phase !== 'playing' || s0.winner || s0.side !== 'black') return s0;
+  const hijackAsBlack =
+    !!s0.pending.lijianHijack &&
+    s0.pending.lijianHijack.controller === 'black' &&
+    s0.side === 'red';
+  if (s0.phase !== 'playing' || s0.winner) return s0;
+  if (s0.side !== 'black' && !hijackAsBlack) return s0;
   let s = s0;
+
+  // 离间劫持：只走暗子，不放技能
+  if (s.pending.lijianHijack && s.pending.lijianHijack.controller !== s.side) {
+    const mv = pickBoardMove(s);
+    if (!mv) {
+      // 引擎应已跳过；兜底直接判无子可动
+      return { ...s, winner: opposite(s.side), phase: 'result', log: [...s.log, '离间回合无子可动'] };
+    }
+    return makeMove(s, mv.from, mv.to);
+  }
 
   if (s.pending.awaitYingshi) {
     s = resolveYingshi(s);

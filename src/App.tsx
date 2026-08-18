@@ -15,8 +15,8 @@ import {
   clearBroadcast,
   createHomeState,
   isKongchengCaptureAttempt,
+  isWushuangCaptureAttempt,
   listLegalFrom,
-  lvbuRange,
   makeMove,
   overFiveDests,
   peekDark,
@@ -38,7 +38,7 @@ interface Targeting {
   picks: Pos[];
 }
 
-function hintFor(id: string, range = 2): string {
+function hintFor(id: string): string {
   switch (id) {
     case 'guanyu-wuguan':
       return '过五关：回合开始，点己方已翻开的马再点落点（可越马腿）';
@@ -49,21 +49,23 @@ function hintFor(id: string, range = 2): string {
     case 'zhaoyun-longhun':
       return '龙魂：依次点选要交换的两枚己方棋（可暗可明；发动后本回合不可再行棋）';
     case 'caocao-guixin':
-      return '天下归心：撤回对方上一手';
+      return '归心：收编己方九宫内的敌子';
     case 'simayi-guicai':
       return '鬼才：点选对方一子，其下回合只能动它';
     case 'simayi-yingshi':
       return '鹰视：点选对方一枚棋子标记偷看';
     case 'huatuo-qingnang':
-      return '青囊：点选要复活的被吃子';
+      return '青囊：随机传送己方一枚非将帅棋子';
     case 'zhouyu-fanjian':
       return '反间：点选对方一子，使其下回合无法移动';
     case 'sunshangxiang-lianyin':
       return '联姻：点选己方已过河棋子';
+    case 'lvbu-chitu':
+      return '赤兔：点选己方已翻开的兵/卒化为马';
     case 'lvbu-wushuang':
-      return `无双：点选距离 ≤ ${range} 的敌子斩杀`;
+      return '无双：三回合内将帅不可被吃、不可被将军';
     case 'diaochan-lijian':
-      return '离间：先点进攻的敌子，再点相邻被吃的敌子';
+      return '离间：对方下回合由你操控其暗子';
     case 'zhuge-guanxing':
       return '观星：点选五枚暗子偷看（不翻开）';
     case 'zhuge-kongcheng':
@@ -106,12 +108,6 @@ export default function App() {
   const highlights = useMemo(() => {
     if (!targeting) return [];
     const t = validSkillTargets(state, targeting.skillId);
-    if (targeting.skillId === 'diaochan-lijian' && targeting.picks.length === 1) {
-      return t.positions.filter((p) => {
-        const a = targeting.picks[0];
-        return Math.abs(p.r - a.r) <= 1 && Math.abs(p.c - a.c) <= 1 && !(p.r === a.r && p.c === a.c);
-      });
-    }
     const extra =
       targeting.skillId === 'zhuge-guanxing'
         ? targeting.picks.filter((p) => !t.positions.some((q) => posEq(q, p)))
@@ -129,11 +125,20 @@ export default function App() {
   const awaitYingshi = !!state.pending.awaitYingshi && state.side === 'red';
   const awaitKongcheng = !!state.pending.awaitKongcheng && state.side === 'red';
   const kongchengReady = awaitKongcheng && !state.skillBroadcast;
+  const lijianHumanControl =
+    !!state.pending.lijianHijack &&
+    state.pending.lijianHijack.controller === 'red' &&
+    state.side === 'black';
+  const lijianAiOnRed =
+    !!state.pending.lijianHijack &&
+    state.pending.lijianHijack.controller === 'black' &&
+    state.side === 'red';
   const inputLocked =
     thinking ||
-    state.side === 'black' ||
-    !!state.winner ||
-    !!state.skillBroadcast;
+    (!!state.winner) ||
+    !!state.skillBroadcast ||
+    (state.side === 'black' && !lijianHumanControl) ||
+    lijianAiOnRed;
   const showCoverFog = false;
   const myPeeks = peekedOf(state, 'red');
   const showPeek =
@@ -161,8 +166,9 @@ export default function App() {
 
   useEffect(() => {
     setSelected(null);
-    if (state.side === 'black') setTargeting(null);
-  }, [state.side, state.turnCount]);
+    if (state.side === 'black' && !lijianHumanControl) setTargeting(null);
+    if (lijianAiOnRed) setTargeting(null);
+  }, [state.side, state.turnCount, lijianHumanControl, lijianAiOnRed]);
 
   useEffect(() => {
     if (state.pending.awaitGuanxing && state.side === 'red' && !state.skillBroadcast) {
@@ -205,7 +211,11 @@ export default function App() {
   }, [state.pending.awaitKongcheng, state.side, state.moveSerial, state.skillBroadcast]);
 
   useEffect(() => {
-    if (state.phase !== 'playing' || state.winner || state.side !== 'black') {
+    const aiShouldPlay =
+      state.phase === 'playing' &&
+      !state.winner &&
+      ((state.side === 'black' && !lijianHumanControl) || lijianAiOnRed);
+    if (!aiShouldPlay) {
       setThinking(false);
       return;
     }
@@ -215,7 +225,7 @@ export default function App() {
     const t = window.setTimeout(() => {
       if (cancelled) return;
       setState((cur) => {
-        if (cur.side !== 'black' || cur.moveSerial !== snap) return cur;
+        if (cur.moveSerial !== snap) return cur;
         return applyAITurn(cur);
       });
       setThinking(false);
@@ -224,7 +234,15 @@ export default function App() {
       cancelled = true;
       window.clearTimeout(t);
     };
-  }, [state.phase, state.side, state.winner, state.moveSerial, state.turnCount]);
+  }, [
+    state.phase,
+    state.side,
+    state.winner,
+    state.moveSerial,
+    state.turnCount,
+    lijianHumanControl,
+    lijianAiOnRed,
+  ]);
 
   /** Keep skillBroadcast so splash plays AFTER the click/target resolves. */
   const applyPayload = (id: string, payload: SkillPayload) => {
@@ -234,13 +252,18 @@ export default function App() {
   };
 
   const openTargeting = (skillId: string) => {
-    if (skillId === 'caocao-guixin' || skillId === 'ganning-chaiqiao') {
+    if (
+      skillId === 'caocao-guixin' ||
+      skillId === 'ganning-chaiqiao' ||
+      skillId === 'diaochan-lijian' ||
+      skillId === 'huatuo-qingnang' ||
+      skillId === 'lvbu-wushuang'
+    ) {
       applyPayload(skillId, { kind: 'none' });
       return;
     }
     setSelected(null);
-    const range = skillId === 'lvbu-wushuang' ? lvbuRange(state, 'red') : 2;
-    setTargeting({ skillId, hint: hintFor(skillId, range), picks: [] });
+    setTargeting({ skillId, hint: hintFor(skillId), picks: [] });
   };
 
   /** Short-tap cast: open targeting / resolve first; broadcast comes from useSkill. */
@@ -301,7 +324,7 @@ export default function App() {
         return;
       }
 
-      if (id === 'zhaoyun-longhun' || id === 'diaochan-lijian') {
+      if (id === 'zhaoyun-longhun') {
         if (!t.positions.some((p) => posEq(p, pos)) && targeting.picks.length === 0) return;
         if (targeting.picks.length === 0) {
           setTargeting({ ...targeting, picks: [pos] });
@@ -311,7 +334,6 @@ export default function App() {
         return;
       }
 
-      if (id === 'huatuo-qingnang') return;
       if (!t.positions.some((p) => posEq(p, pos))) return;
       applyPayload(id, { kind: 'pos', pos });
       return;
@@ -328,6 +350,18 @@ export default function App() {
         showCenterPrompt('此子已发动空城的技能');
         return;
       }
+      if (isWushuangCaptureAttempt(state, selected, pos)) {
+        showCenterPrompt('此子已发动无双的技能');
+        return;
+      }
+    }
+    if (lijianHumanControl) {
+      if (piece && piece.side === 'black' && !piece.revealed) {
+        setSelected(pos);
+        return;
+      }
+      setSelected(null);
+      return;
     }
     if (piece && piece.side === 'red' && state.side === 'red') {
       setSelected(pos);
@@ -337,7 +371,10 @@ export default function App() {
   };
 
   const lastLine = state.log[state.log.length - 1] ?? '';
-  const revivePool = state.captured.red.filter((p) => !state.noReviveIds.includes(p.id));
+  const wushuangKingId =
+    state.pending.wushuang && state.pending.wushuang.turnsLeft > 0
+      ? state.board.flat().find((p) => p && p.type === 'K' && p.side === state.pending.wushuang!.owner)?.id
+      : undefined;
 
   return (
     <div className="phone-frame">
@@ -404,10 +441,13 @@ export default function App() {
                   </button>
                 </span>
               )}
-              {!thinking && !checked && !targeting && !awaitOverFive && !awaitGuanxing && !awaitYingshi && !awaitKongcheng && state.pending.zhangFeiMovesLeft && (
+              {!thinking && !checked && !targeting && !awaitOverFive && !awaitGuanxing && !awaitYingshi && !awaitKongcheng && lijianHumanControl && (
+                <span className="text-ink">离间 · 操控对方暗子行棋</span>
+              )}
+              {!thinking && !checked && !targeting && !awaitOverFive && !awaitGuanxing && !awaitYingshi && !awaitKongcheng && !lijianHumanControl && state.pending.zhangFeiMovesLeft && (
                 <span>咆哮 · 还可再走一步</span>
               )}
-              {!thinking && !checked && !awaitOverFive && !awaitGuanxing && !awaitYingshi && !awaitKongcheng && !targeting && !state.pending.zhangFeiMovesLeft && (
+              {!thinking && !checked && !awaitOverFive && !awaitGuanxing && !awaitYingshi && !awaitKongcheng && !targeting && !lijianHumanControl && !state.pending.zhangFeiMovesLeft && (
                 <span className={state.side === 'red' ? 'text-red-piece' : 'text-ink'}>
                   {state.side === 'red' ? '红方回合' : '黑方回合'}
                 </span>
@@ -424,14 +464,7 @@ export default function App() {
 
           <div className="play-board">
             <div className="play-board-row">
-              <CapturedRail
-                pieces={state.captured.red}
-                align="top"
-                clickableIds={
-                  targeting?.skillId === 'huatuo-qingnang' ? revivePool.map((p) => p.id) : undefined
-                }
-                onPick={(id) => applyPayload('huatuo-qingnang', { kind: 'capturedId', id })}
-              />
+              <CapturedRail pieces={state.captured.red} align="top" />
               <div className="relative min-h-0 min-w-0 flex-1">
                 <Board
                   board={state.board}
@@ -443,7 +476,7 @@ export default function App() {
                       ? state.pending.yingshiMark.pieceId
                       : undefined
                   }
-                  lockedPieceId={guicaiHighlightId}
+                  lockedPieceId={guicaiHighlightId ?? wushuangKingId}
                   selected={
                     targeting?.skillId === 'zhuge-guanxing' || targeting?.skillId === 'simayi-yingshi'
                       ? targeting.picks

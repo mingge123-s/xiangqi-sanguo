@@ -372,6 +372,8 @@ export interface LegalMoveOptions {
   protectedPieceIds?: string[];
   noCapture?: boolean;
   blockRiverCross?: boolean;
+  /** After the move, this side must not be in check (无双). */
+  mustNotCheck?: Side;
 }
 
 export interface AllLegalOptions {
@@ -381,6 +383,9 @@ export interface AllLegalOptions {
   noCapturePieceId?: string;
   blockRiverCross?: boolean;
   onlyPieceId?: string;
+  /** Only generate moves for unrevealed pieces (离间劫持). */
+  onlyUnrevealed?: boolean;
+  mustNotCheck?: Side;
 }
 
 export function getLegalMoves(
@@ -401,7 +406,9 @@ export function getLegalMoves(
     if (target && options?.protectedPieceId && target.id === options.protectedPieceId) continue;
     if (target && options?.protectedPieceIds?.includes(target.id)) continue;
     const { board: nb } = applyMove(board, from, to);
-    if (!inCheck(nb, side)) legal.push(to);
+    if (!inCheck(nb, side) && !(options?.mustNotCheck && inCheck(nb, options.mustNotCheck))) {
+      legal.push(to);
+    }
   }
   return legal;
 }
@@ -417,6 +424,7 @@ export function getAllLegalMoves(
       const p = board[r][c];
       if (!p || p.side !== side) continue;
       if (options?.onlyPieceId && p.id !== options.onlyPieceId) continue;
+      if (options?.onlyUnrevealed && p.revealed) continue;
       const frozen = options?.frozen && options.frozen.r === r && options.frozen.c === c;
       const noCapture = !!(options?.noCapturePieceId && p.id === options.noCapturePieceId);
       const dests = getLegalMoves(board, { r, c }, side, {
@@ -425,6 +433,7 @@ export function getAllLegalMoves(
         protectedPieceId: options?.protectedPieceId,
         protectedPieceIds: options?.protectedPieceIds,
         blockRiverCross: options?.blockRiverCross,
+        mustNotCheck: options?.mustNotCheck,
       });
       for (const to of dests) moves.push({ from: { r, c }, to });
     }
