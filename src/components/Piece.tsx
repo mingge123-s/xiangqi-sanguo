@@ -10,6 +10,7 @@ export function PieceView({
   peeked,
   coverHint,
   peekMark,
+  locked,
   onPointer,
 }: {
   piece: PieceT;
@@ -19,6 +20,7 @@ export function PieceView({
   peeked?: boolean;
   coverHint?: PieceType;
   peekMark?: string;
+  locked?: boolean;
   onPointer: () => void;
 }) {
   const red = piece.side === 'red';
@@ -58,7 +60,9 @@ export function PieceView({
           border: `${outerW}px solid ${ink}`,
           boxShadow: selected
             ? 'inset 0 1px 2px rgba(255,240,210,0.5), inset 0 -2px 3px rgba(60,30,10,0.28), 0 0 0 2px #c9a227, 0 3px 6px rgba(0,0,0,0.35)'
-            : undefined,
+            : locked
+              ? 'inset 0 1px 2px rgba(255,240,210,0.45), inset 0 -2px 3px rgba(60,30,10,0.28), 0 0 0 2.5px #6b8f71, 0 0 10px rgba(90,130,95,0.45)'
+              : undefined,
         }}
       >
         <span

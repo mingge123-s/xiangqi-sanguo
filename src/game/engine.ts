@@ -33,7 +33,7 @@ import type {
   SkillPayload,
   SkillRuntime,
 } from './types';
-import { QI_MAX, QI_START } from './types';
+import { CHAR, QI_MAX, QI_START } from './types';
 
 function cloneGenerals(gs: GeneralRuntime[]): GeneralRuntime[] {
   return gs.map((g) => ({
@@ -82,9 +82,35 @@ function cloneState(s: GameState): GameState {
       red: s.riverCrossCount?.red ?? 0,
       black: s.riverCrossCount?.black ?? 0,
     },
-    peekedIds: (s.peekedIds ?? []).slice(),
+    peekedIds: {
+      red: (s.peekedIds?.red ?? []).slice(),
+      black: (s.peekedIds?.black ?? []).slice(),
+    },
     qi: { red: s.qi?.red ?? 0, black: s.qi?.black ?? 0 },
   };
+}
+
+export function emptyPeeked(): { red: string[]; black: string[] } {
+  return { red: [], black: [] };
+}
+
+export function peekedOf(s: GameState, side: Side): string[] {
+  return s.peekedIds?.[side] ?? [];
+}
+
+function setPeekedFor(s: GameState, side: Side, ids: string[]): void {
+  s.peekedIds = {
+    red: s.peekedIds?.red ?? [],
+    black: s.peekedIds?.black ?? [],
+    [side]: ids.slice(),
+  };
+}
+
+function addPeekId(s: GameState, side: Side, id: string): boolean {
+  const cur = peekedOf(s, side);
+  if (cur.includes(id)) return false;
+  setPeekedFor(s, side, [...cur, id]);
+  return true;
 }
 
 function pushLog(s: GameState, msg: string): void {
@@ -329,15 +355,36 @@ export function skipKongcheng(s0: GameState): GameState {
   return s;
 }
 
-/** Reveal a dark piece to the 观星 owner only. Does not consume the skill or close the window. */
+/** Reveal a dark piece to the current side only. Does not consume the skill or close the window. */
 export function peekDark(s0: GameState, pos: Pos): GameState {
   const s = cloneState(s0);
   const p = getPiece(s.board, pos);
   if (!p || p.revealed) return s0;
-  const ids = s.peekedIds ?? [];
-  if (ids.includes(p.id)) return s0;
-  s.peekedIds = [...ids, p.id];
+  if (!addPeekId(s, s.side, p.id)) return s0;
   return s;
+}
+
+/** True if `to` is a kongcheng-protected enemy and `from` could otherwise capture it. */
+export function isKongchengCaptureAttempt(s: GameState, from: Pos, to: Pos): boolean {
+  const target = getPiece(s.board, to);
+  if (!target || !s.pending.kongcheng || target.id !== s.pending.kongcheng.pieceId) return false;
+  if (target.side === s.side) return false;
+  const p = getPiece(s.board, from);
+  if (!p || p.side !== s.side) return false;
+  const opt = legalOptions(s, s.side);
+  const frozen = !!(opt.frozen && opt.frozen.r === from.r && opt.frozen.c === from.c);
+  if (frozen) return false;
+  const noCapture = !!(opt.noCapturePieceId && p.id === opt.noCapturePieceId);
+  if (noCapture) return false;
+  // Ignore only 空城 protection; keep 武圣 and other guards.
+  const otherProtected = protectedIds(s).filter((id) => id !== s.pending.kongcheng!.pieceId);
+  const dests = getLegalMoves(s.board, from, s.side, {
+    frozen,
+    noCapture,
+    protectedPieceIds: otherProtected.length ? otherProtected : undefined,
+    blockRiverCross: opt.blockRiverCross,
+  });
+  return dests.some((d) => posEq(d, to));
 }
 
 function finishIfOver(s: GameState, sideToMove: Side): void {
@@ -469,8 +516,7 @@ export function pickYingshiTarget(s: GameState, owner: Side): { pos: Pos; piece:
 }
 
 function applyYingshiMark(s: GameState, owner: Side, piece: Piece): void {
-  const ids = s.peekedIds ?? [];
-  if (!ids.includes(piece.id)) s.peekedIds = [...ids, piece.id];
+  addPeekId(s, owner, piece.id);
   s.pending = {
     ...s.pending,
     yingshiMark: { owner, pieceId: piece.id },
@@ -509,10 +555,8 @@ function maybeOpenYingshiReload(s: GameState): void {
 function maybeOpenOverFive(s: GameState): void {
   if (s.winner || s.pending.awaitYingshi || s.pending.awaitGuanxing) return;
   if (canReadyOverFive(s)) {
+    // Window opens quietly; broadcast only after the jump resolves (not an 主动技 splash-before-target).
     s.pending = { ...s.pending, awaitOverFive: true };
-    if (s.side === 'red' && !s.skillBroadcast) {
-      s.skillBroadcast = { name: '关羽', skill: '过五关', faction: 'shu' };
-    }
   }
 }
 
@@ -583,7 +627,7 @@ export function createHomeState(): GameState {
     moveSerial: 0,
     noReviveIds: [],
     riverCrossCount: { red: 0, black: 0 },
-    peekedIds: [],
+    peekedIds: emptyPeeked(),
     qi: { red: QI_START, black: QI_START },
   };
 }
@@ -632,7 +676,7 @@ function pickDarkIds(s: GameState, n: number): string[] {
 function applyBlackGuanxing(s: GameState): void {
   if (!sideHasSkill(sideGens(s, 'black'), 'zhuge-guanxing')) return;
   const ids = pickDarkIds(s, 5);
-  s.peekedIds = ids;
+  setPeekedFor(s, 'black', ids);
   consumeGuanxingFor(s, 'black');
   pushLog(s, '观星，窥见五枚暗子');
 }
@@ -686,6 +730,7 @@ function consumeSkill(s: GameState, g: GeneralRuntime, skill: SkillRuntime): voi
   if (skill.engineKind !== 'start' && skill.id !== 'guanyu-wuguan') {
     s.skillUsedThisTurn = true;
   }
+  // Broadcast after the skill is resolved (主动技: after click/target). Never for passives here.
   s.skillBroadcast = { name: g.name, skill: skill.name, faction: g.faction };
   pushLog(s, `${side === 'red' ? '红' : '黑'}方 ${g.name} 发动【${skill.name}】`);
 }
@@ -1115,7 +1160,7 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
       ids.push(p.id);
     }
     consumeSkill(s, g, skill);
-    s.peekedIds = ids;
+    setPeekedFor(s, side, ids);
     s.pending = { ...s.pending, awaitGuanxing: undefined };
     pushLog(s, '观星，窥见五枚暗子');
     if (sideHasSkill(sideGens(s, side), 'simayi-yingshi')) {
@@ -1158,8 +1203,8 @@ function maybeAwaitKongcheng(s: GameState): boolean {
   if (s.winner || s.phase !== 'playing') return false;
   const owned = findOwnedSkill(sideGens(s, s.side), 'zhuge-kongcheng');
   if (!owned || !isSkillReady(owned.skill, s.qi[s.side] ?? 0)) return false;
+  // Open the end-of-turn window quietly; broadcast after the player picks a piece.
   s.pending = { ...s.pending, awaitKongcheng: true, zhangFeiMovesLeft: undefined, zhangFeiPieceId: undefined };
-  s.skillBroadcast = { name: '诸葛亮', skill: '空城', faction: 'shu' };
   return true;
 }
 
@@ -1263,6 +1308,57 @@ export function sideInCheck(s: GameState): boolean {
 
 export function capturedOf(s: GameState, side: Side): Piece[] {
   return s.captured[side];
+}
+
+/** Live match-state blurb for a skill detail card (owner perspective). */
+export function skillLiveState(s: GameState, skillId: string, viewer: Side = 'red'): string | null {
+  const trueLabel = (p: Piece) => CHAR[p.side][p.type];
+  const fmt = (p: Piece, pos: Pos) => `${trueLabel(p)} ${squareName(pos)}`;
+
+  if (skillId === 'zhuge-guanxing') {
+    const ids = peekedOf(s, viewer);
+    if (!ids.length) return '尚未窥见暗子';
+    const lines: string[] = [];
+    for (const id of ids) {
+      const hit = allPieces(s.board).find((x) => x.piece.id === id);
+      if (hit) lines.push(fmt(hit.piece, hit.pos));
+    }
+    return lines.length ? `已窥见：${lines.join('、')}` : '窥见之子已不在棋盘';
+  }
+  if (skillId === 'simayi-yingshi') {
+    const mark = s.pending.yingshiMark;
+    if (!mark || mark.owner !== viewer) return '当前无标记';
+    const hit = allPieces(s.board).find((x) => x.piece.id === mark.pieceId);
+    if (!hit) return '标记之子已不在棋盘';
+    return `标记中：${fmt(hit.piece, hit.pos)}`;
+  }
+  if (skillId === 'zhuge-kongcheng') {
+    const kc = s.pending.kongcheng;
+    if (!kc) return '当前无庇护';
+    const hit = allPieces(s.board).find((x) => x.piece.id === kc.pieceId);
+    if (!hit) return '庇护之子已不在棋盘';
+    return `庇护中：${fmt(hit.piece, hit.pos)}`;
+  }
+  if (skillId === 'simayi-guicai') {
+    const lock = s.pending.guicaiLock;
+    if (!lock) return '当前无锁定';
+    const hit = allPieces(s.board).find((x) => x.piece.id === lock.pieceId);
+    if (!hit) return '锁定之子已不在棋盘';
+    return `锁定中：${fmt(hit.piece, hit.pos)}（对方下回合）`;
+  }
+  if (skillId === 'guanyu-wusheng') {
+    const owned = findOwnedSkill(sideGens(s, viewer), 'guanyu-wusheng');
+    if (!owned) return null;
+    if (owned.skill.uses >= owned.skill.maxUses && !s.pending.wushengGuard) {
+      return '本局已发动';
+    }
+    const g = s.pending.wushengGuard;
+    if (!g || g.owner !== viewer) return '尚未发动';
+    const hit = allPieces(s.board).find((x) => x.piece.id === g.pieceId);
+    if (!hit) return '受护之子已不在棋盘';
+    return `受护中：${fmt(hit.piece, hit.pos)}`;
+  }
+  return null;
 }
 
 export { fillSkill, bumpSkill, lvbuRange };

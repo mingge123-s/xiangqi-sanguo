@@ -1,4 +1,4 @@
-import type { Faction, GeneralRuntime, SkillDef, SkillRuntime } from './types';
+import type { Faction, GeneralRuntime, SkillDef, SkillLabelKind, SkillRuntime } from './types';
 
 export interface GeneralDef {
   id: string;
@@ -7,6 +7,18 @@ export interface GeneralDef {
   title: string;
   startHidden?: boolean;
   skills: SkillDef[];
+}
+
+export function skillTypeLabel(skill: SkillDef | SkillRuntime): SkillLabelKind | null {
+  if (skill.labelKind === 'none') return null;
+  if (skill.labelKind) return skill.labelKind;
+  if (skill.engineKind === 'limited') return '限定技';
+  if (skill.engineKind === 'window') return '回合技';
+  if (skill.engineKind === 'passive' || skill.engineKind === 'start' || skill.kind === 'passive') {
+    return '锁定技';
+  }
+  if (skill.kind === 'active') return '主动技';
+  return '锁定技';
 }
 
 export const GENERALS: GeneralDef[] = [
@@ -20,9 +32,10 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'guanyu-wuguan',
         name: '过五关',
-        desc: '主动技，你的回合开始时，你可以消耗3点战气，指定己方一枚已翻开的马，令其立即行动一日，此步不受蹩马腿限制。跳完或跳过后仍可走正常一步。',
+        desc: '回合开始时，你可以消耗3点战气，指定己方一枚已翻开的马，令其立即行动一日，此步不受蹩马腿限制。跳完或跳过后仍可走正常一步。',
         kind: 'active',
-        engineKind: 'active',
+        engineKind: 'window',
+        labelKind: '回合技',
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
@@ -34,6 +47,7 @@ export const GENERALS: GeneralDef[] = [
         desc: '限定技，出牌阶段，指定己方一枚已翻开且在己方河界内的棋子（不能指定帅/将）。该子在己方河界内不能被吃；一旦过河，效果消失。',
         kind: 'active',
         engineKind: 'limited',
+        labelKind: '限定技',
         maxUses: 1,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
@@ -165,9 +179,10 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'simayi-guicai',
         name: '鬼才',
-        desc: '主动技，出牌阶段，你可以消耗5点战气，指定对方一枚棋子。对方的下个回合只能使用该子移动。',
+        desc: '出牌阶段，你可以消耗5点战气，指定对方一枚棋子。对方的下个回合只能使用该子移动。',
         kind: 'active',
         engineKind: 'active',
+        labelKind: 'none',
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
