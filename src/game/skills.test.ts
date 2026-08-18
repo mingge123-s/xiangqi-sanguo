@@ -284,14 +284,27 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(after.side === 'red', 'failed 咆哮 does not change side');
 }
 
-// 赵云
+// 赵云 龙魂：行棋前可用，发动后消耗本回合行棋
 {
   let s = base();
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'zhaoyun')!, false))];
+  const qiBefore = s.qi.red;
   s = useSkill(s, 'zhaoyun-longhun', { kind: 'twoPos', a: { r: 9, c: 0 }, b: { r: 9, c: 8 } });
   const a = getPiece(s.board, { r: 9, c: 0 });
   const b = getPiece(s.board, { r: 9, c: 8 });
   assert(a?.type === 'R' && b?.type === 'R', '赵云 swapped the two rooks (still rooks)');
-  assert(s.side === 'red', '赵云 does not consume the chess move');
+  assert(s.qi.red === qiBefore - 4 + 1, '龙魂 costs 4 战气 then end-turn +1');
+  assert(s.side === 'black', '龙魂 consumes the turn like a spent move');
+  assert(s.movedThisTurn === false, 'movedThisTurn cleared after turn ends');
+  assert(!canUseSkill(s, 'zhaoyun-longhun'), '龙魂 not usable on opponent turn');
+
+  let sMoved = base();
+  sMoved.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'zhaoyun')!, false))];
+  sMoved.movedThisTurn = true;
+  assert(!canUseSkill(sMoved, 'zhaoyun-longhun'), '龙魂 blocked after already moving');
+  const blocked = useSkill(sMoved, 'zhaoyun-longhun', { kind: 'twoPos', a: { r: 9, c: 0 }, b: { r: 9, c: 8 } });
+  assert(getPiece(blocked.board, { r: 9, c: 0 })?.id === getPiece(sMoved.board, { r: 9, c: 0 })?.id, '龙魂 no-ops after move');
+
   const s2 = useSkill(base(), 'zhaoyun-longhun', { kind: 'twoPos', a: { r: 9, c: 4 }, b: { r: 9, c: 0 } });
   assert(getPiece(s2.board, { r: 9, c: 4 })?.type === 'K', '赵云 cannot swap 帅 out of palace');
 }
@@ -374,18 +387,22 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(!stillThere || stillThere.id !== 'crossed-n' || onOwn.r === 4, 'moved off far side');
 }
 
-// 甘宁 过河拆桥
+// 甘宁 奇袭
 {
   let s = base();
+  const qiBefore = s.qi.red;
   s = useSkill(s, 'ganning-chaiqiao', { kind: 'none' });
-  assert(s.pending.bridgeDown?.owner === 'red' && s.pending.bridgeDown?.enemyTurnsLeft === 2, '过河拆桥 armed for 2 enemy turns');
+  assert(s.pending.bridgeDown?.owner === 'red' && s.pending.bridgeDown?.enemyTurnsLeft === 2, '奇袭 armed for 2 enemy turns');
   assert(!g(s, 'ganning').hidden, '甘宁 revealed');
-  assert(sk(s, 'ganning-chaiqiao').uses === 1, 'limited use consumed');
-  assert(s.skillBroadcast?.skill === '过河拆桥', 'broadcast 过河拆桥');
+  assert(s.qi.red === qiBefore - 3, '奇袭 costs 3 战气');
+  assert(s.skillBroadcast?.skill === '奇袭', 'broadcast 奇袭');
+  assert(canUseSkill(s, 'ganning-chaiqiao') === false, '奇袭 not reusable same turn after cast');
   assert(listLegalFrom(s, { r: 6, c: 4 }).some((m) => m.r === 5 && m.c === 4), 'red pawn 6->5 is not a cross');
   s.board[5][2] = P('P', 'red', 'red-at-5');
   assert(listLegalFrom(s, { r: 5, c: 2 }).some((m) => m.r === 4 && m.c === 2), 'owner red 5->4 still legal');
   s.side = 'black';
+  s.skillUsedThisTurn = false;
+  s.movedThisTurn = false;
   s.board[4][4] = P('P', 'black', 'blk-at-4');
   assert(!listLegalFrom(s, { r: 4, c: 4 }).some((m) => m.r === 5 && m.c === 4), 'black 4->5 blocked as new cross');
   assert(listLegalFrom(s, { r: 3, c: 2 }).some((m) => m.r === 4 && m.c === 2), 'black 3->4 still own half');
@@ -397,32 +414,21 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(!s.pending.bridgeDown, 'cleared after two enemy turn-ends');
 }
 
-// 复渡: 5 red first-time river crosses reset 过河拆桥
+// 锦帆: enemy river cross → +1 战气
 {
   let s = base();
-  s = useSkill(s, 'ganning-chaiqiao', { kind: 'none' });
-  assert(sk(s, 'ganning-chaiqiao').uses === 1, 'chaiqiao consumed before 复渡');
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'ganning')!, true))];
+  s.blackGenerals = [];
   s.board = emptyBoard();
   s.board[9][4] = P('K', 'red', 'rk');
   s.board[0][3] = P('K', 'black', 'bk');
-  s.board[2][8] = P('R', 'black', 'br');
-  const cols = [0, 2, 4, 6, 8];
-  for (let i = 0; i < 5; i++) {
-    s.board[5][cols[i]] = P('P', 'red', `rp${i}`);
-  }
-  s.side = 'red';
-  s.skillUsedThisTurn = true;
-  let rookR = 2;
-  for (let i = 0; i < 5; i++) {
-    s = settle(makeMove(s, { r: 5, c: cols[i] }, { r: 4, c: cols[i] }));
-    if (i < 4) {
-      const nextR = rookR === 2 ? 3 : 2;
-      s = settle(makeMove(s, { r: rookR, c: 8 }, { r: nextR, c: 8 }));
-      rookR = nextR;
-    }
-  }
-  assert(s.riverCrossCount.red === 5, '5 red first-time river crosses');
-  assert(sk(s, 'ganning-chaiqiao').uses === 0, '复渡 resets 过河拆桥 uses to 0');
+  s.board[4][4] = P('P', 'black', 'bp');
+  s.board[2][0] = P('R', 'red', 'rr');
+  s.side = 'black';
+  s.qi = { red: 2, black: 0 };
+  s = settle(makeMove(s, { r: 4, c: 4 }, { r: 5, c: 4 }));
+  assert(s.qi.red === 3, '锦帆：对方过河，红方战气+1');
+  assert(s.crossedRiverIds.includes('bp'), 'black pawn marked crossed');
 }
 
 // 吕布
@@ -667,6 +673,8 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
 {
   let s = base();
   s.qi = { red: 0, black: 0 };
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'caocao')!, false))];
+  s.blackGenerals = [];
   s.board = emptyBoard();
   s.board[9][4] = P('K', 'red', 'rk');
   s.board[0][3] = P('K', 'black', 'bk');

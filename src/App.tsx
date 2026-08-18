@@ -47,7 +47,7 @@ function hintFor(id: string, range = 2): string {
     case 'zhangfei-paoxiao':
       return '咆哮：点选要连走两步的己方棋';
     case 'zhaoyun-longhun':
-      return '龙魂：依次点选要交换的两枚己方棋（可暗可明）';
+      return '龙魂：依次点选要交换的两枚己方棋（可暗可明；发动后本回合不可再行棋）';
     case 'caocao-guixin':
       return '天下归心：撤回对方上一手';
     case 'simayi-guicai':
@@ -367,17 +367,17 @@ export default function App() {
                 <motion.span
                   initial={{ opacity: 0, y: -6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-red-300"
+                  className="text-red-piece"
                 >
                   将军!
                 </motion.span>
               )}
               {!thinking && awaitOverFive && (
-                <span className="flex items-center gap-2 text-paper">
+                <span className="flex items-center gap-2 text-ink">
                   过五关 · 回合开始，点马来跳，或点跳过
                   <button
                     type="button"
-                    className="rounded border border-aged/50 px-1.5 py-0 text-[11px] tracking-widest text-paper-dim"
+                    className="rounded border border-aged/50 px-1.5 py-0 text-[11px] tracking-widest text-aged"
                     onClick={() => {
                       setState((s) => skipOverFive(s));
                       setTargeting(null);
@@ -389,11 +389,11 @@ export default function App() {
                 </span>
               )}
               {!thinking && !checked && !awaitOverFive && !awaitGuanxing && !awaitYingshi && !awaitKongcheng && targeting && (
-                <span className="flex items-center gap-2 text-paper">
+                <span className="flex items-center gap-2 text-ink">
                   {targeting.hint}
                   <button
                     type="button"
-                    className="rounded border border-aged/50 px-1.5 py-0 text-[11px] tracking-widest text-paper-dim"
+                    className="rounded border border-aged/50 px-1.5 py-0 text-[11px] tracking-widest text-aged"
                     onClick={() => {
                       setTargeting(null);
                       setSelected(null);
@@ -407,7 +407,7 @@ export default function App() {
                 <span>咆哮 · 还可再走一步</span>
               )}
               {!thinking && !checked && !awaitOverFive && !awaitGuanxing && !awaitYingshi && !awaitKongcheng && !targeting && !state.pending.zhangFeiMovesLeft && (
-                <span className={state.side === 'red' ? 'text-red-300' : 'text-paper'}>
+                <span className={state.side === 'red' ? 'text-red-piece' : 'text-ink'}>
                   {state.side === 'red' ? '红方回合' : '黑方回合'}
                 </span>
               )}
@@ -478,7 +478,7 @@ export default function App() {
                   <span className="skill-center-text">空城 · 点己方一子护到下回合</span>
                   <button
                     type="button"
-                    className="pointer-events-auto relative rounded border border-aged/50 px-2 py-0.5 text-[11px] tracking-widest text-paper-dim"
+                    className="pointer-events-auto relative rounded border border-aged/50 px-2 py-0.5 text-[11px] tracking-widest text-aged"
                     onClick={() => {
                       setState((s) => skipKongcheng(s));
                       setTargeting(null);

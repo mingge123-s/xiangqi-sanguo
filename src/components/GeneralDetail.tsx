@@ -22,12 +22,12 @@ export function GeneralDetail({
   const color = FACTION_COLOR[general.faction];
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center px-4" onClick={onClose}>
-      <div className="pointer-events-none absolute inset-0 bg-[#0a0806]/70" />
+      <div className="pointer-events-none absolute inset-0 bg-[#3d3224]/25" />
       <div
-        className="relative max-h-[88dvh] w-full max-w-[340px] overflow-y-auto rounded-sm border border-aged/45 px-4 py-3 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+        className="relative max-h-[88dvh] w-full max-w-[340px] overflow-y-auto rounded-sm border border-aged/40 px-4 py-3 shadow-[0_12px_36px_rgba(61,50,36,0.18)]"
         style={{
           background:
-            'radial-gradient(circle at 22% 0%, rgba(232,220,196,0.10), transparent 46%), linear-gradient(180deg, #2a2218 0%, #16120e 100%)',
+            'radial-gradient(circle at 22% 0%, rgba(255,250,235,0.65), transparent 46%), linear-gradient(180deg, #f7f0de 0%, #efe4cc 100%)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -43,8 +43,8 @@ export function GeneralDetail({
             />
           </div>
           <div className="min-w-0">
-            <div className="text-xl tracking-[0.28em] text-paper">{general.name}</div>
-            <div className="mt-0.5 text-[12px] tracking-[0.2em] text-paper-dim">{general.title}</div>
+            <div className="text-xl tracking-[0.28em] text-ink">{general.name}</div>
+            <div className="mt-0.5 text-[12px] tracking-[0.2em] text-aged">{general.title}</div>
           </div>
         </div>
         <div className="mt-3 space-y-2.5">
@@ -60,29 +60,29 @@ export function GeneralDetail({
                       style={{
                         color:
                           tag === '限定技'
-                            ? '#d4b37a'
+                            ? '#a67c2a'
                             : tag === '主动技' || tag === '回合技'
-                              ? '#e8dcc4'
+                              ? '#2a2218'
                               : '#8a7349',
                       }}
                     >
                       {tag}
                     </span>
                   )}
-                  <span className="text-[15px] text-paper">{sk.name}</span>
+                  <span className="text-[15px] text-ink">{sk.name}</span>
                 </div>
                 {sk.qiCost != null && sk.qiCost > 0 && (
-                  <div className="text-[10px] tracking-widest text-paper-dim">消耗 {sk.qiCost} 战气</div>
+                  <div className="text-[10px] tracking-widest text-aged">消耗 {sk.qiCost} 战气</div>
                 )}
-                <p className="mt-0.5 text-[12px] leading-5 text-paper-dim">{sk.desc}</p>
+                <p className="mt-0.5 text-[12px] leading-5 text-ink-soft/85">{sk.desc}</p>
                 {live && (
-                  <p className="mt-1 text-[11px] leading-4 tracking-wider text-[#c4b08a]">{live}</p>
+                  <p className="mt-1 text-[11px] leading-4 tracking-wider text-[#6b5a3e]">{live}</p>
                 )}
                 {canCast?.(sk.id) && (
                   <button
                     type="button"
                     onClick={() => onCast?.(sk.id)}
-                    className="mt-1 border border-aged/45 px-2.5 py-0.5 text-[12px] tracking-[0.35em] text-paper"
+                    className="mt-1 border border-aged/50 px-2.5 py-0.5 text-[12px] tracking-[0.35em] text-ink"
                   >
                     发动
                   </button>
@@ -94,7 +94,7 @@ export function GeneralDetail({
         <button
           type="button"
           onClick={onClose}
-          className="mt-3 w-full border border-aged/40 py-1.5 text-[13px] tracking-[0.4em] text-paper-dim"
+          className="mt-3 w-full border border-aged/40 py-1.5 text-[13px] tracking-[0.4em] text-aged"
         >
           关闭
         </button>

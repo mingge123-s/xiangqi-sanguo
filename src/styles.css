@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink: #1a1510;
-  --color-ink-soft: #2a2218;
-  --color-paper: #e8dcc4;
-  --color-paper-dim: #cbb892;
+  --color-ink: #2a2218;
+  --color-ink-soft: #3d3224;
+  --color-paper: #f4ead6;
+  --color-paper-dim: #efe4cc;
   --color-aged: #8a7349;
   --color-line: #3d3224;
   --color-red-piece: #9b1c1c;
@@ -22,8 +22,8 @@ body,
   margin: 0;
   min-height: 100%;
   height: 100%;
-  background: #0e0b08;
-  color: #e8dcc4;
+  background: #f4ead6;
+  color: #2a2218;
   font-family: var(--font-serif);
   -webkit-tap-highlight-color: transparent;
   user-select: none;
@@ -31,13 +31,15 @@ body,
 }
 
 body {
-  background-color: #1a1510;
+  background-color: #f4ead6;
   background-image:
-    repeating-radial-gradient(circle at 18% 22%, rgba(196, 172, 128, 0.07) 0 1px, transparent 1px 13px),
-    repeating-radial-gradient(circle at 82% 78%, rgba(140, 118, 86, 0.06) 0 1px, transparent 1px 17px),
-    repeating-linear-gradient(0deg, rgba(255, 236, 200, 0.015) 0 1px, transparent 1px 7px),
-    linear-gradient(180deg, #2c2418 0%, #1a1510 48%, #120e0a 100%);
-  background-blend-mode: multiply, multiply, soft-light, normal;
+    url("/xiangqi-sanguo/ink-wash.svg"),
+    radial-gradient(ellipse at 20% 15%, rgba(216, 199, 164, 0.45) 0%, transparent 52%),
+    radial-gradient(ellipse at 85% 80%, rgba(106, 90, 68, 0.08) 0%, transparent 48%),
+    linear-gradient(180deg, #f7f0de 0%, #f4ead6 42%, #efe4cc 100%);
+  background-size: cover, auto, auto, auto;
+  background-position: center, center, center, center;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
 }
 
 .phone-frame {
@@ -46,7 +48,10 @@ body {
   margin: 0 auto;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 0 80px rgba(0, 0, 0, 0.55);
+  background:
+    url("/xiangqi-sanguo/ink-wash.svg") center / cover no-repeat,
+    linear-gradient(180deg, rgba(247, 240, 222, 0.55) 0%, rgba(244, 234, 214, 0.72) 50%, rgba(239, 228, 204, 0.8) 100%);
+  box-shadow: 0 0 48px rgba(61, 50, 36, 0.12);
 }
 
 .play-screen {
@@ -68,7 +73,7 @@ body {
   justify-content: center;
   font-size: 12px;
   letter-spacing: 0.16em;
-  color: #cbb892;
+  color: #5c4e3a;
 }
 
 .play-board {
@@ -131,8 +136,9 @@ body {
   content: "";
   position: absolute;
   inset: -40px -56px;
-  background: url("/ink-wash.svg") center / 100% 100% no-repeat;
+  background: url("/xiangqi-sanguo/ink-wash.svg") center / 100% 100% no-repeat;
   pointer-events: none;
+  opacity: 0.92;
 }
 
 .skill-center-mask::after {
@@ -145,8 +151,8 @@ body {
   letter-spacing: 0.2em;
   color: #2c2418;
   text-shadow:
-    0 0 10px rgba(232, 220, 196, 0.55),
-    0 1px 0 rgba(255, 244, 220, 0.35);
+    0 0 10px rgba(244, 234, 214, 0.85),
+    0 1px 0 rgba(255, 250, 235, 0.55);
 }
 
 .play-log {
@@ -155,7 +161,7 @@ body {
   text-align: center;
   font-size: 10px;
   line-height: 16px;
-  color: rgba(203, 184, 146, 0.8);
+  color: rgba(61, 50, 36, 0.72);
   padding: 0 12px;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -178,26 +184,26 @@ body {
   box-shadow:
     inset 0 1px 2px rgba(255, 240, 210, 0.4),
     inset 0 -2px 3px rgba(60, 30, 10, 0.28),
-    0 1px 3px rgba(0, 0, 0, 0.28);
+    0 1px 3px rgba(0, 0, 0, 0.18);
 }
 
 
 .hidden-seal {
   background:
-    radial-gradient(circle at 40% 30%, rgba(80, 70, 55, 0.5), #1a1510 70%);
+    radial-gradient(circle at 40% 30%, rgba(120, 105, 85, 0.35), #3d3224 70%);
 }
 
 .ink-splash {
   background:
-    radial-gradient(circle at 50% 45%, rgba(232, 220, 196, 0.16) 0 12%, transparent 42%),
-    radial-gradient(circle at 38% 50%, rgba(20, 14, 8, 0.72) 0 18%, transparent 48%),
-    radial-gradient(circle at 62% 48%, rgba(20, 14, 8, 0.68) 0 16%, transparent 46%),
-    radial-gradient(circle at 50% 50%, rgba(12, 9, 6, 0.82) 0 28%, transparent 62%);
+    radial-gradient(circle at 50% 45%, rgba(244, 234, 214, 0.72) 0 14%, transparent 44%),
+    radial-gradient(circle at 38% 50%, rgba(61, 50, 36, 0.14) 0 18%, transparent 48%),
+    radial-gradient(circle at 62% 48%, rgba(61, 50, 36, 0.12) 0 16%, transparent 46%),
+    radial-gradient(circle at 50% 50%, rgba(239, 228, 204, 0.55) 0 30%, transparent 64%);
 }
 
 .board-wood {
   border-radius: 3px;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.28));
+  filter: drop-shadow(0 2px 6px rgba(61, 50, 36, 0.18));
 }
 
 .sr-only {

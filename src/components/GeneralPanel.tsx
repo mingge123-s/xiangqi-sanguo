@@ -13,7 +13,7 @@ function QiMeter({ value, compact }: { value: number; compact?: boolean }) {
   const n = Math.min(QI_MAX, Math.max(0, value));
   return (
     <div className={`flex items-center justify-center gap-1.5 ${compact ? 'mb-0.5' : 'mb-1'}`}>
-      <span className={`${compact ? 'text-[10px]' : 'text-[11px]'} tracking-widest text-paper-dim`}>
+      <span className={`${compact ? 'text-[10px]' : 'text-[11px]'} tracking-widest text-aged`}>
         战气 {n}
       </span>
       <div className="flex items-center gap-px" aria-hidden>
@@ -21,7 +21,7 @@ function QiMeter({ value, compact }: { value: number; compact?: boolean }) {
           <span
             key={i}
             className={`inline-block rounded-full ${compact ? 'h-[4px] w-[4px]' : 'h-[5px] w-[5px]'} ${
-              i < n ? 'bg-paper-dim/75' : 'bg-aged/20'
+              i < n ? 'bg-aged/80' : 'bg-aged/20'
             }`}
           />
         ))}
@@ -47,19 +47,19 @@ function SkillName({
   const timer = useRef<number | null>(null);
   const longPressed = useRef(false);
 
-  let color = 'text-paper/45';
-  let border = 'border-aged/70 bg-ink-soft/50';
+  let color = 'text-ink/40';
+  let border = 'border-aged/55 bg-paper/35';
   if (passive) {
-    color = 'text-[#8a8276]';
-    border = 'border-[#6a6358] bg-ink-soft/40';
+    color = 'text-[#6a6358]';
+    border = 'border-[#9a8f7c] bg-paper/25';
   } else if (ready) {
-    color = 'text-paper';
-    border = 'border-paper-dim bg-paper/15';
+    color = 'text-ink';
+    border = 'border-[#c9a227] bg-[#f7f0de]/85';
   } else {
-    color = 'text-paper/50';
-    border = 'border-aged/70 bg-ink-soft/50';
+    color = 'text-ink/45';
+    border = 'border-aged/55 bg-paper/35';
   }
-  if (selected) border = 'border-paper bg-paper/20';
+  if (selected) border = 'border-[#c9a227] bg-[#efe4cc]';
 
   const clearTimer = () => {
     if (timer.current != null) {
@@ -130,14 +130,14 @@ function Seal({
       onClick={onPortrait}
       className="relative h-[46px] w-[46px] shrink-0 overflow-hidden rounded-full border"
       style={{
-        borderColor: showFace || fogBorder ? color : '#3a3228',
-        backgroundColor: showFace ? color : '#16120e',
+        borderColor: showFace || fogBorder ? color : '#8a7349',
+        backgroundColor: showFace ? color : '#d8c7a4',
       }}
     >
       {showFace ? (
         <img src={portraitSrc(g.id)} alt={g.name} className="h-full w-full rounded-full object-cover" />
       ) : (
-        <div className="absolute inset-0 flex items-center justify-center text-lg text-paper">？</div>
+        <div className="absolute inset-0 flex items-center justify-center text-lg text-ink">？</div>
       )}
     </button>
   );
@@ -200,7 +200,7 @@ export function GeneralPanel({
                     );
                   })
                 ) : (
-                  <div className="text-[11px] leading-[14px] text-paper-dim">隐匿将星</div>
+                  <div className="text-[11px] leading-[14px] text-aged">隐匿将星</div>
                 )}
               </div>
             </div>
@@ -209,7 +209,7 @@ export function GeneralPanel({
       </div>
       {showCaptured && captured && (
         <div className="mt-1 flex flex-wrap justify-center gap-1.5">
-          {captured.length === 0 && <div className="text-[11px] text-paper-dim">无被吃子可复活</div>}
+          {captured.length === 0 && <div className="text-[11px] text-aged">无被吃子可复活</div>}
           {captured.map((p) => (
             <button
               key={p.id}

@@ -455,14 +455,10 @@ function afterBoardMutation(s: GameState, mover: Side, events: {
     charge(s, mover, 'riverCross', 1);
     const next = (s.riverCrossCount?.[mover] ?? 0) + 1;
     s.riverCrossCount = { ...s.riverCrossCount, [mover]: next };
-    if (
-      next > 0 &&
-      next % 5 === 0 &&
-      (sideHasSkill(sideGens(s, mover), 'ganning-chaiqiao') ||
-        sideHasSkill(sideGens(s, mover), 'ganning-fudu'))
-    ) {
-      mapSkill(s, mover, 'ganning-chaiqiao', (sk) => ({ ...sk, uses: 0 }));
-      pushLog(s, '复渡：过河拆桥已重置');
+    const defender = opposite(mover);
+    if (sideHasSkill(sideGens(s, defender), 'ganning-jinfan')) {
+      addQi(s, defender, 1);
+      pushLog(s, '锦帆：对方过河，战气+1');
     }
   }
   const nowAdj = countAdjacentPairs(s.board, mover);
@@ -592,6 +588,7 @@ function endTurn(s: GameState): void {
   s.qi = { ...s.qi, [s.side]: Math.min(QI_MAX, (s.qi[s.side] ?? 0) + 1) };
   s.pending = { ...s.pending, zhangFeiMovesLeft: undefined, zhangFeiPieceId: undefined, awaitOverFive: undefined };
   s.skillUsedThisTurn = false;
+  s.movedThisTurn = false;
   s.plyCount += 1;
   charge(s, 'red', 'anyPly', 1);
   charge(s, 'black', 'anyPly', 1);
@@ -622,6 +619,7 @@ export function createHomeState(): GameState {
     skillBroadcast: null,
     turnCount: 0,
     skillUsedThisTurn: false,
+    movedThisTurn: false,
     crossedRiverIds: [],
     plyCount: 0,
     moveSerial: 0,
@@ -762,6 +760,7 @@ export function canUseSkill(s: GameState, skillId: string): boolean {
     return false;
   }
   if (s.skillUsedThisTurn) return false;
+  if (skillId === 'zhaoyun-longhun' && s.movedThisTurn) return false;
   const owned = findOwnedSkill(sideGens(s, s.side), skillId);
   if (!owned) return false;
   return isSkillReady(owned.skill, s.qi[s.side] ?? 0);
@@ -915,6 +914,7 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
     });
     maybeClearWushengGuard(s);
     s.pending = { ...s.pending, awaitOverFive: undefined };
+    s.movedThisTurn = true;
     finishIfOver(s, s.side);
     return s;
   }
@@ -941,20 +941,32 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
 
   if (skillId === 'zhaoyun-longhun') {
     if (payload.kind !== 'twoPos') return s0;
+    if (s.movedThisTurn) return s0;
     const a = getPiece(s.board, payload.a);
     const b = getPiece(s.board, payload.b);
     if (!a || !b || a.side !== side || b.side !== side) return s0;
     if (posEq(payload.a, payload.b)) return s0;
     if (!pieceCanSit(a, payload.b) || !pieceCanSit(b, payload.a)) return s0;
-    consumeSkill(s, g, skill);
     const nb = cloneBoard(s.board);
     nb[payload.a.r][payload.a.c] = b;
     nb[payload.b.r][payload.b.c] = a;
     if (inCheck(nb, side)) return s0;
+    consumeSkill(s, g, skill);
     s.board = nb;
+    s.movedThisTurn = true;
     pushLog(s, `龙魂：${pieceLabel(a)} 与 ${pieceLabel(b)} 换位`);
     maybeClearWushengGuard(s);
     finishIfOver(s, s.side);
+    if (s.winner) return s;
+    const opp = opposite(s.side);
+    const oppOver = isGameOver(s.board, opp, legalOptions(s, opp));
+    const kingsGone = !findKing(s.board, 'red') || !findKing(s.board, 'black');
+    if (kingsGone || oppOver.over) {
+      endTurn(s);
+      return s;
+    }
+    if (maybeAwaitKongcheng(s)) return s;
+    endTurn(s);
     return s;
   }
 
@@ -1221,6 +1233,7 @@ export function makeMove(s0: GameState, from: Pos, to: Pos): GameState {
   if (captured) {
     s.captured[captured.side] = [...s.captured[captured.side], captured];
   }
+  s.movedThisTurn = true;
   const fwd = piece.side === 'red' ? -1 : 1;
   const pawnAdvance1 = piece.type === 'P' && to.r - from.r === fwd && to.c === from.c;
   const river = maybeRiverCross(s, piece, to);
