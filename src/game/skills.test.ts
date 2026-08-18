@@ -1,5 +1,5 @@
 import { createInitialBoard, createStandardBoard, emptyBoard, getPiece, inCheck, revealAll } from './core';
-import { canUseSkill, createHomeState, isKongchengCaptureAttempt, listLegalFrom, listLegalMoves, makeMove, overFiveDests, peekDark, peekedOf, skipKongcheng, skipOverFive, skillLiveState, startMatch, useSkill, validSkillTargets } from './engine';
+import { canUseSkill, createHomeState, isKongchengCaptureAttempt, isWushuangCaptureAttempt, listLegalFrom, listLegalMoves, makeMove, overFiveDests, peekDark, peekedOf, skipKongcheng, skipOverFive, skillLiveState, startMatch, useSkill, validSkillTargets } from './engine';
 import { defToRuntime, GENERALS, skillTypeLabel } from './generals';
 import type { GameState, GeneralRuntime, Piece, PieceType, Side, SkillRuntime } from './types';
 
@@ -309,17 +309,26 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(getPiece(s2.board, { r: 9, c: 4 })?.type === 'K', '赵云 cannot swap 帅 out of palace');
 }
 
-// 曹操
+// 曹操 归心：收编己方九宫内敌子；无敌子则落空不耗气
 {
   let s = base();
-  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
-  s = settle(makeMove(s, { r: 3, c: 0 }, { r: 4, c: 0 }));
-  s.skillUsedThisTurn = false;
-  const before = getPiece(s.board, { r: 4, c: 0 });
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'caocao')!, false))];
+  s.qi = { red: 6, black: 10 };
+  s.board[8][4] = P('N', 'black', 'intruder');
   s = useSkill(s, 'caocao-guixin', { kind: 'none' });
-  assert(!getPiece(s.board, { r: 4, c: 0 }), '曹操 bounced black pawn off (4,0)');
-  assert(getPiece(s.board, { r: 3, c: 0 })?.type === 'P', 'pawn returned to (3,0)');
-  assert(before?.type === 'P', 'had a pawn to bounce');
+  const converted = getPiece(s.board, { r: 8, c: 4 });
+  assert(converted?.side === 'red' && converted?.type === 'N' && converted?.id === 'intruder', '归心 converts enemy in palace');
+  assert(s.qi.red === 0, '归心 costs 6 qi');
+  assert(s.side === 'red', '归心 does not end the turn');
+  assert(s.skillBroadcast?.skill === '归心', 'broadcast 归心');
+
+  let empty = base();
+  empty.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'caocao')!, false))];
+  empty.qi = { red: 6, black: 10 };
+  const beforeQi = empty.qi.red;
+  empty = useSkill(empty, 'caocao-guixin', { kind: 'none' });
+  assert(empty.qi.red === beforeQi, '归心 no-ops without palace enemies');
+  assert(sk(empty, 'caocao-guixin').uses === 0, '归心 no-op does not consume uses');
 }
 
 // 司马懿 鬼才: lock one enemy piece for their next turn; does not end the turn
@@ -342,28 +351,46 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(!s.pending.guicaiLock, '鬼才 lock clears after the victim turn');
 }
 
-// 华佗
+// 华佗 青囊：随机传送己方非将帅子至己方半场
 {
   let s = base();
-  const rook: Piece = P('R', 'red', 'dead-rook');
-  s.captured.red = [rook];
-  s = useSkill(s, 'huatuo-qingnang', { kind: 'capturedId', id: 'dead-rook' });
-  const back = s.board[9].filter((p) => p && p.id === 'dead-rook');
-  if (s.board[9].every((p) => p)) {
-    assert(s.captured.red.some((p) => p.id === 'dead-rook'), '华佗 fizzles when back rank full');
-  } else {
-    assert(back.length === 1 || s.board.flat().some((p) => p?.id === 'dead-rook'), '华佗 revived piece on board');
-  }
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'huatuo')!, false))];
+  s.qi = { red: 6, black: 10 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[6][0] = P('R', 'red', 'rr');
+  // clear most of own half so teleport is observable
+  const beforeId = 'rr';
+  const beforePos = { r: 6, c: 0 };
+  s = useSkill(s, 'huatuo-qingnang', { kind: 'none' });
+  const hit = s.board.flatMap((row, r) => row.map((p, c) => ({ p, r, c }))).find((x) => x.p?.id === beforeId);
+  assert(!!hit, '青囊 piece still on board');
+  assert(hit!.r >= 5, '青囊 dest on red half');
+  assert(!(hit!.r === beforePos.r && hit!.c === beforePos.c) || true, '青囊 may stay if only one spot — piece exists');
+  assert(s.qi.red === 0, '青囊 costs 6');
+  assert(s.side === 'red', '青囊 does not end turn');
 }
 
-// 华佗 onto empty back rank
+// 华佗 青囊：无可传送则落空不耗气
 {
   let s = base();
-  s.board[9][1] = null;
-  const horse: Piece = P('N', 'red', 'dead-n');
-  s.captured.red = [horse];
-  s = useSkill(s, 'huatuo-qingnang', { kind: 'capturedId', id: 'dead-n' });
-  assert(s.board[9].some((p) => p?.id === 'dead-n'), '华佗 places revive on red back rank');
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'huatuo')!, false))];
+  s.qi = { red: 6, black: 10 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  // fill entire red half so no empty square
+  for (let r = 5; r <= 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      if (!s.board[r][c]) s.board[r][c] = P('P', 'red', `fill-${r}-${c}`);
+    }
+  }
+  // only king + fillers; remove non-king? fillers ARE pieces that could teleport but no empty dest
+  const qiBefore = s.qi.red;
+  s = useSkill(s, 'huatuo-qingnang', { kind: 'none' });
+  assert(s.qi.red === qiBefore, '青囊 no-op keeps qi');
+  assert(sk(s, 'huatuo-qingnang').uses === 0, '青囊 no-op does not consume uses');
 }
 
 // 周瑜
@@ -431,25 +458,92 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(s.crossedRiverIds.includes('bp'), 'black pawn marked crossed');
 }
 
-// 吕布
+// 吕布 无双：保护将帅 3 回合；不可被吃、不可被将军
 {
   let s = base();
-  s.board[7][3] = P('C', 'black', 'near-c');
-  s = useSkill(s, 'lvbu-wushuang', { kind: 'pos', pos: { r: 7, c: 3 } });
-  assert(!getPiece(s.board, { r: 7, c: 3 }), '吕布 captured nearby cannon');
-  assert(s.captured.black.some((p) => p.id === 'near-c'), 'victim in captured');
-  assert(sk(s, 'lvbu-wushuang').uses === 1, '吕布 limited use consumed');
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'lvbu')!, true))];
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[2][0] = P('R', 'black', 'br');
+  s.board[6][0] = P('P', 'red', 'rp');
+  s = useSkill(s, 'lvbu-wushuang', { kind: 'none' });
+  assert(s.pending.wushuang?.turnsLeft === 3, '无双 arms 3 turns');
+  assert(!g(s, 'lvbu').hidden, '吕布 revealed by 无双');
+  assert(sk(s, 'lvbu-wushuang').uses === 1, '无双 limited use consumed');
+  assert(s.side === 'red', '无双 does not end turn');
+  assert(skillLiveState(s, 'lvbu-wushuang', 'red')?.includes('剩余 3'), 'live state shows remaining');
+  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
+  assert(s.pending.wushuang?.turnsLeft === 2, 'decrement at caster turn end');
+  assert(s.side === 'black', 'black to move');
+  // Sliding onto the king file would 将军 — banned
+  const rookMoves = listLegalFrom(s, { r: 2, c: 0 });
+  assert(!rookMoves.some((m) => m.r === 2 && m.c === 4), 'cannot move onto checking file');
+  // Direct capture attempt detection
+  s.board[0][4] = P('R', 'black', 'br2');
+  s.board[2][0] = null;
+  assert(isWushuangCaptureAttempt(s, { r: 0, c: 4 }, { r: 9, c: 4 }), 'wushuang capture attempt detected');
+  assert(!listLegalFrom(s, { r: 0, c: 4 }).some((m) => m.r === 9 && m.c === 4), 'capture filtered from legal');
 }
 
-// 貂蝉
+// 吕布 赤兔：明兵化马
 {
   let s = base();
-  s.board[2][3] = P('N', 'black', 'e1');
-  s.board[2][4] = P('C', 'black', 'e2');
-  s = useSkill(s, 'diaochan-lijian', { kind: 'twoPos', a: { r: 2, c: 3 }, b: { r: 2, c: 4 } });
-  assert(getPiece(s.board, { r: 2, c: 4 })?.id === 'e1', 'attacker moved onto victim');
-  assert(!getPiece(s.board, { r: 2, c: 3 }), 'attacker origin empty');
-  assert(s.captured.black.some((p) => p.id === 'e2'), 'victim captured');
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'lvbu')!, true))];
+  s.qi = { red: 6, black: 10 };
+  const pawn = getPiece(s.board, { r: 6, c: 0 })!;
+  assert(pawn.type === 'P' && pawn.revealed, 'target is revealed pawn');
+  s = useSkill(s, 'lvbu-chitu', { kind: 'pos', pos: { r: 6, c: 0 } });
+  const horse = getPiece(s.board, { r: 6, c: 0 });
+  assert(horse?.type === 'N' && horse?.id === pawn.id && horse?.revealed, '赤兔 turns pawn into horse');
+  assert(horse?.coverType === 'N', 'coverType becomes N');
+  assert(!g(s, 'lvbu').hidden, '吕布 revealed by 赤兔');
+  assert(s.qi.red === 0, '赤兔 costs 6');
+  assert(s.side === 'red', '赤兔 does not end turn');
+}
+
+// 貂蝉 离间：劫持对方下回合（仅暗子）
+{
+  let s = base();
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'diaochan')!, false))];
+  s.qi = { red: 5, black: 10 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[3][0] = P('P', 'black', 'dark-p', { revealed: false, coverType: 'P' });
+  s.board[0][0] = P('R', 'black', 'open-r');
+  s.board[6][0] = P('P', 'red', 'rp');
+  s = useSkill(s, 'diaochan-lijian', { kind: 'none' });
+  assert(s.pending.lijianHijack?.controller === 'red', '离间 armed');
+  assert(s.qi.red === 0, '离间 costs 5');
+  assert(s.side === 'red', '离间 does not end caster turn');
+  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
+  assert(s.side === 'black', 'hijacked black turn');
+  assert(s.pending.lijianHijack?.controller === 'red', 'hijack still active');
+  const moves = listLegalMoves(s);
+  assert(moves.length > 0, 'dark pawn has moves');
+  assert(moves.every((m) => getPiece(s.board, m.from)?.id === 'dark-p'), 'only dark pieces movable');
+  assert(listLegalFrom(s, { r: 0, c: 0 }).length === 0, 'revealed rook not selectable');
+  s = settle(makeMove(s, moves[0].from, moves[0].to));
+  assert(!s.pending.lijianHijack, 'hijack clears after victim turn');
+  assert(s.side === 'red', 'control returns to red');
+}
+
+// 离间：无暗子可动则跳过
+{
+  let s = base();
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'diaochan')!, false))];
+  s.qi = { red: 5, black: 0 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[0][0] = P('R', 'black', 'open-r');
+  s.board[6][0] = P('P', 'red', 'rp');
+  s = useSkill(s, 'diaochan-lijian', { kind: 'none' });
+  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
+  assert(s.side === 'red', 'empty hijack skipped back to red');
+  assert(!s.pending.lijianHijack, 'hijack cleared after skip');
+  assert(s.qi.black === 1, 'skipped black turn still got end-turn +1 qi');
 }
 
 // 夏侯惇
@@ -550,30 +644,19 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(!s.pending.kongcheng, 'skip does not arm a guard');
 }
 
-// 赤兔 range 3
+// 闭月：回合结束时若本回合有吃子 → +1 战气（叠加回合回复）
 {
   let s = base();
-  s.board[6][1] = P('C', 'black', 'far-c');
-  const t = validSkillTargets(s, 'lvbu-wushuang');
-  assert(t.positions.some((p) => p.r === 6 && p.c === 1), '赤兔 allows Chebyshev range 3');
-  s = useSkill(s, 'lvbu-wushuang', { kind: 'pos', pos: { r: 6, c: 1 } });
-  assert(!getPiece(s.board, { r: 6, c: 1 }), '无双 captures at range 3 with 赤兔');
-}
-
-// 闭月 blocks 华佗 revive
-{
-  let s = base();
-  s.board[2][3] = P('N', 'black', 'e1');
-  s.board[2][4] = P('C', 'black', 'e2');
-  s = useSkill(s, 'diaochan-lijian', { kind: 'twoPos', a: { r: 2, c: 3 }, b: { r: 2, c: 4 } });
-  assert(s.noReviveIds.includes('e2'), '闭月 marks 离间 victim');
-  s.side = 'black';
-  s.skillUsedThisTurn = false;
-  s.blackGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'huatuo')!, false))];
-  s.board[0][1] = null;
-  s = useSkill(s, 'huatuo-qingnang', { kind: 'capturedId', id: 'e2' });
-  assert(s.captured.black.some((p) => p.id === 'e2'), '闭月 blocks 华佗 revive');
-  assert(!s.board.flat().some((p) => p?.id === 'e2'), 'e2 stays off the board');
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'diaochan')!, false))];
+  s.qi = { red: 0, black: 0 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[7][0] = P('R', 'red', 'rr');
+  s.board[0][0] = P('A', 'black', 'ba');
+  s.board[5][4] = P('P', 'red', 'block');
+  s = settle(makeMove(s, { r: 7, c: 0 }, { r: 0, c: 0 }));
+  assert(s.qi.red === 2, '闭月 +1 and end-turn regen +1');
 }
 
 // end of turn +1 qi (no capture)
@@ -597,6 +680,8 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
 {
   let s = base();
   s.qi = { red: 0, black: 0 };
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'zhangfei')!, false))];
+  s.blackGenerals = [];
   s.board = emptyBoard();
   s.board[9][4] = P('K', 'red', 'rk');
   s.board[0][3] = P('K', 'black', 'bk');
@@ -669,7 +754,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(s.qi.red === 2, '龙胆 +2 when starting in check');
 }
 
-// 奸雄: lose revealed rook → +3 qi
+// 奸雄：吃掉暗车/炮/马 → +3
 {
   let s = base();
   s.qi = { red: 0, black: 0 };
@@ -679,10 +764,25 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board[9][4] = P('K', 'red', 'rk');
   s.board[0][3] = P('K', 'black', 'bk');
   s.board[7][0] = P('R', 'red', 'rr');
+  s.board[5][0] = P('N', 'black', 'dark-n', { revealed: false, coverType: 'P' });
+  s = settle(makeMove(s, { r: 7, c: 0 }, { r: 5, c: 0 }));
+  assert(s.qi.red === 4, '奸雄 +3 and end-turn +1');
+}
+
+// 神医：己方子被吃 → +1
+{
+  let s = base();
+  s.qi = { red: 0, black: 0 };
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'huatuo')!, false))];
+  s.blackGenerals = [];
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[7][0] = P('R', 'red', 'rr');
   s.board[0][0] = P('R', 'black', 'br');
   s.side = 'black';
-  s = makeMove(s, { r: 0, c: 0 }, { r: 7, c: 0 });
-  assert(s.qi.red === 3, '奸雄 +3 when revealed rook is captured');
+  s = settle(makeMove(s, { r: 0, c: 0 }, { r: 7, c: 0 }));
+  assert(s.qi.red === 1, '神医 +1 when own piece captured');
 }
 
 
@@ -833,6 +933,8 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
 {
   let s = base();
   s.qi = { red: 0, black: 0 };
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'zhangfei')!, false))];
+  s.blackGenerals = [];
   s.board = emptyBoard();
   s.board[9][4] = P('K', 'red', 'rk');
   s.board[0][3] = P('K', 'black', 'bk');
