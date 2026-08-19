@@ -400,7 +400,7 @@ export function applyAITurn(s0: GameState): GameState {
     const mv = pickBoardMove(s);
     if (!mv) {
       // 引擎应已跳过；兜底直接判无子可动
-      return { ...s, winner: opposite(s.side), phase: 'result', log: [...s.log, '离间回合无子可动'] };
+      return { ...s, winner: opposite(s.side), phase: 'result', log: [...s.log, { text: '离间回合无子可动', side: s.side }] };
     }
     return makeMove(s, mv.from, mv.to);
   }
@@ -436,7 +436,7 @@ export function applyAITurn(s0: GameState): GameState {
   const doOne = (st: GameState): GameState => {
     const mv = pickBoardMove(st);
     if (!mv) {
-      return { ...st, winner: 'red', phase: 'result', log: [...st.log, '黑方无子可动，红胜'] };
+      return { ...st, winner: 'red', phase: 'result', log: [...st.log, { text: '黑方无子可动，红胜', side: st.side }] };
     }
     return makeMove(st, mv.from, mv.to);
   };

@@ -368,7 +368,7 @@ export default function App() {
     setSelected(null);
   };
 
-  const lastLine = state.log[state.log.length - 1] ?? '';
+  const lastLine = state.log[state.log.length - 1];
   const wushuangKingId =
     state.pending.wushuang && state.pending.wushuang.turnsLeft > 0
       ? state.board.flat().find((p) => p && p.type === 'K' && p.side === state.pending.wushuang!.owner)?.id
@@ -458,6 +458,13 @@ export default function App() {
             {turnSplash === 'black' && (
               <TurnBroadcast side="black" onDone={() => setTurnSplash(null)} />
             )}
+            {turnSplash !== 'black' && lastLine?.side === 'black' && lastLine.text && (
+              <div className="skill-slot-prompt">
+                <div className="skill-center-mask">
+                  <span className="skill-center-text play-log-line">{lastLine.text}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="play-board">
@@ -543,10 +550,10 @@ export default function App() {
                 </div>
               </div>
             )}
-            {!awaitGuanxing && !awaitYingshi && !kongchengReady && !centerPrompt && turnSplash !== 'red' && lastLine && (
+            {!awaitGuanxing && !awaitYingshi && !kongchengReady && !centerPrompt && turnSplash !== 'red' && lastLine?.side === 'red' && lastLine.text && (
               <div className="skill-slot-prompt">
                 <div className="skill-center-mask">
-                  <span className="skill-center-text play-log-line">{lastLine}</span>
+                  <span className="skill-center-text play-log-line">{lastLine.text}</span>
                 </div>
               </div>
             )}

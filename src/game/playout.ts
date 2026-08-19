@@ -53,7 +53,7 @@ function playOnce(seedLabel: string): { turns: number; winner: string | null; la
   return {
     turns: s.turnCount,
     winner: s.winner,
-    last: `${seedLabel} ${s.log[s.log.length - 1] ?? ''}`,
+    last: `${seedLabel} ${s.log[s.log.length - 1]?.text ?? ''}`,
   };
 }
 
