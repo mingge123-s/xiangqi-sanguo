@@ -2,6 +2,62 @@ import { motion } from 'framer-motion';
 import { CHAR, COVER_CHAR } from '../game/types';
 import type { Piece as PieceT, PieceType } from '../game/types';
 
+/** Vermilion / pine-soot ink on cream 水墨 tokens. */
+function inkColor(side: PieceT['side']) {
+  return side === 'red' ? '#b8332a' : '#2a2520';
+}
+
+/** Soft brush-like ring via radial wash (slightly uneven opacity at the edge). */
+function SoftInkRing({
+  size,
+  insetPx,
+  strokePx,
+  color,
+  soft = false,
+}: {
+  size: number;
+  insetPx: number;
+  strokePx: number;
+  color: string;
+  soft?: boolean;
+}) {
+  const dim = Math.max(0, size - insetPx * 2);
+  const mid = dim / 2;
+  const outer = mid;
+  const inner = Math.max(0, mid - strokePx);
+  const fade = Math.max(0.8, strokePx * 0.55);
+  const a = soft ? 0.72 : 0.88;
+  const aEdge = soft ? 0.28 : 0.38;
+
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute rounded-full"
+      style={{
+        width: dim,
+        height: dim,
+        left: '50%',
+        top: '50%',
+        transform: 'translate(-50%, -50%)',
+        background: `
+          radial-gradient(circle,
+            transparent ${Math.max(0, inner - fade)}px,
+            ${color}${soft ? '38' : '55'} ${inner}px,
+            ${color}${Math.round(a * 255)
+              .toString(16)
+              .padStart(2, '0')} ${(inner + outer) / 2}px,
+            ${color}${Math.round(aEdge * 255)
+              .toString(16)
+              .padStart(2, '0')} ${outer - 0.35}px,
+            transparent ${outer + fade * 0.35}px
+          )
+        `,
+        filter: 'blur(0.35px)',
+      }}
+    />
+  );
+}
+
 export function PieceView({
   piece,
   selected,
@@ -23,16 +79,19 @@ export function PieceView({
   locked?: boolean;
   onPointer: () => void;
 }) {
-  const red = piece.side === 'red';
-  const ink = red ? '#9b1c1c' : '#1a1410';
+  const ink = inkColor(piece.side);
   const hit = size;
   const font = Math.max(10, size * 0.46);
-  const outerW = Math.max(1.6, size * 0.06);
-  const innerW = Math.max(1.25, size * 0.05);
-  const innerInset = Math.max(2.2, size * 0.075);
+  const outerW = Math.max(1.5, size * 0.058);
+  const innerW = Math.max(1.05, size * 0.04);
+  const ringInset = Math.max(1.4, size * 0.048);
+  const innerInset = Math.max(3.4, size * 0.115);
   const dark = !piece.revealed;
   const showPeek = dark && peeked;
   const hint = dark && coverHint ? COVER_CHAR[coverHint] : null;
+
+  const thickness =
+    'inset 0.5px 0.5px 1.2px rgba(255,252,245,0.85), inset -0.6px -0.9px 1.6px rgba(70,55,35,0.14), 0.6px 1.4px 3px rgba(35,28,18,0.2)';
 
   return (
     <motion.button
@@ -57,35 +116,25 @@ export function PieceView({
         style={{
           width: size,
           height: size,
-          border: `${outerW}px solid ${ink}`,
           boxShadow: selected
-            ? 'inset 0 1px 2px rgba(255,240,210,0.5), inset 0 -2px 3px rgba(60,30,10,0.28), 0 0 0 2px #c9a227, 0 3px 6px rgba(0,0,0,0.35)'
+            ? `${thickness}, 0 0 0 2px #c9a227`
             : locked
-              ? 'inset 0 1px 2px rgba(255,240,210,0.45), inset 0 -2px 3px rgba(60,30,10,0.28), 0 0 0 2.5px #6b8f71, 0 0 10px rgba(90,130,95,0.45)'
+              ? `${thickness}, 0 0 0 2.5px #6b8f71, 0 0 10px rgba(90,130,95,0.45)`
               : undefined,
         }}
       >
+        <SoftInkRing size={size} insetPx={ringInset} strokePx={outerW} color={ink} soft={dark} />
         {!dark && (
-          <span
-            aria-hidden
-            className="pointer-events-none absolute rounded-full"
-            style={{
-              inset: innerInset,
-              border: `${innerW}px solid ${ink}`,
-            }}
-          />
+          <SoftInkRing size={size} insetPx={innerInset} strokePx={innerW} color={ink} />
         )}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-[18%] rounded-full"
-          style={{
-            background: 'radial-gradient(circle at 32% 28%, rgba(255,244,220,0.4), transparent 58%)',
-          }}
-        />
         {!dark && (
           <span
             className="relative font-bold leading-none"
-            style={{ color: ink, fontSize: font }}
+            style={{
+              color: ink,
+              fontSize: font,
+              textShadow: '0 0 0.6px currentColor',
+            }}
           >
             {CHAR[piece.side][piece.type]}
           </span>

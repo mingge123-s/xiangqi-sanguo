@@ -216,7 +216,7 @@ export function GeneralPanel({
               type="button"
               onClick={() => onPickCaptured?.(p.id)}
               className="wood-token flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold"
-              style={{ color: p.side === 'red' ? '#9b1c1c' : '#1a1410' }}
+              style={{ color: p.side === 'red' ? '#b8332a' : '#2a2520' }}
             >
               {p.revealed ? CHAR[p.side][p.type] : '？'}
             </button>

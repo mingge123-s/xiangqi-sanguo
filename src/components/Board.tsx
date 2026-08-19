@@ -165,8 +165,12 @@ export function Board({
   const boardH = pad * 2 + 9 * cell;
   const ready = box.w > 0 && box.h > 0;
   const hit = Math.min(cell * 0.94, pieceSize + 10);
-  const lastTint = pieceSize * 1.08;
+  const lastTint = pieceSize * 1.06;
+  const bloomSize = pieceSize * 1.7;
   const legalDot = Math.max(4, cell * 0.16);
+  const lastKey = lastMove
+    ? `${lastMove.from.r},${lastMove.from.c}->${lastMove.to.r},${lastMove.to.c}`
+    : '';
 
   return (
     <div
@@ -188,8 +192,9 @@ export function Board({
                 const isSel = selectedList.some((p) => posEq(p, pos));
                 const isLegal = legal.some((p) => posEq(p, pos));
                 const isHi = highlights.some((p) => posEq(p, pos));
-                const isLast =
-                  lastMove && (posEq(lastMove.from, pos) || posEq(lastMove.to, pos));
+                const isLastFrom = !!(lastMove && posEq(lastMove.from, pos));
+                const isLastTo = !!(lastMove && posEq(lastMove.to, pos));
+                const isLast = isLastFrom || isLastTo;
                 return (
                   <div
                     key={`${r}-${c}`}
@@ -208,9 +213,19 @@ export function Board({
                       style={{ width: hit, height: hit }}
                       onClick={() => onCell(pos)}
                     />
+                    {isLastTo && (
+                      <div
+                        key={lastKey}
+                        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                        style={{ width: bloomSize, height: bloomSize, zIndex: 0 }}
+                        aria-hidden
+                      >
+                        <div className="ink-landing-bloom" />
+                      </div>
+                    )}
                     {isLast && (
                       <div
-                        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-800/30"
+                        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-stone-700/10"
                         style={{ width: lastTint, height: lastTint, zIndex: 1 }}
                       />
                     )}

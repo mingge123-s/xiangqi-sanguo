@@ -17,7 +17,7 @@ export function CapturedRail({
       {pieces.map((p) => {
         const clickable = !!clickableIds?.includes(p.id);
         const label = p.revealed ? CHAR[p.side][p.type] : '？';
-        const color = p.revealed ? (p.side === 'red' ? '#9b1c1c' : '#1a1410') : '#5a4a38';
+        const color = p.revealed ? (p.side === 'red' ? '#b8332a' : '#2a2520') : '#5a4a38';
         return (
           <button
             key={p.id}
