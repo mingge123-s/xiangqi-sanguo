@@ -4,7 +4,7 @@ import type { GeneralRuntime, Piece, SkillRuntime } from '../game/types';
 import { CHAR } from '../game/types';
 
 function portraitSrc(id: string): string {
-  return `${import.meta.env.BASE_URL}generals/${id}.png`;
+  return `${import.meta.env.BASE_URL}generals/${id}.webp`;
 }
 
 const LONG_PRESS_MS = 400;
@@ -122,8 +122,8 @@ function Seal({
   onPortrait?: () => void;
 }) {
   const color = FACTION_COLOR[g.faction];
-  const showFace = mine || g.hidden === false;
-  const fogBorder = !showFace && showFactionFog;
+  const showFace = true;
+  const fogBorder = false;
   return (
     <button
       type="button"
@@ -135,7 +135,14 @@ function Seal({
       }}
     >
       {showFace ? (
-        <img src={portraitSrc(g.id)} alt={g.name} className="h-full w-full rounded-full object-cover" />
+        <img
+          src={portraitSrc(g.id)}
+          alt={g.name}
+          className="h-full w-full rounded-full object-cover"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
+        />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center text-lg text-ink">？</div>
       )}
@@ -175,7 +182,7 @@ export function GeneralPanel({
       <QiMeter value={qi} compact={!mine} />
       <div className="flex items-start justify-center gap-1">
         {generals.map((g) => {
-          const showFace = mine || g.hidden === false;
+          const showFace = true;
           return (
             <div key={g.id} className="flex w-[120px] items-center gap-1.5">
               <Seal
@@ -185,7 +192,7 @@ export function GeneralPanel({
                 onPortrait={onPortrait ? () => onPortrait(g) : undefined}
               />
               <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
-                {showFace ? (
+                {(
                   g.skills.map((sk) => {
                     const ready = !!mine && !!canCastSkill?.(sk.id);
                     return (
@@ -199,8 +206,6 @@ export function GeneralPanel({
                       />
                     );
                   })
-                ) : (
-                  <div className="text-[11px] leading-[14px] text-aged">隐匿将星</div>
                 )}
               </div>
             </div>
@@ -218,7 +223,7 @@ export function GeneralPanel({
               className="wood-token flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold"
               style={{ color: p.side === 'red' ? '#b8332a' : '#2a2520' }}
             >
-              {p.revealed ? CHAR[p.side][p.type] : '？'}
+              {CHAR[p.side][p.type]}
             </button>
           ))}
         </div>

@@ -3,7 +3,7 @@ import type { GeneralRuntime } from '../game/types';
 import { skillTypeLabel } from '../game/generals';
 
 function portraitSrc(id: string): string {
-  return `${import.meta.env.BASE_URL}generals/${id}.png`;
+  return `${import.meta.env.BASE_URL}generals/${id}.webp`;
 }
 
 export function GeneralDetail({
@@ -40,6 +40,9 @@ export function GeneralDetail({
               src={portraitSrc(general.id)}
               alt={general.name}
               className="h-full w-full rounded-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
             />
           </div>
           <div className="min-w-0">

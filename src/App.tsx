@@ -274,12 +274,10 @@ export default function App() {
   };
 
   const onPortrait = (g: GeneralRuntime, mine: boolean) => {
-    if (!mine && g.hidden) return;
     setDetail(g);
   };
 
   const onInspectSkill = (g: GeneralRuntime, _skill: SkillRuntime, mine: boolean) => {
-    if (!mine && g.hidden) return;
     setDetail(g);
   };
 
@@ -545,9 +543,14 @@ export default function App() {
                 </div>
               </div>
             )}
+            {!awaitGuanxing && !awaitYingshi && !kongchengReady && !centerPrompt && turnSplash !== 'red' && lastLine && (
+              <div className="skill-slot-prompt">
+                <div className="skill-center-mask">
+                  <span className="skill-center-text play-log-line">{lastLine}</span>
+                </div>
+              </div>
+            )}
           </div>
-
-          <div className="play-log">{lastLine}</div>
 
           <div className="play-generals-me">
             <GeneralPanel
