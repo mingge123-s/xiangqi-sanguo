@@ -305,6 +305,10 @@ function pendingBlocksPlay(s: GameState): boolean {
   );
 }
 
+function isLijianHijacked(s: GameState): boolean {
+  return !!(s.pending.lijianHijack && s.pending.lijianHijack.controller !== s.side);
+}
+
 export function listLegalMoves(s: GameState, side?: Side) {
   if (pendingBlocksPlay(s)) return [];
   const sd = side ?? s.side;
@@ -595,6 +599,7 @@ function maybeOpenYingshiWindow(s: GameState, owner: Side): boolean {
 }
 
 function maybeOpenYingshiReload(s: GameState): void {
+  if (isLijianHijacked(s)) return;
   if (s.winner || s.phase !== 'playing') return;
   const flag = s.pending.yingshiReload?.[s.side];
   if (!flag) return;
@@ -604,6 +609,7 @@ function maybeOpenYingshiReload(s: GameState): void {
 }
 
 function maybeOpenOverFive(s: GameState): void {
+  if (isLijianHijacked(s)) return;
   if (s.winner || s.pending.awaitYingshi || s.pending.awaitGuanxing) return;
   if (canReadyOverFive(s)) {
     // Window opens quietly; broadcast only after the jump resolves (not an 主动技 splash-before-target).
@@ -1263,6 +1269,7 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
 }
 
 function maybeAwaitKongcheng(s: GameState): boolean {
+  if (isLijianHijacked(s)) return false;
   if (s.winner || s.phase !== 'playing') return false;
   const owned = findOwnedSkill(sideGens(s, s.side), 'zhuge-kongcheng');
   if (!owned || !isSkillReady(owned.skill, s.qi[s.side] ?? 0)) return false;
