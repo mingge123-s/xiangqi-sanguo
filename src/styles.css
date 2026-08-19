@@ -234,18 +234,18 @@ body {
 @keyframes ink-landing-bloom {
   0% {
     opacity: 0;
-    transform: scale(0.32);
+    transform: scale(0.28);
   }
-  28% {
-    opacity: 0.58;
+  22% {
+    opacity: 1;
   }
-  62% {
-    opacity: 0.42;
+  55% {
+    opacity: 0.72;
     transform: scale(1);
   }
   100% {
     opacity: 0;
-    transform: scale(1.06);
+    transform: scale(1.08);
   }
 }
 
@@ -256,12 +256,12 @@ body {
   pointer-events: none;
   /* Irregular feathery wash — layered ellipses, not a hard circle */
   background:
-    radial-gradient(ellipse 58% 52% at 46% 54%, rgba(42, 38, 32, 0.34) 0%, transparent 64%),
-    radial-gradient(ellipse 50% 58% at 56% 44%, rgba(55, 48, 40, 0.22) 0%, transparent 60%),
-    radial-gradient(ellipse 46% 42% at 40% 42%, rgba(36, 32, 28, 0.16) 0%, transparent 55%),
-    radial-gradient(circle at 50% 50%, rgba(40, 35, 30, 0.2) 0%, rgba(40, 35, 30, 0.08) 40%, transparent 70%);
-  filter: blur(0.7px);
-  animation: ink-landing-bloom 680ms ease-out forwards;
+    radial-gradient(ellipse 62% 54% at 45% 56%, rgba(38, 34, 28, 0.42) 0%, transparent 66%),
+    radial-gradient(ellipse 52% 60% at 58% 42%, rgba(50, 44, 36, 0.3) 0%, transparent 62%),
+    radial-gradient(ellipse 48% 44% at 38% 40%, rgba(32, 28, 24, 0.22) 0%, transparent 58%),
+    radial-gradient(circle at 52% 48%, rgba(40, 35, 30, 0.28) 0%, rgba(40, 35, 30, 0.1) 38%, transparent 72%);
+  filter: blur(1px);
+  animation: ink-landing-bloom 760ms ease-out forwards;
   will-change: transform, opacity;
 }
 

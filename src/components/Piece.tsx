@@ -7,29 +7,52 @@ function inkColor(side: PieceT['side']) {
   return side === 'red' ? '#b8332a' : '#2a2520';
 }
 
+/** Soft brush-like ring via radial wash (slightly uneven opacity at the edge). */
 function SoftInkRing({
-  inset,
-  width,
+  size,
+  insetPx,
+  strokePx,
   color,
   soft = false,
 }: {
-  inset: number;
-  width: number;
+  size: number;
+  insetPx: number;
+  strokePx: number;
   color: string;
   soft?: boolean;
 }) {
-  const bleed = Math.max(0.6, width * 0.55);
+  const dim = Math.max(0, size - insetPx * 2);
+  const mid = dim / 2;
+  const outer = mid;
+  const inner = Math.max(0, mid - strokePx);
+  const fade = Math.max(0.8, strokePx * 0.55);
+  const a = soft ? 0.72 : 0.88;
+  const aEdge = soft ? 0.28 : 0.38;
+
   return (
     <span
       aria-hidden
       className="pointer-events-none absolute rounded-full"
       style={{
-        inset,
-        boxShadow: soft
-          ? `inset 0 0 0 ${width}px ${color}, inset 0 0 ${bleed}px ${width * 0.35}px ${color}55`
-          : `inset 0 0 0 ${width}px ${color}, inset 0 0 ${bleed * 0.7}px ${width * 0.25}px ${color}40`,
-        opacity: soft ? 0.78 : 0.9,
-        filter: 'blur(0.2px)',
+        width: dim,
+        height: dim,
+        left: '50%',
+        top: '50%',
+        transform: 'translate(-50%, -50%)',
+        background: `
+          radial-gradient(circle,
+            transparent ${Math.max(0, inner - fade)}px,
+            ${color}${soft ? '38' : '55'} ${inner}px,
+            ${color}${Math.round(a * 255)
+              .toString(16)
+              .padStart(2, '0')} ${(inner + outer) / 2}px,
+            ${color}${Math.round(aEdge * 255)
+              .toString(16)
+              .padStart(2, '0')} ${outer - 0.35}px,
+            transparent ${outer + fade * 0.35}px
+          )
+        `,
+        filter: 'blur(0.35px)',
       }}
     />
   );
@@ -59,10 +82,10 @@ export function PieceView({
   const ink = inkColor(piece.side);
   const hit = size;
   const font = Math.max(10, size * 0.46);
-  const outerW = Math.max(1.4, size * 0.055);
-  const innerW = Math.max(1.0, size * 0.038);
-  const ringInset = Math.max(1.6, size * 0.055);
-  const innerInset = Math.max(3.2, size * 0.11);
+  const outerW = Math.max(1.5, size * 0.058);
+  const innerW = Math.max(1.05, size * 0.04);
+  const ringInset = Math.max(1.4, size * 0.048);
+  const innerInset = Math.max(3.4, size * 0.115);
   const dark = !piece.revealed;
   const showPeek = dark && peeked;
   const hint = dark && coverHint ? COVER_CHAR[coverHint] : null;
@@ -100,9 +123,10 @@ export function PieceView({
               : undefined,
         }}
       >
-        {/* Outer soft ink ring — face-up gets a very soft inner companion */}
-        <SoftInkRing inset={ringInset} width={outerW} color={ink} soft={dark} />
-        {!dark && <SoftInkRing inset={innerInset} width={innerW} color={ink} />}
+        <SoftInkRing size={size} insetPx={ringInset} strokePx={outerW} color={ink} soft={dark} />
+        {!dark && (
+          <SoftInkRing size={size} insetPx={innerInset} strokePx={innerW} color={ink} />
+        )}
         {!dark && (
           <span
             className="relative font-bold leading-none"

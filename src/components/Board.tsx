@@ -166,7 +166,7 @@ export function Board({
   const ready = box.w > 0 && box.h > 0;
   const hit = Math.min(cell * 0.94, pieceSize + 10);
   const lastTint = pieceSize * 1.06;
-  const bloomSize = pieceSize * 1.6;
+  const bloomSize = pieceSize * 1.7;
   const legalDot = Math.max(4, cell * 0.16);
   const lastKey = lastMove
     ? `${lastMove.from.r},${lastMove.from.c}->${lastMove.to.r},${lastMove.to.c}`
