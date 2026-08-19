@@ -7,8 +7,8 @@
   --color-paper-dim: #efe4cc;
   --color-aged: #8a7349;
   --color-line: #3d3224;
-  --color-red-piece: #9b1c1c;
-  --color-black-piece: #1a1410;
+  --color-red-piece: #b8332a;
+  --color-black-piece: #2a2520;
   --color-shu: #2f6b4f;
   --color-wei: #2c4a7c;
   --color-wu: #8b2e2e;
@@ -220,13 +220,49 @@ body {
     radial-gradient(circle at 70% 80%, rgba(0, 0, 0, 0.25), transparent 60%);
 }
 
+/* Slim 水墨 token: pale cream face, only a hint of 2–3mm thickness */
 .wood-token {
   background:
-    radial-gradient(circle at 35% 30%, #f3e2c0 0%, #d4b37a 42%, #b08950 78%, #7a5a32 100%);
+    radial-gradient(circle at 32% 28%, #faf7ef 0%, #f5f2e8 48%, #ebe6d8 100%);
   box-shadow:
-    inset 0 1px 2px rgba(255, 240, 210, 0.4),
-    inset 0 -2px 3px rgba(60, 30, 10, 0.28),
-    0 1px 3px rgba(0, 0, 0, 0.18);
+    inset 0.5px 0.5px 1.2px rgba(255, 252, 245, 0.85),
+    inset -0.6px -0.9px 1.6px rgba(70, 55, 35, 0.14),
+    0.6px 1.4px 3px rgba(35, 28, 18, 0.2);
+}
+
+/* Move landing: wet-ink bloom under destination (no layout shift) */
+@keyframes ink-landing-bloom {
+  0% {
+    opacity: 0;
+    transform: scale(0.32);
+  }
+  28% {
+    opacity: 0.58;
+  }
+  62% {
+    opacity: 0.42;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+
+.ink-landing-bloom {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  pointer-events: none;
+  /* Irregular feathery wash — layered ellipses, not a hard circle */
+  background:
+    radial-gradient(ellipse 58% 52% at 46% 54%, rgba(42, 38, 32, 0.34) 0%, transparent 64%),
+    radial-gradient(ellipse 50% 58% at 56% 44%, rgba(55, 48, 40, 0.22) 0%, transparent 60%),
+    radial-gradient(ellipse 46% 42% at 40% 42%, rgba(36, 32, 28, 0.16) 0%, transparent 55%),
+    radial-gradient(circle at 50% 50%, rgba(40, 35, 30, 0.2) 0%, rgba(40, 35, 30, 0.08) 40%, transparent 70%);
+  filter: blur(0.7px);
+  animation: ink-landing-bloom 680ms ease-out forwards;
+  will-change: transform, opacity;
 }
 
 
