@@ -546,6 +546,31 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(s.qi.black === 1, 'skipped black turn still got end-turn +1 qi');
 }
 
+// 离间：劫持回合不打开空城窗口，走完即还手
+{
+  let s = base();
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'diaochan')!, false))];
+  s.blackGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'zhuge')!, true))];
+  s.qi = { red: 5, black: 3 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[3][0] = P('P', 'black', 'dark-p', { revealed: false, coverType: 'P' });
+  s.board[6][0] = P('P', 'red', 'rp');
+  s = useSkill(s, 'diaochan-lijian', { kind: 'none' });
+  s = makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 });
+  assert(s.side === 'black', 'kongcheng-hijack: black turn after red pawn');
+  assert(s.pending.lijianHijack?.controller === 'red', 'kongcheng-hijack: hijack still active');
+  assert(!s.pending.awaitKongcheng, 'kongcheng-hijack: red move does not open 空城');
+  const hijackMoves = listLegalMoves(s);
+  assert(hijackMoves.length > 0, 'kongcheng-hijack: dark pawn legal after hijack start');
+  s = makeMove(s, hijackMoves[0].from, hijackMoves[0].to);
+  assert(!s.pending.awaitKongcheng, 'kongcheng-hijack: hijacked move skips 空城');
+  assert(!s.pending.lijianHijack, 'kongcheng-hijack: hijack cleared after victim move');
+  assert(s.side === 'red', 'kongcheng-hijack: control returns to red');
+  assert(listLegalMoves(s).length > 0, 'kongcheng-hijack: red can move after hijack');
+}
+
 // 夏侯惇
 {
   let s = base();
