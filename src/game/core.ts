@@ -455,8 +455,26 @@ export function isGameOver(
   return { over: false, winner: null };
 }
 
-export function pieceValueAt(p: Piece, r: number, peekedIds?: string[]): number {
-  const known = !!p.revealed || !!(peekedIds && peekedIds.includes(p.id));
+/** Revealed piece ids on the board plus optional peeks (unique). Frozen at search root. */
+export function knownIdsOn(board: Board, peekedIds?: string[]): string[] {
+  const ids = new Set<string>();
+  for (const row of board) {
+    for (const p of row) {
+      if (p && p.revealed) ids.add(p.id);
+    }
+  }
+  if (peekedIds) {
+    for (const id of peekedIds) ids.add(id);
+  }
+  return [...ids];
+}
+
+function pieceIsKnown(p: Piece, knownIds?: string[]): boolean {
+  return knownIds ? knownIds.includes(p.id) : !!p.revealed;
+}
+
+export function pieceValueAt(p: Piece, r: number, knownIds?: string[]): number {
+  const known = pieceIsKnown(p, knownIds);
   if (!known) {
     const ct = p.coverType ?? p.type;
     let v = (PIECE_VALUES[ct] ?? 10) * 0.6;
@@ -467,14 +485,14 @@ export function pieceValueAt(p: Piece, r: number, peekedIds?: string[]): number 
   return PIECE_VALUES[p.type];
 }
 
-export function evaluateBoard(board: Board, perspective: Side, peekedIds?: string[]): number {
+export function evaluateBoard(board: Board, perspective: Side, knownIds?: string[]): number {
   let score = 0;
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const p = board[r][c];
       if (!p) continue;
-      let v = pieceValueAt(p, r, peekedIds);
-      const known = !!p.revealed || !!(peekedIds && peekedIds.includes(p.id));
+      let v = pieceValueAt(p, r, knownIds);
+      const known = pieceIsKnown(p, knownIds);
       const evalType = known ? p.type : (p.coverType ?? p.type);
       if (evalType === 'P') {
         v += p.side === 'red' ? (6 - r) : (r - 3);

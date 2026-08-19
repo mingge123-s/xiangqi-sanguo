@@ -1,4 +1,4 @@
-import { createInitialBoard, createStandardBoard, emptyBoard, getPiece, inCheck, revealAll } from './core';
+import { applyMove, createInitialBoard, createStandardBoard, emptyBoard, evaluateBoard, getPiece, inCheck, knownIdsOn, revealAll } from './core';
 import { canUseSkill, createHomeState, isKongchengCaptureAttempt, isWushuangCaptureAttempt, listLegalFrom, listLegalMoves, makeMove, overFiveDests, peekDark, peekedOf, skipKongcheng, skipOverFive, skillLiveState, startMatch, useSkill, validSkillTargets } from './engine';
 import { defToRuntime, GENERALS, skillTypeLabel } from './generals';
 import type { GameState, GeneralRuntime, Piece, PieceType, Side, SkillRuntime } from './types';
@@ -849,6 +849,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board[9][4] = P('K', 'red', 'rk');
   s.board[0][3] = P('K', 'black', 'bk');
   s.board[3][0] = { type: 'P', side: 'black', id: markId, revealed: false, coverType: 'P' };
+  s.board[3][2] = P('P', 'black', 'spare-dark', { revealed: false, coverType: 'P' });
   s.board[6][0] = P('P', 'red', 'rp');
   s.qi = { red: 0, black: 0 };
   s.side = 'red';
@@ -890,6 +891,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board[7][0] = P('R', 'red', 'rr');
   s.board[5][0] = { type: 'A', side: 'black', id: markId, revealed: false, coverType: 'A' };
   s.board[3][2] = P('P', 'black', 'bp');
+  s.board[3][4] = P('P', 'black', 'spare-dark', { revealed: false, coverType: 'P' });
   s.qi = { red: 0, black: 0 };
   s.side = 'red';
   s.skillUsedThisTurn = false;
@@ -903,6 +905,61 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
 }
 
 assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check');
+
+// Fog: search eval must not prefer a hidden 车 over a hidden 兵 with the same cover
+{
+  const b = emptyBoard();
+  b[9][4] = P('K', 'red', 'rk');
+  b[0][4] = P('K', 'black', 'bk');
+  b[3][0] = P('R', 'black', 'dark-r', { revealed: false, coverType: 'P' });
+  b[3][8] = P('P', 'black', 'dark-p', { revealed: false, coverType: 'P' });
+  const knownIds = knownIdsOn(b);
+  assert(!knownIds.includes('dark-r') && !knownIds.includes('dark-p'), 'root knownIds omit unrevealed pieces');
+  assert(knownIds.includes('rk') && knownIds.includes('bk'), 'root knownIds include revealed kings');
+  const { board: afterR } = applyMove(b, { r: 3, c: 0 }, { r: 4, c: 0 });
+  const { board: afterP } = applyMove(b, { r: 3, c: 8 }, { r: 4, c: 8 });
+  assert(getPiece(afterR, { r: 4, c: 0 })!.revealed, 'applyMove reveals the hidden 车');
+  assert(getPiece(afterP, { r: 4, c: 8 })!.revealed, 'applyMove reveals the hidden 兵');
+  const fogR = evaluateBoard(afterR, 'black', knownIds);
+  const fogP = evaluateBoard(afterP, 'black', knownIds);
+  assert(fogR === fogP, 'frozen knownIds: flipping 车 vs 兵 with same cover scores equal');
+  const cheatR = evaluateBoard(afterR, 'black');
+  const cheatP = evaluateBoard(afterP, 'black');
+  assert(cheatR !== cheatP, 'without frozen list, revealed 车 scores differently from 兵 (cheat path)');
+}
+
+// 鹰视: only unrevealed enemies are legal marks
+{
+  let s = base();
+  s.pending = { ...s.pending, awaitYingshi: true };
+  s.board[3][0] = P('P', 'black', 'dark-p', { revealed: false, coverType: 'P' });
+  const t = validSkillTargets(s, 'simayi-yingshi');
+  assert(t.positions.some((p) => p.r === 3 && p.c === 0), '鹰视 targets include a dark enemy');
+  assert(
+    !t.positions.some((p) => {
+      const piece = s.board[p.r][p.c];
+      return !!(piece && piece.revealed);
+    }),
+    '鹰视 targets exclude revealed enemies',
+  );
+  const revealedChe = t.positions.find((p) => {
+    const piece = s.board[p.r][p.c];
+    return !!(piece && piece.type === 'R' && piece.revealed);
+  });
+  assert(!revealedChe, '鹰视 excludes a revealed enemy 车');
+  const rook = getPiece(s.board, { r: 0, c: 0 });
+  assert(rook?.type === 'R' && rook.revealed && rook.side === 'black', 'board has a revealed black 车');
+  const afterBad = useSkill(s, 'simayi-yingshi', { kind: 'pos', pos: { r: 0, c: 0 } });
+  assert(afterBad === s, 'useSkill 鹰视 on revealed 车 is a no-op');
+  assert(afterBad.pending.awaitYingshi, 'awaitYingshi remains after rejected 车');
+  assert(!afterBad.pending.yingshiMark, 'no mark after rejected 车');
+  const afterGood = useSkill(s, 'simayi-yingshi', { kind: 'pos', pos: { r: 3, c: 0 } });
+  assert(afterGood !== s, 'useSkill 鹰视 on dark enemy applies');
+  assert(afterGood.pending.yingshiMark?.pieceId === 'dark-p', '鹰视 marks the dark piece');
+  assert(peekedOf(afterGood, 'red').includes('dark-p'), '鹰视 peeks the dark piece');
+  assert(!afterGood.pending.awaitYingshi, 'awaitYingshi cleared after dark mark');
+}
+
 
 // 观星 privacy: black peeks never appear in red peekedOf
 {

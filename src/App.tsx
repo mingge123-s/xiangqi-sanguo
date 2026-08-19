@@ -53,7 +53,7 @@ function hintFor(id: string): string {
     case 'simayi-guicai':
       return '鬼才：点选对方一子，其下回合只能动它';
     case 'simayi-yingshi':
-      return '鹰视：点选对方一枚棋子标记偷看';
+      return '鹰视：点选对方一枚未翻开的棋子标记偷看';
     case 'huatuo-qingnang':
       return '青囊：随机传送己方一枚非将帅棋子';
     case 'zhouyu-fanjian':

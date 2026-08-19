@@ -22,7 +22,7 @@ function playOnce(seedLabel: string): { turns: number; winner: string | null; la
     if (s.pending.awaitYingshi) {
       const enemy = s.board
         .flatMap((row, r) => row.map((p, c) => ({ p, r, c })))
-        .find((x) => x.p && x.p.side !== s.side);
+        .find((x) => x.p && x.p.side !== s.side && !x.p.revealed);
       if (enemy) {
         s = useSkill(s, 'simayi-yingshi', { kind: 'pos', pos: { r: enemy.r, c: enemy.c } });
       } else {

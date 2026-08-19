@@ -545,29 +545,14 @@ function applyStartOfTurnPassives(s: GameState): void {
 }
 
 
-function hasEnemyPieces(s: GameState, owner: Side): boolean {
-  return allPieces(s.board, opposite(owner)).length > 0;
-}
-
-function yingshiTargetScore(piece: Piece): number {
-  if (piece.type === 'K' && piece.revealed) return -50;
-  const typeRank = piece.type === 'R' ? 3 : piece.type === 'C' ? 2 : piece.type === 'N' ? 1 : 0;
-  return (!piece.revealed ? 20 : 0) + typeRank;
+function hasUnrevealedEnemy(s: GameState, owner: Side): boolean {
+  return allPieces(s.board, opposite(owner)).some((x) => !x.piece.revealed);
 }
 
 export function pickYingshiTarget(s: GameState, owner: Side): { pos: Pos; piece: Piece } | null {
-  const enemies = allPieces(s.board, opposite(owner));
+  const enemies = allPieces(s.board, opposite(owner)).filter((x) => !x.piece.revealed);
   if (enemies.length === 0) return null;
-  let best = enemies[0];
-  let bestV = yingshiTargetScore(best.piece);
-  for (let i = 1; i < enemies.length; i++) {
-    const v = yingshiTargetScore(enemies[i].piece);
-    if (v > bestV) {
-      best = enemies[i];
-      bestV = v;
-    }
-  }
-  return best;
+  return pickRandom(enemies) ?? null;
 }
 
 function applyYingshiMark(s: GameState, owner: Side, piece: Piece): void {
@@ -590,7 +575,7 @@ function applyBlackYingshi(s: GameState): void {
 
 function maybeOpenYingshiWindow(s: GameState, owner: Side): boolean {
   if (!sideHasSkill(sideGens(s, owner), 'simayi-yingshi')) return false;
-  if (!hasEnemyPieces(s, owner)) return false;
+  if (!hasUnrevealedEnemy(s, owner)) return false;
   s.pending = { ...s.pending, awaitYingshi: true };
   if (owner === s.side && !s.skillBroadcast) {
     s.skillBroadcast = { name: '司马懿', skill: '鹰视', faction: 'wei' };
@@ -903,7 +888,10 @@ export function validSkillTargets(s: GameState, skillId: string): {
     return { mode: 'enemy', positions: allPieces(s.board, opposite(side)).map((x) => x.pos) };
   }
   if (skillId === 'simayi-yingshi') {
-    return { mode: 'enemy', positions: allPieces(s.board, opposite(side)).map((x) => x.pos) };
+    const positions = allPieces(s.board, opposite(side))
+      .filter((x) => !x.piece.revealed)
+      .map((x) => x.pos);
+    return { mode: 'dark', positions };
   }
   if (skillId === 'zhouyu-fanjian' || skillId === 'xiahoudun-danjing') {
     return { mode: 'enemy', positions: allPieces(s.board, opposite(side)).map((x) => x.pos) };
@@ -1106,7 +1094,7 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
     if (payload.kind !== 'pos') return s0;
     if (!s.pending.awaitYingshi) return s0;
     const p = getPiece(s.board, payload.pos);
-    if (!p || p.side === side) return s0;
+    if (!p || p.side === side || p.revealed) return s0;
     applyYingshiMark(s, side, p);
     setSideGens(
       s,
