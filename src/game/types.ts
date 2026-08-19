@@ -105,7 +105,7 @@ export interface GameState {
   lastMove: LastMove | null;
   pending: PendingEffects;
   captured: { red: Piece[]; black: Piece[] };
-  log: string[];
+  log: { text: string; side: Side }[];
   winner: Side | null;
   phase: Phase;
   skillBroadcast: SkillBroadcast | null;

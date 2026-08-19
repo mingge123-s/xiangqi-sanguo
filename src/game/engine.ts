@@ -76,7 +76,7 @@ function cloneState(s: GameState): GameState {
       red: s.captured.red.map((p) => ({ ...p })),
       black: s.captured.black.map((p) => ({ ...p })),
     },
-    log: s.log.slice(),
+    log: s.log.map((x) => ({ ...x })),
     skillBroadcast: s.skillBroadcast ? { ...s.skillBroadcast } : null,
     crossedRiverIds: s.crossedRiverIds.slice(),
     noReviveIds: s.noReviveIds.slice(),
@@ -116,8 +116,8 @@ function addPeekId(s: GameState, side: Side, id: string): boolean {
   return true;
 }
 
-function pushLog(s: GameState, msg: string): void {
-  s.log = [...s.log, msg].slice(-40);
+function pushLog(s: GameState, msg: string, side?: Side): void {
+  s.log = [...s.log, { text: msg, side: side ?? s.side }].slice(-40);
 }
 
 function sideGens(s: GameState, side: Side): GeneralRuntime[] {
@@ -455,7 +455,7 @@ function finishIfOver(s: GameState, sideToMove: Side): void {
     s.winner = winner;
     s.phase = 'result';
     if (winner) {
-      pushLog(s, winner === 'red' ? '红方胜' : '黑方胜');
+      pushLog(s, winner === 'red' ? '红方胜' : '黑方胜', winner);
     }
   }
 }
@@ -470,7 +470,7 @@ function applyXiahou(s: GameState, victimSide: Side, capturerPos: Pos): void {
       victimSide,
       gens.map((g) => (g.id === 'xiahoudun' ? { ...g, hidden: false } : g)),
     );
-    pushLog(s, `${victimSide === 'red' ? '红' : '黑'}方 夏侯惇 亮相！`);
+    pushLog(s, `${victimSide === 'red' ? '红' : '黑'}方 夏侯惇 亮相！`, victimSide);
     s.skillBroadcast = { name: '夏侯惇', skill: '刚烈', faction: 'wei' };
   }
   if (Math.random() < 0.5) {
@@ -479,12 +479,12 @@ function applyXiahou(s: GameState, victimSide: Side, capturerPos: Pos): void {
       s.board = cloneBoard(s.board);
       s.board[capturerPos.r][capturerPos.c] = null;
       s.captured[cap.side] = [...s.captured[cap.side], asCaptured(cap)];
-      pushLog(s, `刚烈！${pieceLabel(cap)} 同归于尽`);
+      pushLog(s, `刚烈！${pieceLabel(cap)} 同归于尽`, victimSide);
       charge(s, cap.side, 'ownLoss', 1);
       maybeTriggerYingshi(s, { capturedId: cap.id });
     }
   } else {
-    pushLog(s, '刚烈判定：未触发');
+    pushLog(s, '刚烈判定：未触发', victimSide);
   }
 }
 
@@ -520,7 +520,7 @@ function afterBoardMutation(s: GameState, mover: Side, events: {
     const defender = opposite(mover);
     if (sideHasSkill(sideGens(s, defender), 'ganning-jinfan')) {
       addQi(s, defender, 1);
-      pushLog(s, '锦帆：对方过河，战气+1');
+      pushLog(s, '锦帆：对方过河，战气+1', defender);
     }
   }
   const nowAdj = countAdjacentPairs(s.board, mover);
@@ -570,7 +570,7 @@ function applyBlackYingshi(s: GameState): void {
   if (!t) return;
   applyYingshiMark(s, 'black', t.piece);
   s.skillBroadcast = { name: '司马懿', skill: '鹰视', faction: 'wei' };
-  pushLog(s, '鹰视，标记偷看一枚敌子');
+  pushLog(s, '鹰视，标记偷看一枚敌子', 'black');
 }
 
 function maybeOpenYingshiWindow(s: GameState, owner: Side): boolean {
@@ -640,7 +640,7 @@ function endTurn(s: GameState): void {
   }
   if (s.capturedThisTurn && sideHasSkill(sideGens(s, endingSide), 'diaochan-biyue')) {
     addQi(s, endingSide, 1);
-    pushLog(s, '闭月：本回合有吃子，战气+1');
+    pushLog(s, '闭月：本回合有吃子，战气+1', endingSide);
   }
   if (s.pending.lijianHijack && s.pending.lijianHijack.controller !== endingSide) {
     s.pending = { ...s.pending, lijianHijack: undefined };
@@ -669,7 +669,7 @@ function endTurn(s: GameState): void {
     s.pending.lijianHijack.controller !== s.side &&
     listLegalMoves(s).length === 0
   ) {
-    pushLog(s, '离间：对方无暗子可动，跳过该回合');
+    pushLog(s, '离间：对方无暗子可动，跳过该回合', s.pending.lijianHijack.controller);
     endTurn(s);
     return;
   }
@@ -752,7 +752,7 @@ function applyBlackGuanxing(s: GameState): void {
   const ids = pickDarkIds(s, 5);
   setPeekedFor(s, 'black', ids);
   consumeGuanxingFor(s, 'black');
-  pushLog(s, '观星，窥见五枚暗子');
+  pushLog(s, '观星，窥见五枚暗子', 'black');
 }
 
 export function startMatch(): GameState {
@@ -763,7 +763,7 @@ export function startMatch(): GameState {
   s.redGenerals = dealt.red;
   s.blackGenerals = dealt.black;
   s.board = createJieqiBoard();
-  s.log = ['对局开始 · 红先'];
+  s.log = [{ text: '对局开始 · 红先', side: 'red' }];
   if (sideHasSkill(s.redGenerals, 'zhuge-guanxing')) {
     revealZhuge(s, 'red');
     s.pending = { ...s.pending, awaitGuanxing: true };
