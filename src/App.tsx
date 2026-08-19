@@ -51,7 +51,7 @@ function hintFor(id: string): string {
     case 'caocao-guixin':
       return '归心：收编己方九宫内的敌子';
     case 'simayi-guicai':
-      return '鬼才：点选对方一子，其下回合只能动它';
+      return '鬼才：点选对方一枚能走的子（卡住的不行），其下回合只能动它；发动后本回合结束';
     case 'simayi-yingshi':
       return '鹰视：点选对方一枚未翻开的棋子标记偷看';
     case 'huatuo-qingnang':

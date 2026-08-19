@@ -839,6 +839,7 @@ export function canUseSkill(s: GameState, skillId: string): boolean {
   }
   if (s.skillUsedThisTurn) return false;
   if (skillId === 'zhaoyun-longhun' && s.movedThisTurn) return false;
+  if (skillId === 'simayi-guicai' && s.movedThisTurn) return false;
   const owned = findOwnedSkill(sideGens(s, s.side), skillId);
   if (!owned) return false;
   return isSkillReady(owned.skill, s.qi[s.side] ?? 0);
@@ -885,7 +886,11 @@ export function validSkillTargets(s: GameState, skillId: string): {
     return { mode: 'twoOwn', positions: allPieces(s.board, side).map((x) => x.pos) };
   }
   if (skillId === 'simayi-guicai') {
-    return { mode: 'enemy', positions: allPieces(s.board, opposite(side)).map((x) => x.pos) };
+    const view = { ...s, side: opposite(side) };
+    const positions = allPieces(s.board, opposite(side))
+      .filter((x) => listLegalFrom(view, x.pos).length > 0)
+      .map((x) => x.pos);
+    return { mode: 'enemy', positions };
   }
   if (skillId === 'simayi-yingshi') {
     const positions = allPieces(s.board, opposite(side))
@@ -1082,11 +1087,24 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
 
   if (skillId === 'simayi-guicai') {
     if (payload.kind !== 'pos') return s0;
+    if (s.movedThisTurn) return s0;
     const p = getPiece(s.board, payload.pos);
     if (!p || p.side === side) return s0;
+    const view = { ...s, side: opposite(side) };
+    if (listLegalFrom(view, payload.pos).length === 0) return s0;
     consumeSkill(s, g, skill);
-    s.pending = { ...s.pending, guicaiLock: { pieceId: p.id, untilSide: opposite(side) } };
+    s.pending = {
+      ...s.pending,
+      guicaiLock: { pieceId: p.id, untilSide: opposite(side) },
+      zhangFeiMovesLeft: undefined,
+      zhangFeiPieceId: undefined,
+    };
+    s.movedThisTurn = true;
     pushLog(s, `鬼才：对方下回合只能走${pieceLabel(p)}`);
+    finishIfOver(s, s.side);
+    if (s.winner) return s;
+    if (maybeAwaitKongcheng(s)) return s;
+    endTurn(s);
     return s;
   }
 

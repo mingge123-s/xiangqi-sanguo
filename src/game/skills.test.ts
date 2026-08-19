@@ -331,24 +331,48 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(sk(empty, 'caocao-guixin').uses === 0, '归心 no-op does not consume uses');
 }
 
-// 司马懿 鬼才: lock one enemy piece for their next turn; does not end the turn
+// 司马懿 鬼才: lock one enemy piece; consumes the turn (same idea as 龙魂)
 {
   let s = base();
-  s.qi = { red: 5, black: 10 };
+  s.qi = { red: 4, black: 10 };
   const locked = getPiece(s.board, { r: 0, c: 0 })!;
   s = useSkill(s, 'simayi-guicai', { kind: 'pos', pos: { r: 0, c: 0 } });
   assert(s.pending.guicaiLock?.pieceId === locked.id, '鬼才 locks the chosen enemy piece');
   assert(s.pending.guicaiLock?.untilSide === 'black', '鬼才 untilSide is the opponent');
-  assert(s.side === 'red', '鬼才 does not end the turn');
-  assert(listLegalMoves(s).length > 0, 'caster still has a normal move');
-  assert(s.qi.red === 0, '鬼才 costs 5 qi');
-  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
-  assert(s.side === 'black', 'after red move it is black');
+  assert(s.side === 'black', '鬼才 ends the turn');
+  assert(s.qi.red === 1, '鬼才 costs 4 qi then end-turn +1');
   const lockedMoves = listLegalMoves(s);
   assert(lockedMoves.length > 0, 'locked piece still has moves');
   assert(lockedMoves.every((m) => getPiece(s.board, m.from)?.id === locked.id), 'black can only move the locked piece');
   s = settle(makeMove(s, lockedMoves[0].from, lockedMoves[0].to));
   assert(!s.pending.guicaiLock, '鬼才 lock clears after the victim turn');
+}
+
+// 鬼才 blocked after already moving (mirror 龙魂)
+{
+  let sMoved = base();
+  sMoved.qi = { red: 4, black: 10 };
+  sMoved.movedThisTurn = true;
+  assert(!canUseSkill(sMoved, 'simayi-guicai'), '鬼才 blocked after already moving');
+  const blocked = useSkill(sMoved, 'simayi-guicai', { kind: 'pos', pos: { r: 0, c: 0 } });
+  assert(!blocked.pending.guicaiLock, '鬼才 no-ops after move');
+  assert(blocked.side === 'red', 'failed 鬼才 does not change side');
+  assert(blocked.qi.red === 4, 'failed 鬼才 does not spend qi');
+}
+
+// 鬼才: boxed-in enemy 卒 is not a target; mobile 车 is
+{
+  let s = base();
+  s.qi = { red: 4, black: 10 };
+  // black 卒 at 3,0 not across river (no side moves); friendly piece directly in front
+  s.board[4][0] = P('P', 'black', 'blocker-front');
+  const t = validSkillTargets(s, 'simayi-guicai');
+  assert(!t.positions.some((p) => p.r === 3 && p.c === 0), 'boxed-in 卒 is not a 鬼才 target');
+  assert(t.positions.some((p) => p.r === 0 && p.c === 0), 'mobile enemy 车 is a valid 鬼才 target');
+  const afterStuck = useSkill(s, 'simayi-guicai', { kind: 'pos', pos: { r: 3, c: 0 } });
+  assert(!afterStuck.pending.guicaiLock, 'useSkill 鬼才 on stuck piece is a no-op');
+  assert(afterStuck.side === 'red', 'stuck 鬼才 does not end the turn');
+  assert(afterStuck.qi.red === 4, 'stuck 鬼才 does not spend qi');
 }
 
 // 华佗 青囊：随机传送己方非将帅子至己方半场
@@ -999,13 +1023,12 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
 // 鬼才 lock remains queryable on victim turn (for board highlight)
 {
   let s = base();
-  s.qi = { red: 5, black: 10 };
+  s.qi = { red: 4, black: 10 };
   const locked = getPiece(s.board, { r: 0, c: 0 })!;
   s = useSkill(s, 'simayi-guicai', { kind: 'pos', pos: { r: 0, c: 0 } });
   assert(s.skillBroadcast?.skill === '鬼才', '鬼才 broadcasts after target');
   assert(skillTypeLabel(GENERALS.find((d) => d.id === 'simayi')!.skills.find((x) => x.id === 'simayi-guicai')!) === null, '鬼才 is not labeled 主动技');
-  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
-  assert(s.side === 'black', 'victim turn');
+  assert(s.side === 'black', 'victim turn after 鬼才');
   assert(s.pending.guicaiLock?.pieceId === locked.id, 'lock still present for highlight');
   assert(s.pending.guicaiLock?.untilSide === 'black', 'untilSide is victim');
   assert(skillLiveState({ ...s, side: 'red' }, 'simayi-guicai', 'red')?.includes('锁定'), 'live state reports lock');

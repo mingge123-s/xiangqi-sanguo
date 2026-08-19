@@ -179,14 +179,14 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'simayi-guicai',
         name: '鬼才',
-        desc: '出牌阶段，你可以消耗5点战气，指定对方一枚棋子。对方的下个回合只能使用该子移动。',
+        desc: '出牌阶段，你可以消耗4点战气，指定对方一枚可以走动的棋子（没有被卡住、至少有一步合法走法）。对方下回合只能走该子。发动后消耗本回合走棋，本回合不能再走棋。',
         kind: 'active',
         engineKind: 'active',
         labelKind: 'none',
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 5,
+        qiCost: 4,
       },
       {
         id: 'simayi-yingshi',
