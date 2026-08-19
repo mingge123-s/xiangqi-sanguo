@@ -10,6 +10,7 @@ import {
   isAdjacent,
   isAttacked,
   isGameOver,
+  knownIdsOn,
   opposite,
   pieceValueAt,
 } from './core';
@@ -40,16 +41,16 @@ function searchEval(
   perspective: Side,
   deadline: number,
   frozen?: Pos,
-  peekedIds?: string[],
+  knownIds?: string[],
 ): number {
-  if (Date.now() > deadline) return evaluateBoard(board, perspective, peekedIds);
+  if (Date.now() > deadline) return evaluateBoard(board, perspective, knownIds);
   const over = isGameOver(board, side, { frozen });
   if (over.over) {
     if (over.winner === perspective) return 80000 + depth * 20;
     if (over.winner) return -80000 - depth * 20;
     return 0;
   }
-  if (depth <= 0) return evaluateBoard(board, perspective, peekedIds);
+  if (depth <= 0) return evaluateBoard(board, perspective, knownIds);
   const moves = getAllLegalMoves(board, side, { frozen });
   if (moves.length === 0) return side === perspective ? -80000 : 80000;
 
@@ -63,7 +64,7 @@ function searchEval(
     let best = -Infinity;
     for (const m of moves) {
       const { board: nb } = applyMove(board, m.from, m.to);
-      const v = searchEval(nb, opposite(side), depth - 1, alpha, beta, perspective, deadline, undefined, peekedIds);
+      const v = searchEval(nb, opposite(side), depth - 1, alpha, beta, perspective, deadline, undefined, knownIds);
       if (v > best) best = v;
       if (best > alpha) alpha = best;
       if (beta <= alpha || Date.now() > deadline) break;
@@ -73,7 +74,7 @@ function searchEval(
   let best = Infinity;
   for (const m of moves) {
     const { board: nb } = applyMove(board, m.from, m.to);
-    const v = searchEval(nb, opposite(side), depth - 1, alpha, beta, perspective, deadline, undefined, peekedIds);
+    const v = searchEval(nb, opposite(side), depth - 1, alpha, beta, perspective, deadline, undefined, knownIds);
     if (v < best) best = v;
     if (best < beta) beta = best;
     if (beta <= alpha || Date.now() > deadline) break;
@@ -84,16 +85,16 @@ function searchEval(
 function moveDesire(s: GameState, m: Move): number {
   const target = s.board[m.to.r][m.to.c];
   const mover = s.board[m.from.r][m.from.c];
-  const peeks = peekedOf(s, s.side);
+  const knownIds = knownIdsOn(s.board, peekedOf(s, s.side));
   let v = 0;
-  if (target) v += pieceValueAt(target, m.to.r, peeks) + 12;
+  if (target) v += pieceValueAt(target, m.to.r, knownIds) + 12;
   if (mover && !mover.revealed) v += 8;
   return v;
 }
 
 function searchBestMove(s: GameState, depth: number, deadline: number): { move: Move; score: number } | null {
   const side = s.side;
-  const peeks = peekedOf(s, side);
+  const knownIds = knownIdsOn(s.board, peekedOf(s, side));
   const moves = listLegalMoves(s, side);
   if (moves.length === 0) return null;
 
@@ -107,7 +108,7 @@ function searchBestMove(s: GameState, depth: number, deadline: number): { move: 
   for (const m of moves) {
     if (Date.now() > deadline) break;
     const { board: nb } = applyMove(s.board, m.from, m.to);
-    const score = searchEval(nb, opposite(side), depth - 1, alpha, beta, side, deadline, undefined, peeks);
+    const score = searchEval(nb, opposite(side), depth - 1, alpha, beta, side, deadline, undefined, knownIds);
     if (score > bestScore) {
       bestScore = score;
       best = m;
