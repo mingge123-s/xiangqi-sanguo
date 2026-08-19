@@ -121,10 +121,10 @@ body {
 
 /* Dedicated prompt slots outside the board — fixed height so board never resizes */
 .skill-slot {
-  flex: 0 0 44px;
-  height: 44px;
-  min-height: 44px;
-  max-height: 44px;
+  flex: 0 0 48px;
+  height: 48px;
+  min-height: 48px;
+  max-height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -197,16 +197,14 @@ body {
 }
 
 .play-log {
-  flex: 0 0 18px;
-  height: 18px;
-  overflow: hidden;
-  text-align: center;
-  font-size: 11px;
-  line-height: 18px;
-  color: rgba(61, 50, 36, 0.72);
-  padding: 0 12px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  display: none;
+}
+
+.play-log-line {
+  font-size: 17px;
+  letter-spacing: 0.12em;
+  color: #2c2418;
+  max-width: 92%;
 }
 
 .play-generals-me {

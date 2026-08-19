@@ -384,6 +384,10 @@ export function skipKongcheng(s0: GameState): GameState {
 }
 
 /** Reveal a dark piece to the current side only. Does not consume the skill or close the window. */
+function asCaptured(p: Piece): Piece {
+  return { ...p, revealed: true };
+}
+
 export function peekDark(s0: GameState, pos: Pos): GameState {
   const s = cloneState(s0);
   const p = getPiece(s.board, pos);
@@ -470,7 +474,7 @@ function applyXiahou(s: GameState, victimSide: Side, capturerPos: Pos): void {
     if (cap) {
       s.board = cloneBoard(s.board);
       s.board[capturerPos.r][capturerPos.c] = null;
-      s.captured[cap.side] = [...s.captured[cap.side], cap];
+      s.captured[cap.side] = [...s.captured[cap.side], asCaptured(cap)];
       pushLog(s, `刚烈！${pieceLabel(cap)} 同归于尽`);
       charge(s, cap.side, 'ownLoss', 1);
       maybeTriggerYingshi(s, { capturedId: cap.id });
@@ -977,7 +981,7 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
     const { board: nb, captured } = applyMove(s.board, payload.from, payload.to);
     s.board = nb;
     if (captured) {
-      s.captured[captured.side] = [...s.captured[captured.side], captured];
+      s.captured[captured.side] = [...s.captured[captured.side], asCaptured(captured)];
     }
     const river = maybeRiverCross(s, p, payload.to);
     s.lastMove = { from: { ...payload.from }, to: { ...payload.to }, piece: { ...p } };
@@ -1278,7 +1282,7 @@ export function makeMove(s0: GameState, from: Pos, to: Pos): GameState {
   const { board: nb, captured } = applyMove(s.board, from, to);
   s.board = nb;
   if (captured) {
-    s.captured[captured.side] = [...s.captured[captured.side], captured];
+    s.captured[captured.side] = [...s.captured[captured.side], asCaptured(captured)];
     s.capturedThisTurn = true;
   }
   s.movedThisTurn = true;

@@ -16,8 +16,8 @@ export function CapturedRail({
     <div className={`captured-rail captured-rail-${align}`}>
       {pieces.map((p) => {
         const clickable = !!clickableIds?.includes(p.id);
-        const label = p.revealed ? CHAR[p.side][p.type] : '？';
-        const color = p.revealed ? (p.side === 'red' ? '#b8332a' : '#2a2520') : '#5a4a38';
+        const label = CHAR[p.side][p.type];
+        const color = p.side === 'red' ? '#b8332a' : '#2a2520';
         return (
           <button
             key={p.id}
