@@ -418,12 +418,15 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(s2.qi.red === sKing.qi.red, 'king swap spends no qi');
 }
 
-// 曹操 归心：收编己方九宫内敌子；无敌子则落空不耗气
+// 曹操 归心：收编己方九宫内敌子；空宫不可发动
 {
+  const guixin = GENERALS.find((d) => d.id === 'caocao')!.skills.find((x) => x.id === 'caocao-guixin')!;
+  assert(guixin.desc === '主动技。走棋阶段，若己方九宫内有敌方棋子，你可以消耗6点战气，将其全部收为己用。不消耗走棋次数。', '归心 desc exact');
   let s = base();
   s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'caocao')!, false))];
   s.qi = { red: 6, black: 10 };
   s.board[8][4] = P('N', 'black', 'intruder');
+  assert(canUseSkill(s, 'caocao-guixin'), '归心 ready when enemy in palace');
   s = useSkill(s, 'caocao-guixin', { kind: 'none' });
   const converted = getPiece(s.board, { r: 8, c: 4 });
   assert(converted?.side === 'red' && converted?.type === 'N' && converted?.id === 'intruder', '归心 converts enemy in palace');
@@ -435,6 +438,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   empty.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'caocao')!, false))];
   empty.qi = { red: 6, black: 10 };
   const beforeQi = empty.qi.red;
+  assert(!canUseSkill(empty, 'caocao-guixin'), '归心 cannot cast with empty palace');
   empty = useSkill(empty, 'caocao-guixin', { kind: 'none' });
   assert(empty.qi.red === beforeQi, '归心 no-ops without palace enemies');
   assert(sk(empty, 'caocao-guixin').uses === 0, '归心 no-op does not consume uses');
@@ -473,6 +477,8 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
 
 // 鬼才: boxed-in enemy 卒 is not a target; mobile 车 is
 {
+  const guicai = GENERALS.find((d) => d.id === 'simayi')!.skills.find((x) => x.id === 'simayi-guicai')!;
+  assert(guicai.desc === '主动技。走棋阶段，你可以消耗4点战气，指定对方一枚可以走动的非将帅棋。对方下回合只能行走该子。发动后消耗本回合走棋次数。', '鬼才 desc exact');
   let s = base();
   s.qi = { red: 4, black: 10 };
   // black 卒 at 3,0 not across river (no side moves); friendly piece directly in front
@@ -484,6 +490,23 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(!afterStuck.pending.guicaiLock, 'useSkill 鬼才 on stuck piece is a no-op');
   assert(afterStuck.side === 'red', 'stuck 鬼才 does not end the turn');
   assert(afterStuck.qi.red === 4, 'stuck 鬼才 does not spend qi');
+}
+
+// 鬼才 cannot lock a king
+{
+  let s = base();
+  s.qi = { red: 4, black: 10 };
+  const king = getPiece(s.board, { r: 0, c: 4 });
+  assert(king?.type === 'K' && king.side === 'black', 'standard board has black 将 at (0,4)');
+  const kingMoves = listLegalFrom({ ...s, side: 'black' }, { r: 0, c: 4 });
+  assert(kingMoves.length > 0, 'black 将 has a legal move (so the exclusion is type, not mobility)');
+  const t = validSkillTargets(s, 'simayi-guicai');
+  assert(!t.positions.some((p) => p.r === 0 && p.c === 4), '鬼才 cannot target 将帅棋');
+  assert(t.positions.every((p) => getPiece(s.board, p)?.type !== 'K'), '鬼才 targets exclude kings');
+  const afterKing = useSkill(s, 'simayi-guicai', { kind: 'pos', pos: { r: 0, c: 4 } });
+  assert(!afterKing.pending.guicaiLock, 'useSkill 鬼才 on king is a no-op');
+  assert(afterKing.side === 'red', 'king 鬼才 does not end the turn');
+  assert(afterKing.qi.red === 4, 'king 鬼才 does not spend qi');
 }
 
 // 华佗 青囊：随机传送己方非将帅子至己方半场
@@ -1174,6 +1197,8 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
 
 // 鹰视: only unrevealed enemies are legal marks
 {
+  const yingshi = GENERALS.find((d) => d.id === 'simayi')!.skills.find((x) => x.id === 'simayi-yingshi')!;
+  assert(yingshi.desc === '主动技。游戏开始时，你可以标记对方一枚暗棋并观看其真实身份。该子成为明棋或被吃后，你的下个回合开始时再次标记。', '鹰视 desc exact');
   let s = base();
   s.pending = { ...s.pending, awaitYingshi: true };
   s.board[3][0] = P('P', 'black', 'dark-p', { revealed: false, coverType: 'P' });

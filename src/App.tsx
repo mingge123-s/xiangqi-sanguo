@@ -50,9 +50,9 @@ function hintFor(id: string): string {
     case 'zhaoyun-longhun':
       return '龙魂：点选己方两枚非将帅棋交换位置（耗1步、4战气）';
     case 'caocao-guixin':
-      return '归心：将己方九宫内的敌子收为己用';
+      return '归心：己方九宫有敌子时，将其全部收为己用';
     case 'simayi-guicai':
-      return '鬼才：点选对方一枚可走动的棋子，其下回合只能行走该子；发动后消耗走棋次数';
+      return '鬼才：点选对方一枚可走动的非将帅棋，其下回合只能行走该子';
     case 'simayi-yingshi':
       return '鹰视：点选对方一枚暗棋，标记并观看其真实身份';
     case 'huatuo-qingnang':
@@ -539,7 +539,7 @@ export default function App() {
             {awaitYingshi && !state.skillBroadcast && turnSplash !== 'red' && (
               <div className="skill-slot-prompt">
                 <div className="skill-center-mask">
-                  <span className="skill-center-text">鹰视：点选对方一枚棋子标记偷看</span>
+                  <span className="skill-center-text">鹰视：点选对方一枚暗棋，标记并观看其真实身份</span>
                 </div>
               </div>
             )}

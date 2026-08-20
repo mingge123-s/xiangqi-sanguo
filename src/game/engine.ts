@@ -940,6 +940,7 @@ export function canUseSkill(s: GameState, skillId: string): boolean {
   if (s.skillUsedThisTurn) return false;
   if (skillId === 'zhaoyun-longhun' && (s.movedThisTurn || (s.movesLeft ?? 0) <= 0)) return false;
   if (skillId === 'simayi-guicai' && (s.movedThisTurn || (s.movesLeft ?? 0) <= 0)) return false;
+  if (skillId === 'caocao-guixin' && enemiesInOwnPalace(s, s.side).length === 0) return false;
   const owned = findOwnedSkill(sideGens(s, s.side), skillId);
   if (!owned) return false;
   return isSkillReady(owned.skill, s.qi[s.side] ?? 0);
@@ -994,7 +995,7 @@ export function validSkillTargets(s: GameState, skillId: string): {
   if (skillId === 'simayi-guicai') {
     const view = { ...s, side: opposite(side) };
     const positions = allPieces(s.board, opposite(side))
-      .filter((x) => listLegalFrom(view, x.pos).length > 0)
+      .filter((x) => x.piece.type !== 'K' && listLegalFrom(view, x.pos).length > 0)
       .map((x) => x.pos);
     return { mode: 'enemy', positions };
   }
@@ -1176,7 +1177,6 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
   if (skillId === 'caocao-guixin') {
     const converts = enemiesInOwnPalace(s, side);
     if (converts.length === 0) {
-      pushLog(s, '归心：己方九宫内无敌子，落空');
       return s0;
     }
     consumeSkill(s, g, skill);
@@ -1195,7 +1195,7 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
     if (payload.kind !== 'pos') return s0;
     if (s.movedThisTurn || (s.movesLeft ?? 0) <= 0) return s0;
     const p = getPiece(s.board, payload.pos);
-    if (!p || p.side === side) return s0;
+    if (!p || p.side === side || p.type === 'K') return s0;
     const view = { ...s, side: opposite(side) };
     if (listLegalFrom(view, payload.pos).length === 0) return s0;
     consumeSkill(s, g, skill);
