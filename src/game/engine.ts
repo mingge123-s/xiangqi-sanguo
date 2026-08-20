@@ -61,7 +61,6 @@ function cloneState(s: GameState): GameState {
       awaitKongcheng: s.pending.awaitKongcheng,
       wushengGuard: s.pending.wushengGuard ? { ...s.pending.wushengGuard } : undefined,
       zhouYuFrozen: s.pending.zhouYuFrozen ? { ...s.pending.zhouYuFrozen } : undefined,
-      zhangFeiMovesLeft: s.pending.zhangFeiMovesLeft,
       zhangFeiPieceId: s.pending.zhangFeiPieceId,
       kongcheng: s.pending.kongcheng ? { ...s.pending.kongcheng } : undefined,
       danjing: s.pending.danjing ? { ...s.pending.danjing } : undefined,
@@ -96,6 +95,7 @@ function cloneState(s: GameState): GameState {
       black: (s.peekedIds?.black ?? []).slice(),
     },
     qi: { red: s.qi?.red ?? 0, black: s.qi?.black ?? 0 },
+    movesLeft: s.movesLeft ?? 0,
     capturedThisTurn: !!s.capturedThisTurn,
   };
 }
@@ -319,18 +319,20 @@ function isLijianHijacked(s: GameState): boolean {
 
 export function listLegalMoves(s: GameState, side?: Side) {
   if (pendingBlocksPlay(s)) return [];
+  if ((s.movesLeft ?? 0) <= 0) return [];
   const sd = side ?? s.side;
   const moves = getAllLegalMoves(s.board, sd, legalOptions(s, sd));
-  const zfId = s.pending.zhangFeiMovesLeft ? s.pending.zhangFeiPieceId : undefined;
+  const zfId = s.pending.zhangFeiPieceId;
   if (!zfId) return moves;
   return moves.filter((m) => getPiece(s.board, m.from)?.id === zfId);
 }
 
 export function listLegalFrom(s: GameState, from: Pos): Pos[] {
   if (pendingBlocksPlay(s)) return [];
+  if ((s.movesLeft ?? 0) <= 0) return [];
   const p = getPiece(s.board, from);
   if (!p || p.side !== s.side) return [];
-  if (s.pending.zhangFeiMovesLeft && s.pending.zhangFeiPieceId && p.id !== s.pending.zhangFeiPieceId) {
+  if (s.pending.zhangFeiPieceId && p.id !== s.pending.zhangFeiPieceId) {
     return [];
   }
   if (
@@ -624,6 +626,12 @@ function maybeRiverCross(s: GameState, piece: Piece, to: Pos): boolean {
   return true;
 }
 
+/** 己方回合开始：战气 +1（上限 QI_MAX）、走棋次数 +1。 */
+function applyTurnStartEconomy(s: GameState): void {
+  addQi(s, s.side, 1);
+  s.movesLeft = (s.movesLeft ?? 0) + 1;
+}
+
 function applyStartOfTurnPassives(s: GameState): void {
   if (!inCheck(s.board, s.side)) return;
   if (sideHasSkill(sideGens(s, s.side), 'zhaoyun-longdan')) {
@@ -733,11 +741,11 @@ function endTurn(s: GameState): void {
     s.pending = { ...s.pending, lijianHijack: undefined };
   }
 
-  s.qi = { ...s.qi, [endingSide]: Math.min(QI_MAX, (s.qi[endingSide] ?? 0) + 1) };
-  s.pending = { ...s.pending, zhangFeiMovesLeft: undefined, zhangFeiPieceId: undefined, awaitOverFive: undefined };
+  s.pending = { ...s.pending, zhangFeiPieceId: undefined, awaitOverFive: undefined };
   s.skillUsedThisTurn = false;
   s.movedThisTurn = false;
   s.capturedThisTurn = false;
+  s.movesLeft = 0;
   s.plyCount += 1;
   charge(s, 'red', 'anyPly', 1);
   charge(s, 'black', 'anyPly', 1);
@@ -747,6 +755,7 @@ function endTurn(s: GameState): void {
     s.pending = { ...s.pending, kongcheng: undefined };
   }
   s.turnCount += 1;
+  applyTurnStartEconomy(s);
   applyStartOfTurnPassives(s);
 
   // 离间：对方无可动暗子则立刻跳过（须在胜负判定之前，避免被当成无子可动）
@@ -782,6 +791,7 @@ export function createHomeState(): GameState {
     turnCount: 0,
     skillUsedThisTurn: false,
     movedThisTurn: false,
+    movesLeft: 0,
     crossedRiverIds: [],
     plyCount: 0,
     moveSerial: 0,
@@ -863,6 +873,8 @@ export function startMatch(): GameState {
   if (!s.pending.awaitGuanxing && sideHasSkill(s.redGenerals, 'simayi-yingshi')) {
     maybeOpenYingshiWindow(s, 'red');
   }
+  applyTurnStartEconomy(s);
+  applyStartOfTurnPassives(s);
   if (!s.pending.awaitGuanxing && !s.pending.awaitYingshi) {
     maybeOpenOverFive(s);
   }
@@ -926,8 +938,8 @@ export function canUseSkill(s: GameState, skillId: string): boolean {
     return false;
   }
   if (s.skillUsedThisTurn) return false;
-  if (skillId === 'zhaoyun-longhun' && s.movedThisTurn) return false;
-  if (skillId === 'simayi-guicai' && s.movedThisTurn) return false;
+  if (skillId === 'zhaoyun-longhun' && (s.movedThisTurn || (s.movesLeft ?? 0) <= 0)) return false;
+  if (skillId === 'simayi-guicai' && (s.movedThisTurn || (s.movesLeft ?? 0) <= 0)) return false;
   const owned = findOwnedSkill(sideGens(s, s.side), skillId);
   if (!owned) return false;
   return isSkillReady(owned.skill, s.qi[s.side] ?? 0);
@@ -1120,13 +1132,14 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
     const p = getPiece(s.board, payload.pos);
     if (!p || p.side !== side) return s0;
     consumeSkill(s, g, skill);
-    s.pending = { ...s.pending, zhangFeiMovesLeft: 2, zhangFeiPieceId: p.id };
+    s.pending = { ...s.pending, zhangFeiPieceId: p.id };
+    s.movesLeft = (s.movesLeft ?? 0) + 1;
     return s;
   }
 
   if (skillId === 'zhaoyun-longhun') {
     if (payload.kind !== 'twoPos') return s0;
-    if (s.movedThisTurn) return s0;
+    if (s.movedThisTurn || (s.movesLeft ?? 0) <= 0) return s0;
     const a = getPiece(s.board, payload.a);
     const b = getPiece(s.board, payload.b);
     if (!a || !b || a.side !== side || b.side !== side) return s0;
@@ -1139,6 +1152,8 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
     consumeSkill(s, g, skill);
     s.board = nb;
     s.movedThisTurn = true;
+    s.movesLeft = 0;
+    s.pending = { ...s.pending, zhangFeiPieceId: undefined };
     pushLog(s, `龙魂：${pieceLabel(a)} 与 ${pieceLabel(b)} 换位`);
     maybeClearWushengGuard(s);
     finishIfOver(s, s.side);
@@ -1175,7 +1190,7 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
 
   if (skillId === 'simayi-guicai') {
     if (payload.kind !== 'pos') return s0;
-    if (s.movedThisTurn) return s0;
+    if (s.movedThisTurn || (s.movesLeft ?? 0) <= 0) return s0;
     const p = getPiece(s.board, payload.pos);
     if (!p || p.side === side) return s0;
     const view = { ...s, side: opposite(side) };
@@ -1184,10 +1199,10 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
     s.pending = {
       ...s.pending,
       guicaiLock: { pieceId: p.id, untilSide: opposite(side) },
-      zhangFeiMovesLeft: undefined,
       zhangFeiPieceId: undefined,
     };
     s.movedThisTurn = true;
+    s.movesLeft = 0;
     pushLog(s, `鬼才：对方下回合只能走${pieceLabel(p)}`);
     finishIfOver(s, s.side);
     if (s.winner) return s;
@@ -1368,7 +1383,7 @@ function maybeAwaitKongcheng(s: GameState): boolean {
   const owned = findOwnedSkill(sideGens(s, s.side), 'zhuge-kongcheng');
   if (!owned || !isSkillReady(owned.skill, s.qi[s.side] ?? 0)) return false;
   // Open the end-of-turn window quietly; broadcast after the player picks a piece.
-  s.pending = { ...s.pending, awaitKongcheng: true, zhangFeiMovesLeft: undefined, zhangFeiPieceId: undefined };
+  s.pending = { ...s.pending, awaitKongcheng: true, zhangFeiPieceId: undefined };
   return true;
 }
 
@@ -1376,6 +1391,7 @@ export function makeMove(s0: GameState, from: Pos, to: Pos): GameState {
   const s = cloneState(s0);
   if (s.phase !== 'playing' || s.winner) return s0;
   if (pendingBlocksPlay(s)) return s0;
+  if ((s.movesLeft ?? 0) <= 0) return s0;
   const dests = listLegalFrom(s, from);
   if (!dests.some((d) => posEq(d, to))) return s0;
   const piece = getPiece(s.board, from)!;
@@ -1387,6 +1403,7 @@ export function makeMove(s0: GameState, from: Pos, to: Pos): GameState {
     s.capturedThisTurn = true;
   }
   s.movedThisTurn = true;
+  s.movesLeft = (s.movesLeft ?? 0) - 1;
   const fwd = piece.side === 'red' ? -1 : 1;
   const pawnAdvance1 = piece.type === 'P' && to.r - from.r === fwd && to.c === from.c;
   const river = maybeRiverCross(s, piece, to);
@@ -1415,9 +1432,7 @@ export function makeMove(s0: GameState, from: Pos, to: Pos): GameState {
   });
 
   if (captured) {
-    const zfLeft = s.pending.zhangFeiMovesLeft;
-    const zfContinues = !!(zfLeft && zfLeft > 1);
-    applyXiahou(s, captured.side, to, { resumeTurn: !zfContinues });
+    applyXiahou(s, captured.side, to, { resumeTurn: s.movesLeft === 0 });
   }
 
   maybeTriggerYingshi(s, {
@@ -1433,16 +1448,14 @@ export function makeMove(s0: GameState, from: Pos, to: Pos): GameState {
     s.pending = { ...s.pending, zhouYuFrozen: undefined };
   }
 
-  const zf = s.pending.zhangFeiMovesLeft;
-  if (zf && zf > 1) {
-    s.pending = { ...s.pending, zhangFeiMovesLeft: zf - 1 };
+  if (s.pending.ganglieDice) {
     finishIfOver(s, s.side);
-    if (s.winner) return s;
     return s;
   }
 
-  if (s.pending.ganglieDice) {
+  if (s.movesLeft > 0) {
     finishIfOver(s, s.side);
+    if (s.winner) return s;
     return s;
   }
 

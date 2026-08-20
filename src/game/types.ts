@@ -100,7 +100,7 @@ export interface PendingEffects {
   awaitKongcheng?: boolean;
   wushengGuard?: { pieceId: string; owner: Side };
   zhouYuFrozen?: { r: number; c: number; untilSide: Side };
-  zhangFeiMovesLeft?: number;
+  /** 咆哮：锁定本回合可连走的棋子；步数预算见 GameState.movesLeft。 */
   zhangFeiPieceId?: string;
   kongcheng?: { pieceId: string; untilSide: Side };
   danjing?: { pieceId: string; untilSide: Side };
@@ -148,6 +148,11 @@ export interface GameState {
   skillUsedThisTurn: boolean;
   /** True after this side has made a chess move (含过五关跳) this turn. */
   movedThisTurn: boolean;
+  /**
+   * Remaining normal chess plies this turn. +1 at turn start; each normal walk spends 1.
+   * Leftover does not carry across side changes. 过五关 hop does not spend this.
+   */
+  movesLeft: number;
   crossedRiverIds: string[];
   plyCount: number;
   moveSerial: number;
