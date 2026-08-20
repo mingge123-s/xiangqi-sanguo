@@ -1,5 +1,25 @@
 export type Side = 'red' | 'black';
 export type PieceType = 'K' | 'A' | 'B' | 'N' | 'R' | 'C' | 'P';
+
+export type PieceGroup = 'jiangshuai' | 'chepao' | 'maxiangshi' | 'bingzu';
+
+export const PIECE_GROUP: Record<PieceType, PieceGroup> = {
+  K: 'jiangshuai',
+  R: 'chepao',
+  C: 'chepao',
+  N: 'maxiangshi',
+  B: 'maxiangshi',
+  A: 'maxiangshi',
+  P: 'bingzu',
+};
+
+export const PIECE_GROUP_NAME: Record<PieceGroup, string> = {
+  jiangshuai: '将帅棋',
+  chepao: '车炮棋',
+  maxiangshi: '马象士',
+  bingzu: '兵卒棋',
+};
+
 export type Faction = 'shu' | 'wei' | 'wu' | 'qun';
 export type SkillUiKind = 'active' | 'passive';
 export type SkillEngineKind = 'start' | 'limited' | 'passive' | 'active' | 'window';

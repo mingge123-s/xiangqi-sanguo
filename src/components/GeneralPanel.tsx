@@ -9,10 +9,18 @@ function portraitSrc(id: string): string {
 
 const LONG_PRESS_MS = 400;
 
-function QiMeter({ value, compact }: { value: number; compact?: boolean }) {
+function QiMeter({
+  value,
+  compact,
+  className,
+}: {
+  value: number;
+  compact?: boolean;
+  className?: string;
+}) {
   const n = Math.min(QI_MAX, Math.max(0, value));
   return (
-    <div className={`flex items-center justify-center gap-1.5 ${compact ? 'mb-0.5' : 'mb-1'}`}>
+    <div className={`flex items-center justify-center gap-1.5 ${className ?? (compact ? 'mb-0.5' : 'mb-1')}`}>
       <span className={`${compact ? 'text-[10px]' : 'text-[11px]'} tracking-widest text-aged`}>
         战气 {n}
       </span>
@@ -177,9 +185,17 @@ export function GeneralPanel({
   showFactionFog?: boolean;
   qi?: number;
 }) {
+  const qiMeter = (
+    <QiMeter
+      value={qi}
+      compact={!mine}
+      className={mine ? '-mt-1.5 mb-2' : 'mt-1.5 mb-0'}
+    />
+  );
+
   return (
     <div className="px-1">
-      <QiMeter value={qi} compact={!mine} />
+      {mine && qiMeter}
       <div className="flex items-start justify-center gap-1">
         {generals.map((g) => {
           const showFace = true;
@@ -212,6 +228,7 @@ export function GeneralPanel({
           );
         })}
       </div>
+      {!mine && qiMeter}
       {showCaptured && captured && (
         <div className="mt-1 flex flex-wrap justify-center gap-1.5">
           {captured.length === 0 && <div className="text-[11px] text-aged">无被吃子可复活</div>}
