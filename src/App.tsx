@@ -42,19 +42,19 @@ interface Targeting {
 function hintFor(id: string): string {
   switch (id) {
     case 'guanyu-wuguan':
-      return '过五关：回合开始时，点选己方已翻开的马及其落点（此步不受蹩马腿限制）';
+      return '过五关：回合开始时，点选己方明棋马及其落点（此步不受蹩马腿限制）';
     case 'guanyu-wusheng':
-      return '武圣：点选己方已翻开且在己方河界内的非将帅棋';
+      return '武圣：点选己方位于己方河界内的非将帅明棋';
     case 'zhangfei-paoxiao':
-      return '咆哮：点选本回合可连续行走两步的己方棋子';
+      return '咆哮：点选本回合可再走一步的己方棋子';
     case 'zhaoyun-longhun':
-      return '龙魂：依次点选要交换的两枚己方棋子（暗子、明子皆可；发动后本回合不可再行棋）';
+      return '龙魂：依次点选要交换的两枚己方棋子（发动后消耗走棋次数）';
     case 'caocao-guixin':
       return '归心：将己方九宫内的敌子收为己用';
     case 'simayi-guicai':
-      return '鬼才：点选对方一枚可走动的棋子，其下回合只能行走该子；发动后消耗本回合行棋';
+      return '鬼才：点选对方一枚可走动的棋子，其下回合只能行走该子；发动后消耗走棋次数';
     case 'simayi-yingshi':
-      return '鹰视：点选对方一枚未翻开的棋子，标记并观看其真实身份';
+      return '鹰视：点选对方一枚暗棋，标记并观看其真实身份';
     case 'huatuo-qingnang':
       return '青囊：随机将己方一枚非将帅棋移至己方半场空位';
     case 'zhouyu-fanjian':
@@ -62,13 +62,13 @@ function hintFor(id: string): string {
     case 'sunshangxiang-lianyin':
       return '联姻：点选己方一枚已过河的棋子';
     case 'lvbu-chitu':
-      return '赤兔：点选己方已翻开的兵或卒，令其化为马';
+      return '赤兔：点选己方明棋兵或卒，令其化为马';
     case 'lvbu-wushuang':
-      return '无双：三回合内己方将/帅无法被吃，且无法被将军';
+      return '无双：三回合内己方将帅棋无法被吃，且无法被将军';
     case 'diaochan-lijian':
-      return '离间：对方下个回合改由你操控，惟可移动其暗子';
+      return '离间：对方下个回合改由你操控，惟可移动其暗棋';
     case 'zhuge-guanxing':
-      return '观星：点选五枚暗子，观看其真实身份（不翻开）';
+      return '观星：点选五枚暗棋，观看其真实身份';
     case 'zhuge-kongcheng':
       return '空城：点选己方一枚棋子，直至下个回合开始无法被吃';
     case 'xiahoudun-danjing':
@@ -315,7 +315,7 @@ export default function App() {
         setTargeting({
           ...targeting,
           picks,
-          hint: `观星：点选五枚暗子偷看（不翻开）（还差 ${5 - picks.length} 枚）`,
+          hint: `观星：点选五枚暗棋（还差 ${5 - picks.length} 枚）`,
         });
         return;
       }
@@ -449,7 +449,7 @@ export default function App() {
                 </span>
               )}
               {!thinking && !checked && !targeting && !awaitOverFive && !awaitGuanxing && !awaitYingshi && !awaitKongcheng && lijianHumanControl && (
-                <span className="text-ink">离间 · 操控对方暗子行棋</span>
+                <span className="text-ink">离间 · 操控对方暗棋行棋</span>
               )}
               {!thinking && !checked && !targeting && !awaitOverFive && !awaitGuanxing && !awaitYingshi && !awaitKongcheng && !lijianHumanControl && state.pending.zhangFeiPieceId && state.movesLeft > 0 && (
                 <span>咆哮 · 还可再走一步</span>
@@ -531,7 +531,7 @@ export default function App() {
               <div className="skill-slot-prompt">
                 <div className="skill-center-mask">
                   <span className="skill-center-text">
-                    {targeting?.hint ?? '观星：点选五枚暗子偷看（不翻开）'}
+                    {targeting?.hint ?? '观星：点选五枚暗棋'}
                   </span>
                 </div>
               </div>

@@ -38,7 +38,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'guanyu-wuguan',
         name: '过五关',
-        desc: '回合开始时，你可以消耗3点战气，指定己方一枚已翻开的马，令其立即走一步，此步不受蹩马腿限制。',
+        desc: '回合开始时，你可以消耗3点战气，指定己方一枚明棋马，令其立即走一步，此步不受蹩马腿限制。',
         kind: 'active',
         engineKind: 'window',
         nature: '主动技',
@@ -52,7 +52,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'guanyu-wusheng',
         name: '武圣',
-        desc: '限定技。走棋阶段，指定己方一枚已翻开且在己方河界内的非将帅棋。该子如处于己方河界内，则无法被吃。',
+        desc: '限定技。走棋阶段，指定己方一枚位于己方河界内的非将帅明棋。该子如处于己方河界内，则无法被吃。',
         kind: 'active',
         engineKind: 'limited',
         nature: '限定技',
@@ -73,7 +73,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhuge-guanxing',
         name: '观星',
-        desc: '锁定技。对局开始时，你可以选择五枚暗子，观看其真实身份。此观看不翻开该子，且仅对你可见。',
+        desc: '主动技。游戏开始时，你可以选择五枚暗棋，观看其真实身份。该子仍为暗棋，且仅对你可见。',
         kind: 'passive',
         engineKind: 'start',
         nature: '主动技',
@@ -86,7 +86,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhuge-kongcheng',
         name: '空城',
-        desc: '主动技。你的回合结束时，你可以消耗3点战气，指定己方一枚棋子。直至你的下个回合开始，该子无法被吃。',
+        desc: '主动技。回合结束时，你可以消耗3点战气，指定己方一枚棋子。直至你的下个回合开始，该子无法被吃。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -108,7 +108,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhangfei-paoxiao',
         name: '咆哮',
-        desc: '主动技。走棋阶段，你可以消耗5点战气，指定己方一枚棋子。本回合该子可以连续行走两步。',
+        desc: '主动技。走棋阶段，你可以消耗5点战气，指定己方一枚棋子。本回合该子可再走一步。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -122,7 +122,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhangfei-pojun',
         name: '破军',
-        desc: '锁定技。每当你吃一子，你的战气+1。',
+        desc: '被动技。每当你吃一子，你的战气+1。',
         kind: 'passive',
         engineKind: 'passive',
         nature: '被动技',
@@ -143,7 +143,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhaoyun-longhun',
         name: '龙魂',
-        desc: '主动技。走棋阶段，在本回合行棋之前，你可以消耗4点战气，交换己方两枚棋子（暗子、明子皆可）。发动后本回合不可再行棋。己方将/帅须留在九宫之内。',
+        desc: '主动技。走棋阶段，在消耗走棋次数之前，你可以消耗4点战气，交换己方两枚棋子。发动后消耗本回合走棋次数。己方将帅棋须留在九宫之内。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -157,7 +157,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhaoyun-longdan',
         name: '龙胆',
-        desc: '锁定技。你的回合开始时，若你被将军，战气+2。',
+        desc: '锁定技。回合开始时，若你被将军，战气+2。',
         kind: 'passive',
         engineKind: 'passive',
         nature: '锁定技',
@@ -178,7 +178,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'caocao-guixin',
         name: '归心',
-        desc: '主动技。走棋阶段，你可以消耗6点战气，将当前位于己方九宫内的所有敌子收为己用（类型、明暗与身份均不变）。若无此类敌子，则此技能落空且不消耗战气。发动不消耗本回合行棋。',
+        desc: '主动技。走棋阶段，你可以消耗6点战气，将当前位于己方九宫内的所有敌方棋子收为己用（兵种、暗棋或明棋、身份均不变）。若无此类棋子，则此技能落空且不消耗战气。不消耗走棋次数。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -192,7 +192,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'caocao-jianxiong',
         name: '奸雄',
-        desc: '锁定技。当你吃掉一枚仍为暗子、且真实身份为车、炮或马的敌子时，战气+3。',
+        desc: '被动技。当你吃掉一枚暗棋，且其真实身份为车、炮或马时，战气+3。',
         kind: 'passive',
         engineKind: 'passive',
         nature: '被动技',
@@ -213,7 +213,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'simayi-guicai',
         name: '鬼才',
-        desc: '走棋阶段，你可以消耗4点战气，指定对方一枚可以走动的棋子（该子至少须有一步合法走法）。对方下回合只能行走该子。发动后消耗本回合行棋，本回合不能再走棋。',
+        desc: '主动技。走棋阶段，你可以消耗4点战气，指定对方一枚可以走动的棋子（该子至少须有一步合法走法）。对方下回合只能行走该子。发动后消耗本回合走棋次数。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -227,7 +227,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'simayi-yingshi',
         name: '鹰视',
-        desc: '锁定技。对局开始时，你可以标记对方一枚未翻开的棋子并观看其真实身份。此观看不翻开该子，且仅对你可见。该子被翻开或被吃后，你的下个回合开始时再次标记，直至对局结束。只能指定未翻开的棋子。',
+        desc: '主动技。游戏开始时，你可以标记对方一枚暗棋并观看其真实身份。该子仍为暗棋，且仅对你可见。该子成为明棋或被吃后，你的下个回合开始时再次标记，直至对局结束。只能指定暗棋。',
         kind: 'passive',
         engineKind: 'start',
         nature: '主动技',
@@ -249,7 +249,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'xiahoudun-ganglie',
         name: '刚烈',
-        desc: '锁定技。每当对方吃掉己方棋子时，若吃子者不是将帅棋，则于棋盘上抛一枚六面骰：点数为奇数（1、3、5）时，该子与被吃子同归于尽；点数为偶数（2、4、6）时，无额外效果。将帅棋吃子不抛骰，亦不击杀。对方第一次吃掉己方棋子时，揭示此武将。',
+        desc: '被动技。每当对方吃掉己方棋子时，若吃子者不是将帅棋，则于棋盘上抛一枚六面骰：点数为奇数（1、3、5）时，该子与被吃子同归于尽；点数为偶数（2、4、6）时，无额外效果。将帅棋吃子不抛骰，亦不击杀。对方第一次吃掉己方棋子时，揭示此武将。',
         kind: 'passive',
         engineKind: 'passive',
         nature: '被动技',
@@ -284,7 +284,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'huatuo-qingnang',
         name: '青囊',
-        desc: '主动技。走棋阶段，你可以消耗6点战气，随机将己方一枚非将帅棋移至己方半场的随机空位（须可落子：士须留在九宫，暗象不得过河）。若无合法落点，则此技能落空且不消耗战气。发动不消耗本回合行棋。',
+        desc: '主动技。走棋阶段，你可以消耗6点战气，随机将己方一枚非将帅棋移至己方半场的随机空位（须可落子：士须留在九宫，暗棋象不得过河）。若无合法落点，则此技能落空且不消耗战气。不消耗走棋次数。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -298,7 +298,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'huatuo-shenyi',
         name: '神医',
-        desc: '锁定技。每当你的棋子被吃，战气+1。',
+        desc: '被动技。每当你的棋子被吃，战气+1。',
         kind: 'passive',
         engineKind: 'passive',
         nature: '被动技',
@@ -333,7 +333,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhouyu-huogong',
         name: '火攻',
-        desc: '锁定技。己方以炮吃子时（明炮，或从炮位翻开的那一步），战气+2。',
+        desc: '被动技。己方以炮吃子时（该炮为明棋，或暗棋自炮位翻开成为明棋的那一步），战气+2。',
         kind: 'passive',
         engineKind: 'passive',
         nature: '被动技',
@@ -368,7 +368,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'sunshangxiang-xiaoji',
         name: '枭姬',
-        desc: '锁定技。己方一枚已过河的棋子被吃时，战气+2。',
+        desc: '被动技。己方一枚已过河的棋子被吃时，战气+2。',
         kind: 'passive',
         engineKind: 'passive',
         nature: '被动技',
@@ -404,7 +404,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'ganning-jinfan',
         name: '锦帆',
-        desc: '锁定技。每当对方棋子过河时，己方战气+1。',
+        desc: '被动技。每当对方棋子过河时，己方战气+1。',
         kind: 'passive',
         engineKind: 'passive',
         nature: '被动技',
@@ -426,7 +426,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'lvbu-chitu',
         name: '赤兔',
-        desc: '主动技。走棋阶段，你可以消耗6点战气，指定己方一枚已翻开的兵或卒，令其在原地变为马（同方、保持明子）。发动后揭示吕布。发动不消耗本回合行棋。',
+        desc: '主动技。走棋阶段，你可以消耗6点战气，指定己方一枚明棋兵或卒，令其在原地变为马（同方、仍为明棋）。发动后揭示吕布。不消耗走棋次数。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -440,7 +440,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'lvbu-wushuang',
         name: '无双',
-        desc: '限定技。走棋阶段，你可以发动无双：在此后的3个己方回合内（发动当回合计1），己方将/帅无法被吃，且无法被将军。发动不消耗本回合行棋。',
+        desc: '限定技。走棋阶段，你可以发动无双：在此后的3个己方回合内（发动当回合计1），己方将帅棋无法被吃，且无法被将军。不消耗走棋次数。',
         kind: 'active',
         engineKind: 'limited',
         nature: '限定技',
@@ -461,7 +461,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'diaochan-lijian',
         name: '离间',
-        desc: '主动技。走棋阶段，你可以消耗5点战气，令对方的下个回合改由你操控，但只能移动对方的暗子；若无可移动的暗子，则该回合立即结束。发动不消耗本回合行棋。',
+        desc: '主动技。走棋阶段，你可以消耗5点战气，令对方的下个回合改由你操控，但只能移动对方的暗棋；若无可移动的暗棋，则该回合立即结束。不消耗走棋次数。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -475,7 +475,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'diaochan-biyue',
         name: '闭月',
-        desc: '锁定技。你的回合结束时，若本回合至少吃过一子，战气+1。',
+        desc: '锁定技。回合结束时，若本回合至少吃过一子，战气+1。',
         kind: 'passive',
         engineKind: 'passive',
         nature: '锁定技',
