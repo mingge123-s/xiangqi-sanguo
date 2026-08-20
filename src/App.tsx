@@ -46,9 +46,9 @@ function hintFor(id: string): string {
     case 'guanyu-wusheng':
       return '武圣：点选己方位于己方河界内的非将帅明棋';
     case 'zhangfei-paoxiao':
-      return '咆哮：点选本回合可再走一步的己方棋子';
+      return '咆哮：点选己方一枚暗棋，该子走棋次数+1';
     case 'zhaoyun-longhun':
-      return '龙魂：依次点选要交换的两枚己方棋子（发动后消耗走棋次数）';
+      return '龙魂：点选己方两枚非将帅棋交换位置（耗1步、4战气）';
     case 'caocao-guixin':
       return '归心：将己方九宫内的敌子收为己用';
     case 'simayi-guicai':
