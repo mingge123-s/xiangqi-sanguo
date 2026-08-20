@@ -312,17 +312,20 @@
     .badge {
       display: inline-block;
       font-size: 0.68rem;
-      letter-spacing: 0.08em;
-      padding: 0.06rem 0.32rem 0.02rem;
+      letter-spacing: 0.06em;
+      padding: 0.08rem 0.38rem 0.04rem;
       border: 1px solid currentColor;
-      line-height: 1.35;
+      line-height: 1.4;
       font-weight: 700;
       white-space: nowrap;
+      flex: 0 0 auto;
     }
+    .badge.play { color: var(--cinnabar); }
     .badge.active { color: var(--cinnabar); }
     .badge.lock { color: var(--ink-soft); }
     .badge.limited { color: #7a3d16; }
     .badge.window { color: var(--shu); }
+    .badge.start { color: var(--wei); }
     .qi {
       display: inline-flex;
       align-items: center;
@@ -416,10 +419,11 @@
         <article class="rule wide">
           <h3>技能标签</h3>
           <ul>
-            <li>锁定技：条件一至，自行发动，无须点选。</li>
-            <li>主动技：出牌阶段，由你择时发动。</li>
-            <li>回合主动技：仅在己方回合开始或回合结束的窗口内，由你选择发动。</li>
-            <li>限定技：整局一次；标签写限定技，不写主动技。</li>
+            <li>锁定技：条件满足即结算，不必发动。</li>
+            <li>出牌技：仅在出牌阶段由你发动，且非整局一次。</li>
+            <li>回合技：仅在己方回合开始或回合结束的窗口由你发动。</li>
+            <li>开局技：仅在对局开始时由你发动。</li>
+            <li>限定技：整局限发动一次（即使发生在出牌阶段，也只标限定技）。</li>
           </ul>
         </article>
         <article class="rule wide">
@@ -458,7 +462,7 @@
             <div class="skill">
               <div class="skill-head">
                 <strong>过五关</strong>
-                <span class="badge window">回合主动技</span>
+                <span class="badge window">回合技</span>
                 <span class="qi"><i></i>3 战气</span>
               </div>
               <p>回合开始时，你可以消耗3点战气，指定己方一枚已翻开的马，令其立即走一步，此步不受蹩马腿限制。</p>
@@ -489,14 +493,14 @@
             <div class="skill">
               <div class="skill-head">
                 <strong>观星</strong>
-                <span class="badge lock">锁定技</span>
+                <span class="badge start">开局技</span>
               </div>
               <p>锁定技。对局开始时，你可以选择五枚暗子，观看其真实身份。此观看不翻开该子，且仅对你可见。</p>
             </div>
             <div class="skill">
               <div class="skill-head">
                 <strong>空城</strong>
-                <span class="badge window">回合主动技</span>
+                <span class="badge window">回合技</span>
                 <span class="qi"><i></i>3 战气</span>
               </div>
               <p>主动技。你的回合结束时，你可以消耗3点战气，指定己方一枚棋子。直至你的下个回合开始，该子无法被吃。</p>
@@ -520,7 +524,7 @@
             <div class="skill">
               <div class="skill-head">
                 <strong>咆哮</strong>
-                <span class="badge active">主动技</span>
+                <span class="badge play">出牌技</span>
                 <span class="qi"><i></i>5 战气</span>
               </div>
               <p>主动技。出牌阶段，你可以消耗5点战气，指定己方一枚棋子。本回合该子可以连续行走两步。</p>
@@ -551,7 +555,7 @@
             <div class="skill">
               <div class="skill-head">
                 <strong>龙魂</strong>
-                <span class="badge active">主动技</span>
+                <span class="badge play">出牌技</span>
                 <span class="qi"><i></i>4 战气</span>
               </div>
               <p>主动技。出牌阶段，在本回合行棋之前，你可以消耗4点战气，交换己方两枚棋子（暗子、明子皆可）。发动后本回合不可再行棋。己方将/帅须留在九宫之内。</p>
@@ -589,7 +593,7 @@
             <div class="skill">
               <div class="skill-head">
                 <strong>归心</strong>
-                <span class="badge active">主动技</span>
+                <span class="badge play">出牌技</span>
                 <span class="qi"><i></i>6 战气</span>
               </div>
               <p>主动技。出牌阶段，你可以消耗6点战气，将当前位于己方九宫内的所有敌子收为己用（类型、明暗与身份均不变）。若无此类敌子，则此技能落空且不消耗战气。发动不消耗本回合行棋。</p>
@@ -620,6 +624,7 @@
             <div class="skill">
               <div class="skill-head">
                 <strong>鬼才</strong>
+                <span class="badge play">出牌技</span>
                 <span class="qi"><i></i>4 战气</span>
               </div>
               <p>出牌阶段，你可以消耗4点战气，指定对方一枚可以走动的棋子（该子至少须有一步合法走法）。对方下回合只能行走该子。发动后消耗本回合行棋，本回合不能再走棋。</p>
@@ -627,7 +632,7 @@
             <div class="skill">
               <div class="skill-head">
                 <strong>鹰视</strong>
-                <span class="badge lock">锁定技</span>
+                <span class="badge start">开局技</span>
               </div>
               <p>锁定技。对局开始时，你可以标记对方一枚未翻开的棋子并观看其真实身份。此观看不翻开该子，且仅对你可见。该子被翻开或被吃后，你的下个回合开始时再次标记，直至对局结束。只能指定未翻开的棋子。</p>
             </div>
@@ -660,7 +665,7 @@
             <div class="skill">
               <div class="skill-head">
                 <strong>啖睛</strong>
-                <span class="badge active">主动技</span>
+                <span class="badge play">出牌技</span>
                 <span class="qi"><i></i>2 战气</span>
               </div>
               <p>主动技。出牌阶段，你可以消耗2点战气，指定对方一枚棋子。该子于下个回合不能吃子，惟可行不吃子之棋。</p>
@@ -691,7 +696,7 @@
             <div class="skill">
               <div class="skill-head">
                 <strong>青囊</strong>
-                <span class="badge active">主动技</span>
+                <span class="badge play">出牌技</span>
                 <span class="qi"><i></i>6 战气</span>
               </div>
               <p>主动技。出牌阶段，你可以消耗6点战气，随机将己方一枚非将帅棋移至己方半场的随机空位（须可落子：士须留在九宫，暗象不得过河）。若无合法落点，则此技能落空且不消耗战气。发动不消耗本回合行棋。</p>
@@ -722,7 +727,7 @@
             <div class="skill">
               <div class="skill-head">
                 <strong>反间</strong>
-                <span class="badge active">主动技</span>
+                <span class="badge play">出牌技</span>
                 <span class="qi"><i></i>3 战气</span>
               </div>
               <p>主动技。出牌阶段，你可以消耗3点战气，指定对方一枚棋子。该子于下个回合不能移动。</p>
@@ -753,7 +758,7 @@
             <div class="skill">
               <div class="skill-head">
                 <strong>联姻</strong>
-                <span class="badge active">主动技</span>
+                <span class="badge play">出牌技</span>
                 <span class="qi"><i></i>2 战气</span>
               </div>
               <p>主动技。出牌阶段，你可以消耗2点战气，指定己方一枚已过河的棋子，将其移至己方半场的随机空位。</p>
@@ -787,7 +792,7 @@
             <div class="skill">
               <div class="skill-head">
                 <strong>奇袭</strong>
-                <span class="badge active">主动技</span>
+                <span class="badge play">出牌技</span>
                 <span class="qi"><i></i>3 战气</span>
               </div>
               <p>主动技。出牌阶段，你可以消耗3点战气发动奇袭：两回合内，对方棋子不能过河，己方不受此限。已过河的对方棋子仍可在对岸活动。</p>
@@ -828,7 +833,7 @@
             <div class="skill">
               <div class="skill-head">
                 <strong>赤兔</strong>
-                <span class="badge active">主动技</span>
+                <span class="badge play">出牌技</span>
                 <span class="qi"><i></i>6 战气</span>
               </div>
               <p>主动技。出牌阶段，你可以消耗6点战气，指定己方一枚已翻开的兵或卒，令其在原地变为马（同方、保持明子）。发动后揭示吕布。发动不消耗本回合行棋。</p>
@@ -859,7 +864,7 @@
             <div class="skill">
               <div class="skill-head">
                 <strong>离间</strong>
-                <span class="badge active">主动技</span>
+                <span class="badge play">出牌技</span>
                 <span class="qi"><i></i>5 战气</span>
               </div>
               <p>主动技。出牌阶段，你可以消耗5点战气，令对方的下个回合改由你操控，但只能移动对方的暗子；若无可移动的暗子，则该回合立即结束。发动不消耗本回合行棋。</p>
