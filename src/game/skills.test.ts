@@ -1,7 +1,7 @@
 import { applyMove, createInitialBoard, createStandardBoard, emptyBoard, evaluateBoard, getPiece, inCheck, knownIdsOn, revealAll } from './core';
 import { canUseSkill, createHomeState, isKongchengCaptureAttempt, isWushuangCaptureAttempt, listLegalFrom, listLegalMoves, makeMove, overFiveDests, peekDark, peekedOf, resolveGanglie, skipKongcheng, skipOverFive, skillLiveState, startMatch, useSkill, validSkillTargets, __testSetGanglieRoll } from './engine';
-import { defToRuntime, GENERALS, skillTypeLabel } from './generals';
-import type { GameState, GeneralRuntime, Piece, PieceType, Side, SkillRuntime } from './types';
+import { defToRuntime, GENERALS, skillPhaseOf, skillTypeLabel } from './generals';
+import type { GameState, GeneralRuntime, Piece, PieceType, Side, SkillDef, SkillRuntime } from './types';
 
 let passed = 0;
 function assert(cond: unknown, msg: string): void {
@@ -1127,7 +1127,8 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
   const locked = getPiece(s.board, { r: 0, c: 0 })!;
   s = useSkill(s, 'simayi-guicai', { kind: 'pos', pos: { r: 0, c: 0 } });
   assert(s.skillBroadcast?.skill === '鬼才', '鬼才 broadcasts after target');
-  assert(skillTypeLabel(GENERALS.find((d) => d.id === 'simayi')!.skills.find((x) => x.id === 'simayi-guicai')!) === '出牌技', '鬼才 labeled 出牌技');
+  assert(skillTypeLabel(GENERALS.find((d) => d.id === 'simayi')!.skills.find((x) => x.id === 'simayi-guicai')!) === '主动技', '鬼才 labeled 主动技');
+  assert(skillPhaseOf(GENERALS.find((d) => d.id === 'simayi')!.skills.find((x) => x.id === 'simayi-guicai')!) === '走棋阶段', '鬼才 phase 走棋阶段');
   assert(s.side === 'black', 'victim turn after 鬼才');
   assert(s.pending.guicaiLock?.pieceId === locked.id, 'lock still present for highlight');
   assert(s.pending.guicaiLock?.untilSide === 'black', 'untilSide is victim');
@@ -1153,52 +1154,74 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
   assert(!s.skillBroadcast || s.skillBroadcast.skill !== '破军', 'no 破军 splash');
 }
 
-// Five-way disjoint skill labels
+// Nature + phase axes
 {
-  const expect: Record<string, string> = {
-    'zhangfei-pojun': '锁定技',
-    'zhaoyun-longdan': '锁定技',
-    'caocao-jianxiong': '锁定技',
-    'xiahoudun-ganglie': '锁定技',
-    'huatuo-shenyi': '锁定技',
-    'zhouyu-huogong': '锁定技',
-    'sunshangxiang-xiaoji': '锁定技',
-    'ganning-jinfan': '锁定技',
-    'diaochan-biyue': '锁定技',
-    'zhangfei-paoxiao': '出牌技',
-    'zhaoyun-longhun': '出牌技',
-    'caocao-guixin': '出牌技',
-    'simayi-guicai': '出牌技',
-    'xiahoudun-danjing': '出牌技',
-    'huatuo-qingnang': '出牌技',
-    'zhouyu-fanjian': '出牌技',
-    'sunshangxiang-lianyin': '出牌技',
-    'ganning-chaiqiao': '出牌技',
-    'lvbu-chitu': '出牌技',
-    'diaochan-lijian': '出牌技',
-    'guanyu-wuguan': '回合技',
-    'zhuge-kongcheng': '回合技',
-    'zhuge-guanxing': '开局技',
-    'simayi-yingshi': '开局技',
-    'guanyu-wusheng': '限定技',
-    'lvbu-wushuang': '限定技',
+  const expect: Record<string, { nature: string; phase: string | null }> = {
+    'guanyu-wuguan': { nature: '主动技', phase: '回合开始' },
+    'guanyu-wusheng': { nature: '限定技', phase: '走棋阶段' },
+    'zhuge-guanxing': { nature: '主动技', phase: '游戏开始' },
+    'zhuge-kongcheng': { nature: '主动技', phase: '回合结束' },
+    'zhangfei-paoxiao': { nature: '主动技', phase: '走棋阶段' },
+    'zhangfei-pojun': { nature: '被动技', phase: null },
+    'zhaoyun-longhun': { nature: '主动技', phase: '走棋阶段' },
+    'zhaoyun-longdan': { nature: '锁定技', phase: '回合开始' },
+    'caocao-guixin': { nature: '主动技', phase: '走棋阶段' },
+    'caocao-jianxiong': { nature: '被动技', phase: null },
+    'simayi-guicai': { nature: '主动技', phase: '走棋阶段' },
+    'simayi-yingshi': { nature: '主动技', phase: '游戏开始' },
+    'xiahoudun-ganglie': { nature: '被动技', phase: null },
+    'xiahoudun-danjing': { nature: '主动技', phase: '走棋阶段' },
+    'huatuo-qingnang': { nature: '主动技', phase: '走棋阶段' },
+    'huatuo-shenyi': { nature: '被动技', phase: null },
+    'zhouyu-fanjian': { nature: '主动技', phase: '走棋阶段' },
+    'zhouyu-huogong': { nature: '被动技', phase: null },
+    'sunshangxiang-lianyin': { nature: '主动技', phase: '走棋阶段' },
+    'sunshangxiang-xiaoji': { nature: '被动技', phase: null },
+    'ganning-chaiqiao': { nature: '主动技', phase: '走棋阶段' },
+    'ganning-jinfan': { nature: '被动技', phase: null },
+    'lvbu-chitu': { nature: '主动技', phase: '走棋阶段' },
+    'lvbu-wushuang': { nature: '限定技', phase: '走棋阶段' },
+    'diaochan-lijian': { nature: '主动技', phase: '走棋阶段' },
+    'diaochan-biyue': { nature: '锁定技', phase: '回合结束' },
   };
+  const seen = new Set<string>();
   for (const g of GENERALS) {
     for (const sk of g.skills) {
+      seen.add(sk.id);
+      const exp = expect[sk.id];
+      assert(!!exp, `${sk.id} listed in nature/phase table`);
+      assert(sk.nature === exp.nature, `${sk.id} nature ${exp.nature} (got ${sk.nature})`);
+      const phase = skillPhaseOf(sk);
+      assert(phase === exp.phase, `${sk.id} phase ${String(exp.phase)} (got ${String(phase)})`);
       const tag = skillTypeLabel(sk);
-      assert(expect[sk.id] === tag, `${sk.id} labeled ${expect[sk.id]} (got ${tag})`);
-      assert(tag !== '主动技' && tag !== '回合主动技', `${sk.id} never shows old tag`);
+      assert(tag === exp.nature, `${sk.id} skillTypeLabel prefers nature`);
+      assert(
+        tag !== '出牌技' && tag !== '开局技' && tag !== '回合技' && tag !== '回合主动技',
+        `${sk.id} never shows old combined badge`,
+      );
     }
   }
-  assert(skillTypeLabel({ id: 'legacy', name: '旧', desc: '', kind: 'active', engineKind: 'window', labelKind: '回合技', maxUses: 1, rechargeNeed: 0, rechargeTrigger: 'none' }) === '回合技', 'old 回合技 label still returned');
-  assert(skillTypeLabel({ id: 'd1', name: 'd', desc: '', kind: 'active', engineKind: 'limited', maxUses: 1, rechargeNeed: 0, rechargeTrigger: 'none' }) === '限定技', 'derive limited → 限定技');
-  assert(skillTypeLabel({ id: 'd2', name: 'd', desc: '', kind: 'active', engineKind: 'window', maxUses: 1, rechargeNeed: 0, rechargeTrigger: 'none' }) === '回合技', 'derive window → 回合技');
-  assert(skillTypeLabel({ id: 'd3', name: 'd', desc: '', kind: 'passive', engineKind: 'start', maxUses: 1, rechargeNeed: 0, rechargeTrigger: 'none' }) === '开局技', 'derive start → 开局技');
-  assert(skillTypeLabel({ id: 'd4', name: 'd', desc: '', kind: 'passive', engineKind: 'passive', maxUses: 0, rechargeNeed: 0, rechargeTrigger: 'none' }) === '锁定技', 'derive passive → 锁定技');
-  assert(skillTypeLabel({ id: 'd5', name: 'd', desc: '', kind: 'active', engineKind: 'active', maxUses: 1, rechargeNeed: 0, rechargeTrigger: 'none' }) === '出牌技', 'derive active → 出牌技');
-  assert(skillTypeLabel({ id: 'd6', name: 'd', desc: '', kind: 'active', engineKind: 'active', labelKind: '主动技', maxUses: 1, rechargeNeed: 0, rechargeTrigger: 'none' }) === '出牌技', 'legacy 主动技 maps to 出牌技');
-  assert(skillTypeLabel({ id: 'd7', name: 'd', desc: '', kind: 'active', engineKind: 'window', labelKind: '回合主动技', maxUses: 1, rechargeNeed: 0, rechargeTrigger: 'none' }) === '回合技', 'legacy 回合主动技 maps to 回合技');
-  assert(skillTypeLabel({ id: 'd8', name: 'd', desc: '', kind: 'active', engineKind: 'active', labelKind: 'none', maxUses: 1, rechargeNeed: 0, rechargeTrigger: 'none' }) === null, 'none hides badge');
+  for (const id of Object.keys(expect)) {
+    assert(seen.has(id), `table id ${id} exists on GENERALS`);
+  }
+  const blank = (extra: Partial<SkillDef>): SkillDef => ({
+    id: 'd',
+    name: 'd',
+    desc: '',
+    kind: 'active',
+    maxUses: 1,
+    rechargeNeed: 0,
+    rechargeTrigger: 'none',
+    nature: '主动技',
+    ...extra,
+  });
+  assert(skillTypeLabel(blank({ nature: '限定技', engineKind: 'limited' })) === '限定技', 'prefers nature 限定技');
+  assert(skillTypeLabel(blank({ nature: '主动技', engineKind: 'window' })) === '主动技', 'prefers nature 主动技');
+  assert(skillTypeLabel(blank({ nature: '被动技', kind: 'passive', engineKind: 'passive' })) === '被动技', 'prefers nature 被动技');
+  assert(skillTypeLabel(blank({ nature: '锁定技', kind: 'passive', engineKind: 'passive' })) === '锁定技', 'prefers nature 锁定技');
+  assert(skillTypeLabel(blank({ nature: '主动技', labelKind: 'none' })) === null, 'none hides badge');
+  assert(skillPhaseOf(blank({ phase: '走棋阶段' })) === '走棋阶段', 'skillPhaseOf returns phase');
+  assert(skillPhaseOf(blank({ phase: null })) === null, 'skillPhaseOf null when phase is null');
 }
 
 console.log(`\n${passed} skill/engine checks passed`);
