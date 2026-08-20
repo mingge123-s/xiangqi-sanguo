@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f4ead6" />
+  <meta name="description" content="象棋三国武将图鉴：揭棋规则、战气与十三名武将技能。" />
+  <title>象棋三国 · 武将图鉴</title>
+  <style>
+    :root {
+      --paper: #f4ead6;
+      --paper-dim: #efe4cc;
+      --paper-lift: #faf6ec;
+      --ink: #2a2218;
+      --ink-soft: #3d3224;
+      --ink-mute: #5c4e3a;
+      --aged: #8a7349;
+      --line: rgba(42, 34, 24, 0.28);
+      --line-strong: rgba(42, 34, 24, 0.45);
+      --shu: #2f6b4f;
+      --wei: #2c4a7c;
+      --wu: #8b2e2e;
+      --qun: #6b4c8a;
+      --cinnabar: #9a3a32;
+      --serif: "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", "Source Han Serif SC", "Noto Serif SC", serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: var(--serif);
+      line-height: 1.7;
+      background-color: var(--paper);
+      background-image:
+        radial-gradient(ellipse 70% 42% at 8% 0%, rgba(216, 199, 164, 0.5), transparent 58%),
+        radial-gradient(ellipse 55% 36% at 94% 4%, rgba(196, 176, 138, 0.32), transparent 52%),
+        radial-gradient(ellipse 50% 30% at 70% 100%, rgba(61, 50, 36, 0.07), transparent 60%),
+        radial-gradient(ellipse 40% 24% at 12% 78%, rgba(107, 90, 68, 0.06), transparent 55%);
+      min-height: 100%;
+    }
+
+    /* faint fiber grain, no network */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.22;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0.45  0 0 0 0 0.38  0 0 0 0 0.26  0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 2.4rem 1.35rem 3.2rem;
+    }
+
+    header.hero {
+      text-align: center;
+      padding: 0.4rem 0 1.1rem;
+    }
+    header.hero .seal-mark {
+      display: inline-block;
+      width: 2.4rem;
+      height: 2.4rem;
+      line-height: 2.4rem;
+      border: 1.5px solid var(--cinnabar);
+      color: var(--cinnabar);
+      font-size: 1.05rem;
+      letter-spacing: 0;
+      margin-bottom: 0.7rem;
+      opacity: 0.88;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(1.85rem, 4vw, 2.45rem);
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      line-height: 1.25;
+    }
+    .lede {
+      margin: 0.85rem 0 0;
+      color: var(--ink-mute);
+      letter-spacing: 0.16em;
+      font-size: 0.95rem;
+    }
+    .ink-rule {
+      width: min(16rem, 56%);
+      height: 1px;
+      margin: 1.15rem auto 0;
+      background: linear-gradient(90deg, transparent, var(--ink-soft) 18%, var(--ink-soft) 82%, transparent);
+      opacity: 0.45;
+    }
+
+    nav.toc {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      justify-content: center;
+      gap: 0.15rem;
+      flex-wrap: wrap;
+      padding: 0.55rem 0.4rem;
+      margin: 0.9rem -0.4rem 1.6rem;
+      background: color-mix(in srgb, var(--paper) 88%, transparent);
+      backdrop-filter: blur(8px);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    nav.toc a {
+      color: var(--ink-soft);
+      text-decoration: none;
+      padding: 0.28rem 0.85rem;
+      letter-spacing: 0.22em;
+      font-size: 0.95rem;
+      border: 1px solid transparent;
+    }
+    nav.toc a:hover { color: var(--ink); }
+    nav.toc a.is-active {
+      color: var(--ink);
+      border-color: var(--line-strong);
+      background: rgba(255, 251, 240, 0.45);
+    }
+    nav.toc a[href="#shu"].is-active { color: var(--shu); border-color: color-mix(in srgb, var(--shu) 45%, transparent); }
+    nav.toc a[href="#wei"].is-active { color: var(--wei); border-color: color-mix(in srgb, var(--wei) 45%, transparent); }
+    nav.toc a[href="#wu"].is-active { color: var(--wu); border-color: color-mix(in srgb, var(--wu) 45%, transparent); }
+    nav.toc a[href="#qun"].is-active { color: var(--qun); border-color: color-mix(in srgb, var(--qun) 45%, transparent); }
+
+    section { scroll-margin-top: 3.4rem; }
+
+    h2.sec {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      margin: 2.1rem 0 1rem;
+      font-size: 1.45rem;
+      letter-spacing: 0.28em;
+      font-weight: 700;
+    }
+    h2.sec .count {
+      font-size: 0.82rem;
+      letter-spacing: 0.12em;
+      color: var(--ink-mute);
+      font-weight: 400;
+    }
+    h2.sec::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--line-strong), transparent 88%);
+      transform: translateY(-0.15em);
+    }
+    h2.sec.shu { color: var(--shu); }
+    h2.sec.wei { color: var(--wei); }
+    h2.sec.wu { color: var(--wu); }
+    h2.sec.qun { color: var(--qun); }
+
+    .rules {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.95rem;
+    }
+    .rule {
+      background: rgba(250, 246, 236, 0.55);
+      border: 1px solid var(--line);
+      padding: 1rem 1.15rem 1.1rem;
+    }
+    .rule.wide { grid-column: 1 / -1; }
+    .rule h3 {
+      margin: 0 0 0.45rem;
+      font-size: 1.05rem;
+      letter-spacing: 0.28em;
+    }
+    .rule p, .rule li {
+      margin: 0.35rem 0 0;
+      color: var(--ink-soft);
+      font-size: 0.96rem;
+    }
+    .rule ul {
+      margin: 0.35rem 0 0;
+      padding-left: 1.15rem;
+    }
+    .groups {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.35rem 1rem;
+      margin-top: 0.5rem;
+    }
+    .groups dt {
+      letter-spacing: 0.12em;
+      color: var(--ink);
+      font-weight: 700;
+    }
+    .groups dd { margin: 0; color: var(--ink-mute); }
+
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    article.general {
+      background: rgba(250, 246, 236, 0.58);
+      border: 1px solid var(--line);
+      padding: 1.1rem 1.15rem 1.05rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    article.general.shu { border-color: color-mix(in srgb, var(--shu) 38%, var(--line)); }
+    article.general.wei { border-color: color-mix(in srgb, var(--wei) 38%, var(--line)); }
+    article.general.wu { border-color: color-mix(in srgb, var(--wu) 38%, var(--line)); }
+    article.general.qun { border-color: color-mix(in srgb, var(--qun) 38%, var(--line)); }
+
+    .who {
+      display: flex;
+      gap: 0.95rem;
+      align-items: center;
+    }
+    .portrait-wrap {
+      position: relative;
+      flex: 0 0 96px;
+      width: 96px;
+      height: 96px;
+    }
+    .portrait-wrap::before {
+      content: "";
+      position: absolute;
+      inset: -5px;
+      border-radius: 50%;
+      border: 1px solid var(--line-strong);
+      opacity: 0.7;
+    }
+    .portrait-wrap img,
+    .portrait-fallback {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      object-fit: cover;
+      object-position: center 18%;
+      border: 2px solid var(--ink-soft);
+      background:
+        radial-gradient(circle at 35% 30%, #faf6ec, #e8dcc0);
+      display: block;
+    }
+    .portrait-fallback {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      letter-spacing: 0;
+      color: var(--ink);
+    }
+    .who-text { min-width: 0; }
+    .who-text h3 {
+      margin: 0;
+      font-size: 1.35rem;
+      letter-spacing: 0.2em;
+      line-height: 1.2;
+    }
+    .who-text .title {
+      margin: 0.2rem 0 0;
+      color: var(--ink-mute);
+      letter-spacing: 0.28em;
+      font-size: 0.92rem;
+    }
+    .who-text .meta {
+      margin: 0.35rem 0 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      align-items: center;
+    }
+    .faction-seal {
+      display: inline-block;
+      font-size: 0.72rem;
+      letter-spacing: 0.2em;
+      padding: 0.08rem 0.38rem 0.04rem;
+      border: 1px solid currentColor;
+      line-height: 1.4;
+    }
+    .faction-seal.shu { color: var(--shu); }
+    .faction-seal.wei { color: var(--wei); }
+    .faction-seal.wu { color: var(--wu); }
+    .faction-seal.qun { color: var(--qun); }
+    .hidden-note {
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      color: var(--aged);
+    }
+
+    .skills { display: flex; flex-direction: column; gap: 0.7rem; }
+    .skill {
+      padding-top: 0.65rem;
+      border-top: 1px dashed rgba(42, 34, 24, 0.18);
+    }
+    .skill-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.4rem 0.5rem;
+    }
+    .skill-head strong {
+      font-size: 1.02rem;
+      letter-spacing: 0.18em;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      padding: 0.06rem 0.32rem 0.02rem;
+      border: 1px solid currentColor;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+    .badge.active { color: var(--cinnabar); }
+    .badge.lock { color: var(--ink-soft); }
+    .badge.limited { color: #7a3d16; }
+    .badge.window { color: var(--shu); }
+    .qi {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.28rem;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      color: var(--ink-mute);
+    }
+    .qi i {
+      width: 0.55rem;
+      height: 0.55rem;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #4a4034, #1c1610 72%);
+      display: inline-block;
+      box-shadow: 0 0 0 1px rgba(42, 34, 24, 0.15);
+    }
+    .skill p {
+      margin: 0.28rem 0 0;
+      color: var(--ink-soft);
+      font-size: 0.92rem;
+      line-height: 1.75;
+    }
+
+    footer {
+      margin-top: 2.6rem;
+      padding-top: 1.1rem;
+      border-top: 1px solid var(--line);
+      text-align: center;
+      color: var(--ink-mute);
+      letter-spacing: 0.12em;
+      font-size: 0.88rem;
+    }
+    footer a { color: var(--ink); }
+
+    @media (max-width: 760px) {
+      .rules, .cards, .groups { grid-template-columns: 1fr; }
+      .rule.wide { grid-column: auto; }
+      nav.toc { gap: 0; }
+      nav.toc a { padding: 0.28rem 0.55rem; letter-spacing: 0.14em; }
+      .portrait-wrap, .portrait-wrap img, .portrait-fallback { width: 84px; height: 84px; }
+      .portrait-wrap { flex-basis: 84px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <div class="seal-mark" aria-hidden="true">鉴</div>
+      <h1>象棋三国 · 武将图鉴</h1>
+      <p class="lede">规则与技能以当前线上版本为准</p>
+      <div class="ink-rule" aria-hidden="true"></div>
+    </header>
+
+    <nav class="toc" aria-label="目录">
+      <a href="#rules">规则</a>
+      <a href="#shu">蜀</a>
+      <a href="#wei">魏</a>
+      <a href="#wu">吴</a>
+      <a href="#qun">群</a>
+    </nav>
+
+    <section id="rules">
+      <h2 class="sec">规则</h2>
+      <div class="rules">
+        <article class="rule wide">
+          <h3>揭棋</h3>
+          <ul>
+            <li>将帅明置原位；其余十五子按己方原位随机暗放。</li>
+            <li>暗子第一步按所在原位（coverType）走，走完翻开。</li>
+            <li>被吃暗子由吃子方扣着，被吃方不能看。</li>
+            <li>明仕、明相可过河；暗仕仍不能出九宫。</li>
+          </ul>
+        </article>
+        <article class="rule">
+          <h3>战气</h3>
+          <ul>
+            <li>双方各有一池，开局 0，上限 10。</li>
+            <li>己方回合结束 +1。</li>
+            <li>技能按钮上不写消耗，能点就能发动。</li>
+            <li>长按技能名看详情。</li>
+          </ul>
+        </article>
+        <article class="rule">
+          <h3>对局与界面</h3>
+          <ul>
+            <li>每方 3 名武将，从 13 人中随机。</li>
+            <li>浅宣纸界面：己方技能提示在棋盘下，对方在棋盘上。</li>
+            <li>破军不播报；观星 / 鹰视偷看仅自己可见。</li>
+          </ul>
+        </article>
+        <article class="rule wide">
+          <h3>棋子分组</h3>
+          <p>只给技能判定用，棋子上不显示。暗子对外按座位 coverType，翻开后按真身。</p>
+          <dl class="groups">
+            <div><dt>将帅棋</dt><dd>将 / 帅</dd></div>
+            <div><dt>车炮棋</dt><dd>车 / 炮</dd></div>
+            <div><dt>近卫棋</dt><dd>马 / 象 / 士</dd></div>
+            <div><dt>兵卒棋</dt><dd>兵 / 卒</dd></div>
+          </dl>
+        </article>
+      </div>
+    </section>
+
+    <section id="shu">
+      <h2 class="sec shu">蜀 <span class="count">四将</span></h2>
+      <div class="cards">
+
+        <article class="general shu" id="guanyu">
+          <div class="who">
+            <div class="portrait-wrap">
+              <img src="https://mingge.asia/xiangqi-sanguo/generals/guanyu.webp" alt="关羽" width="96" height="96" loading="lazy" />
+              <div class="portrait-fallback" aria-hidden="true">关</div>
+            </div>
+            <div class="who-text">
+              <h3>关羽</h3>
+              <p class="title">武圣</p>
+              <div class="meta">
+                <span class="faction-seal shu">蜀</span>
+                <span class="hidden-note">首次相关触发时亮相</span>
+              </div>
+            </div>
+          </div>
+          <div class="skills">
+            <div class="skill">
+              <div class="skill-head">
+                <strong>过五关</strong>
+                <span class="badge window">回合技</span>
+                <span class="qi"><i></i>3 战气</span>
+              </div>
+              <p>回合开始时，你可以消耗3点战气，指定己方一枚已翻开的马，令其立即走一步，此步不受蹩马腿限制。此步完成后，你仍可进行本回合的正常行棋。</p>
+            </div>
+            <div class="skill">
+              <div class="skill-head">
+                <strong>武圣</strong>
+                <span class="badge limited">限定技</span>
+              </div>
+              <p>限定技。出牌阶段，指定己方一枚已翻开且在己方河界内的非将帅棋。该子如处于己方河界内，则无法被吃；一旦过河，此效果立即消失。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="general shu" id="zhuge">
+          <div class="who">
+            <div class="portrait-wrap">
+              <img src="https://mingge.asia/xiangqi-sanguo/generals/zhuge.webp" alt="诸葛亮" width="96" height="96" loading="lazy" />
+              <div class="portrait-fallback" aria-hidden="true">诸</div>
+            </div>
+            <div class="who-text">
+              <h3>诸葛亮</h3>
+              <p class="title">卧龙</p>
+              <div class="meta"><span class="faction-seal shu">蜀</span></div>
+            </div>
+          </div>
+          <div class="skills">
+            <div class="skill">
+              <div class="skill-head">
+                <strong>观星</strong>
+                <span class="badge lock">锁定技</span>
+              </div>
+              <p>锁定技。对局开始时，你可以选择五枚暗子，观看其真实身份。此观看不翻开该子，且仅对你可见。</p>
+            </div>
+            <div class="skill">
+              <div class="skill-head">
+                <strong>空城</strong>
+                <span class="badge active">主动技</span>
+                <span class="qi"><i></i>3 战气</span>
+              </div>
+              <p>主动技。你的回合结束时，你可以消耗3点战气，指定己方一枚棋子。直至你的下个回合开始，该子无法被吃。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="general shu" id="zhangfei">
+          <div class="who">
+            <div class="portrait-wrap">
+              <img src="https://mingge.asia/xiangqi-sanguo/generals/zhangfei.webp" alt="张飞" width="96" height="96" loading="lazy" />
+              <div class="portrait-fallback" aria-hidden="true">张</div>
+            </div>
+            <div class="who-text">
+              <h3>张飞</h3>
+              <p class="title">咆哮</p>
+              <div class="meta"><span class="faction-seal shu">蜀</span></div>
+            </div>
+          </div>
+          <div class="skills">
+            <div class="skill">
+              <div class="skill-head">
+                <strong>咆哮</strong>
+                <span class="badge active">主动技</span>
+                <span class="qi"><i></i>5 战气</span>
+              </div>
+              <p>主动技。出牌阶段，你可以消耗5点战气，指定己方一枚棋子。本回合该子可以连续行走两步。</p>
+            </div>
+            <div class="skill">
+              <div class="skill-head">
+                <strong>破军</strong>
+                <span class="badge lock">锁定技</span>
+              </div>
+              <p>锁定技。每当你吃一子，你的战气+1。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="general shu" id="zhaoyun">
+          <div class="who">
+            <div class="portrait-wrap">
+              <img src="https://mingge.asia/xiangqi-sanguo/generals/zhaoyun.webp" alt="赵云" width="96" height="96" loading="lazy" />
+              <div class="portrait-fallback" aria-hidden="true">赵</div>
+            </div>
+            <div class="who-text">
+              <h3>赵云</h3>
+              <p class="title">龙胆</p>
+              <div class="meta"><span class="faction-seal shu">蜀</span></div>
+            </div>
+          </div>
+          <div class="skills">
+            <div class="skill">
+              <div class="skill-head">
+                <strong>龙魂</strong>
+                <span class="badge active">主动技</span>
+                <span class="qi"><i></i>4 战气</span>
+              </div>
+              <p>主动技。出牌阶段，在本回合行棋之前，你可以消耗4点战气，交换己方两枚棋子（暗子、明子皆可）。发动后本回合不可再行棋。己方将/帅须留在九宫之内。</p>
+            </div>
+            <div class="skill">
+              <div class="skill-head">
+                <strong>龙胆</strong>
+                <span class="badge lock">锁定技</span>
+              </div>
+              <p>锁定技。你的回合开始时，若你被将军，战气+2。</p>
+            </div>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <section id="wei">
+      <h2 class="sec wei">魏 <span class="count">三将</span></h2>
+      <div class="cards">
+
+        <article class="general wei" id="caocao">
+          <div class="who">
+            <div class="portrait-wrap">
+              <img src="https://mingge.asia/xiangqi-sanguo/generals/caocao.webp" alt="曹操" width="96" height="96" loading="lazy" />
+              <div class="portrait-fallback" aria-hidden="true">曹</div>
+            </div>
+            <div class="who-text">
+              <h3>曹操</h3>
+              <p class="title">枭雄</p>
+              <div class="meta"><span class="faction-seal wei">魏</span></div>
+            </div>
+          </div>
+          <div class="skills">
+            <div class="skill">
+              <div class="skill-head">
+                <strong>归心</strong>
+                <span class="badge active">主动技</span>
+                <span class="qi"><i></i>6 战气</span>
+              </div>
+              <p>主动技。出牌阶段，你可以消耗6点战气，将当前位于己方九宫内的所有敌子收为己用（类型、明暗与身份均不变）。若无此类敌子，则此技能落空且不消耗战气。发动不消耗本回合行棋。</p>
+            </div>
+            <div class="skill">
+              <div class="skill-head">
+                <strong>奸雄</strong>
+                <span class="badge lock">锁定技</span>
+              </div>
+              <p>锁定技。当你吃掉一枚仍为暗子、且真实身份为车、炮或马的敌子时，战气+3。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="general wei" id="simayi">
+          <div class="who">
+            <div class="portrait-wrap">
+              <img src="https://mingge.asia/xiangqi-sanguo/generals/simayi.webp" alt="司马懿" width="96" height="96" loading="lazy" />
+              <div class="portrait-fallback" aria-hidden="true">司</div>
+            </div>
+            <div class="who-text">
+              <h3>司马懿</h3>
+              <p class="title">冢虎</p>
+              <div class="meta"><span class="faction-seal wei">魏</span></div>
+            </div>
+          </div>
+          <div class="skills">
+            <div class="skill">
+              <div class="skill-head">
+                <strong>鬼才</strong>
+                <span class="qi"><i></i>4 战气</span>
+              </div>
+              <p>出牌阶段，你可以消耗4点战气，指定对方一枚可以走动的棋子（该子至少须有一步合法走法）。对方下回合只能行走该子。发动后消耗本回合行棋，本回合不能再走棋。</p>
+            </div>
+            <div class="skill">
+              <div class="skill-head">
+                <strong>鹰视</strong>
+                <span class="badge lock">锁定技</span>
+              </div>
+              <p>锁定技。对局开始时，你可以标记对方一枚未翻开的棋子并观看其真实身份。此观看不翻开该子，且仅对你可见。该子被翻开或被吃后，你的下个回合开始时再次标记，直至对局结束。只能指定未翻开的棋子。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="general wei" id="xiahoudun">
+          <div class="who">
+            <div class="portrait-wrap">
+              <img src="https://mingge.asia/xiangqi-sanguo/generals/xiahoudun.webp" alt="夏侯惇" width="96" height="96" loading="lazy" />
+              <div class="portrait-fallback" aria-hidden="true">夏</div>
+            </div>
+            <div class="who-text">
+              <h3>夏侯惇</h3>
+              <p class="title">刚烈</p>
+              <div class="meta">
+                <span class="faction-seal wei">魏</span>
+                <span class="hidden-note">首次相关触发时亮相</span>
+              </div>
+            </div>
+          </div>
+          <div class="skills">
+            <div class="skill">
+              <div class="skill-head">
+                <strong>刚烈</strong>
+                <span class="badge lock">锁定技</span>
+              </div>
+              <p>锁定技。每当对方吃掉己方棋子时，若吃子者不是将帅棋，则于棋盘上抛一枚六面骰：点数为奇数（1、3、5）时，该子与被吃子同归于尽；点数为偶数（2、4、6）时，无额外效果。将帅棋吃子不抛骰，亦不击杀。对方第一次吃掉己方棋子时，揭示此武将。</p>
+            </div>
+            <div class="skill">
+              <div class="skill-head">
+                <strong>啖睛</strong>
+                <span class="badge active">主动技</span>
+                <span class="qi"><i></i>2 战气</span>
+              </div>
+              <p>主动技。出牌阶段，你可以消耗2点战气，指定对方一枚棋子。该子于下个回合不能吃子，惟可行不吃子之棋。</p>
+            </div>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <section id="wu">
+      <h2 class="sec wu">吴 <span class="count">四将</span></h2>
+      <div class="cards">
+
+        <article class="general wu" id="huatuo">
+          <div class="who">
+            <div class="portrait-wrap">
+              <img src="https://mingge.asia/xiangqi-sanguo/generals/huatuo.webp" alt="华佗" width="96" height="96" loading="lazy" />
+              <div class="portrait-fallback" aria-hidden="true">华</div>
+            </div>
+            <div class="who-text">
+              <h3>华佗</h3>
+              <p class="title">神医</p>
+              <div class="meta"><span class="faction-seal wu">吴</span></div>
+            </div>
+          </div>
+          <div class="skills">
+            <div class="skill">
+              <div class="skill-head">
+                <strong>青囊</strong>
+                <span class="badge active">主动技</span>
+                <span class="qi"><i></i>6 战气</span>
+              </div>
+              <p>主动技。出牌阶段，你可以消耗6点战气，随机将己方一枚非将帅棋移至己方半场的随机空位（须可落子：士须留在九宫，暗象不得过河）。若无合法落点，则此技能落空且不消耗战气。发动不消耗本回合行棋。</p>
+            </div>
+            <div class="skill">
+              <div class="skill-head">
+                <strong>神医</strong>
+                <span class="badge lock">锁定技</span>
+              </div>
+              <p>锁定技。每当你的棋子被吃，战气+1。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="general wu" id="zhouyu">
+          <div class="who">
+            <div class="portrait-wrap">
+              <img src="https://mingge.asia/xiangqi-sanguo/generals/zhouyu.webp" alt="周瑜" width="96" height="96" loading="lazy" />
+              <div class="portrait-fallback" aria-hidden="true">周</div>
+            </div>
+            <div class="who-text">
+              <h3>周瑜</h3>
+              <p class="title">美周郎</p>
+              <div class="meta"><span class="faction-seal wu">吴</span></div>
+            </div>
+          </div>
+          <div class="skills">
+            <div class="skill">
+              <div class="skill-head">
+                <strong>反间</strong>
+                <span class="badge active">主动技</span>
+                <span class="qi"><i></i>3 战气</span>
+              </div>
+              <p>主动技。出牌阶段，你可以消耗3点战气，指定对方一枚棋子。该子于下个回合不能移动。</p>
+            </div>
+            <div class="skill">
+              <div class="skill-head">
+                <strong>火攻</strong>
+                <span class="badge lock">锁定技</span>
+              </div>
+              <p>锁定技。己方以炮吃子时（明炮，或从炮位翻开的那一步），战气+2。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="general wu" id="sunshangxiang">
+          <div class="who">
+            <div class="portrait-wrap">
+              <img src="https://mingge.asia/xiangqi-sanguo/generals/sunshangxiang.webp" alt="孙尚香" width="96" height="96" loading="lazy" />
+              <div class="portrait-fallback" aria-hidden="true">孙</div>
+            </div>
+            <div class="who-text">
+              <h3>孙尚香</h3>
+              <p class="title">枭姬</p>
+              <div class="meta"><span class="faction-seal wu">吴</span></div>
+            </div>
+          </div>
+          <div class="skills">
+            <div class="skill">
+              <div class="skill-head">
+                <strong>联姻</strong>
+                <span class="badge active">主动技</span>
+                <span class="qi"><i></i>2 战气</span>
+              </div>
+              <p>主动技。出牌阶段，你可以消耗2点战气，指定己方一枚已过河的棋子，将其移至己方半场的随机空位。</p>
+            </div>
+            <div class="skill">
+              <div class="skill-head">
+                <strong>枭姬</strong>
+                <span class="badge lock">锁定技</span>
+              </div>
+              <p>锁定技。己方一枚已过河的棋子被吃时，战气+2。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="general wu" id="ganning">
+          <div class="who">
+            <div class="portrait-wrap">
+              <img src="https://mingge.asia/xiangqi-sanguo/generals/ganning.webp" alt="甘宁" width="96" height="96" loading="lazy" />
+              <div class="portrait-fallback" aria-hidden="true">甘</div>
+            </div>
+            <div class="who-text">
+              <h3>甘宁</h3>
+              <p class="title">锦帆贼</p>
+              <div class="meta">
+                <span class="faction-seal wu">吴</span>
+                <span class="hidden-note">首次相关触发时亮相</span>
+              </div>
+            </div>
+          </div>
+          <div class="skills">
+            <div class="skill">
+              <div class="skill-head">
+                <strong>奇袭</strong>
+                <span class="badge active">主动技</span>
+                <span class="qi"><i></i>3 战气</span>
+              </div>
+              <p>主动技。出牌阶段，你可以消耗3点战气发动奇袭：两回合内，对方棋子不能过河，己方不受此限。已过河的对方棋子仍可在对岸活动。</p>
+            </div>
+            <div class="skill">
+              <div class="skill-head">
+                <strong>锦帆</strong>
+                <span class="badge lock">锁定技</span>
+              </div>
+              <p>锁定技。每当对方棋子过河时，己方战气+1。</p>
+            </div>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <section id="qun">
+      <h2 class="sec qun">群 <span class="count">二将</span></h2>
+      <div class="cards">
+
+        <article class="general qun" id="lvbu">
+          <div class="who">
+            <div class="portrait-wrap">
+              <img src="https://mingge.asia/xiangqi-sanguo/generals/lvbu.webp" alt="吕布" width="96" height="96" loading="lazy" />
+              <div class="portrait-fallback" aria-hidden="true">吕</div>
+            </div>
+            <div class="who-text">
+              <h3>吕布</h3>
+              <p class="title">战神</p>
+              <div class="meta">
+                <span class="faction-seal qun">群</span>
+                <span class="hidden-note">首次相关触发时亮相</span>
+              </div>
+            </div>
+          </div>
+          <div class="skills">
+            <div class="skill">
+              <div class="skill-head">
+                <strong>赤兔</strong>
+                <span class="badge active">主动技</span>
+                <span class="qi"><i></i>6 战气</span>
+              </div>
+              <p>主动技。出牌阶段，你可以消耗6点战气，指定己方一枚已翻开的兵或卒，令其在原地变为马（同方、保持明子）。发动后揭示吕布。发动不消耗本回合行棋。</p>
+            </div>
+            <div class="skill">
+              <div class="skill-head">
+                <strong>无双</strong>
+                <span class="badge limited">限定技</span>
+              </div>
+              <p>限定技。出牌阶段，你可以发动无双：在此后的3个己方回合内（发动当回合计1），己方将/帅无法被吃，且无法被将军。发动不消耗本回合行棋。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="general qun" id="diaochan">
+          <div class="who">
+            <div class="portrait-wrap">
+              <img src="https://mingge.asia/xiangqi-sanguo/generals/diaochan.webp" alt="貂蝉" width="96" height="96" loading="lazy" />
+              <div class="portrait-fallback" aria-hidden="true">貂</div>
+            </div>
+            <div class="who-text">
+              <h3>貂蝉</h3>
+              <p class="title">闭月</p>
+              <div class="meta"><span class="faction-seal qun">群</span></div>
+            </div>
+          </div>
+          <div class="skills">
+            <div class="skill">
+              <div class="skill-head">
+                <strong>离间</strong>
+                <span class="badge active">主动技</span>
+                <span class="qi"><i></i>5 战气</span>
+              </div>
+              <p>主动技。出牌阶段，你可以消耗5点战气，令对方的下个回合改由你操控，但只能移动对方的暗子；若无可移动的暗子，则该回合立即结束。发动不消耗本回合行棋。</p>
+            </div>
+            <div class="skill">
+              <div class="skill-head">
+                <strong>闭月</strong>
+                <span class="badge lock">锁定技</span>
+              </div>
+              <p>锁定技。你的回合结束时，若本回合至少吃过一子，战气+1。</p>
+            </div>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <footer>
+      共13名武将 · 与 <a href="https://mingge.asia/xiangqi-sanguo/">https://mingge.asia/xiangqi-sanguo/</a> 同步
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      var links = Array.prototype.slice.call(document.querySelectorAll("nav.toc a"));
+      var ids = links.map(function (a) { return a.getAttribute("href").slice(1); });
+      var sections = ids.map(function (id) { return document.getElementById(id); }).filter(Boolean);
+
+      function setActive(id) {
+        links.forEach(function (a) {
+          a.classList.toggle("is-active", a.getAttribute("href") === "#" + id);
+        });
+      }
+
+      if ("IntersectionObserver" in window && sections.length) {
+        var io = new IntersectionObserver(function (entries) {
+          var visible = entries
+            .filter(function (e) { return e.isIntersecting; })
+            .sort(function (a, b) { return b.intersectionRatio - a.intersectionRatio; });
+          if (visible[0] && visible[0].target.id) setActive(visible[0].target.id);
+        }, { rootMargin: "-20% 0px -60% 0px", threshold: [0.1, 0.3, 0.6] });
+        sections.forEach(function (s) { io.observe(s); });
+      }
+
+      document.querySelectorAll(".portrait-wrap img").forEach(function (img) {
+        img.addEventListener("error", function () {
+          img.style.display = "none";
+          var fb = img.parentNode.querySelector(".portrait-fallback");
+          if (fb) fb.style.display = "flex";
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
