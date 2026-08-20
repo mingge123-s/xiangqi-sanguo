@@ -42,37 +42,37 @@ interface Targeting {
 function hintFor(id: string): string {
   switch (id) {
     case 'guanyu-wuguan':
-      return '过五关：回合开始，点己方已翻开的马再点落点（可越马腿）';
+      return '过五关：回合开始时，点选己方已翻开的马及其落点（此步不受蹩马腿限制）';
     case 'guanyu-wusheng':
-      return '武圣：点选己方已翻开且在河界内一子（不能是帅）';
+      return '武圣：点选己方已翻开且在己方河界内的非将帅棋';
     case 'zhangfei-paoxiao':
-      return '咆哮：点选要连走两步的己方棋';
+      return '咆哮：点选本回合可连续行走两步的己方棋子';
     case 'zhaoyun-longhun':
-      return '龙魂：依次点选要交换的两枚己方棋（可暗可明；发动后本回合不可再行棋）';
+      return '龙魂：依次点选要交换的两枚己方棋子（暗子、明子皆可；发动后本回合不可再行棋）';
     case 'caocao-guixin':
-      return '归心：收编己方九宫内的敌子';
+      return '归心：将己方九宫内的敌子收为己用';
     case 'simayi-guicai':
-      return '鬼才：点选对方一枚能走的子（卡住的不行），其下回合只能动它；发动后本回合结束';
+      return '鬼才：点选对方一枚可走动的棋子，其下回合只能行走该子；发动后消耗本回合行棋';
     case 'simayi-yingshi':
-      return '鹰视：点选对方一枚未翻开的棋子标记偷看';
+      return '鹰视：点选对方一枚未翻开的棋子，标记并观看其真实身份';
     case 'huatuo-qingnang':
-      return '青囊：随机传送己方一枚非将帅棋子';
+      return '青囊：随机将己方一枚非将帅棋移至己方半场空位';
     case 'zhouyu-fanjian':
-      return '反间：点选对方一子，使其下回合无法移动';
+      return '反间：点选对方一枚棋子，该子于下个回合不能移动';
     case 'sunshangxiang-lianyin':
-      return '联姻：点选己方已过河棋子';
+      return '联姻：点选己方一枚已过河的棋子';
     case 'lvbu-chitu':
-      return '赤兔：点选己方已翻开的兵/卒化为马';
+      return '赤兔：点选己方已翻开的兵或卒，令其化为马';
     case 'lvbu-wushuang':
-      return '无双：三回合内将帅不可被吃、不可被将军';
+      return '无双：三回合内己方将/帅无法被吃，且无法被将军';
     case 'diaochan-lijian':
-      return '离间：对方下回合由你操控其暗子';
+      return '离间：对方下个回合改由你操控，惟可移动其暗子';
     case 'zhuge-guanxing':
-      return '观星：点选五枚暗子偷看（不翻开）';
+      return '观星：点选五枚暗子，观看其真实身份（不翻开）';
     case 'zhuge-kongcheng':
-      return '空城：点选己方一子护到下回合';
+      return '空城：点选己方一枚棋子，直至下个回合开始无法被吃';
     case 'xiahoudun-danjing':
-      return '啖睛：点选对方一子，使其下回合无法吃子';
+      return '啖睛：点选对方一枚棋子，该子于下个回合不能吃子';
     default:
       return '选择目标';
   }
