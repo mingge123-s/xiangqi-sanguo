@@ -178,7 +178,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'caocao-guixin',
         name: '归心',
-        desc: '主动技。走棋阶段，若己方九宫内有敌方棋子，你可以消耗6点战气，将其全部收为己用。不消耗走棋次数。',
+        desc: '主动技。走棋阶段，若己方九宫内有敌方棋子，你可以消耗6点战气，将其全部收为己用。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -213,7 +213,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'simayi-guicai',
         name: '鬼才',
-        desc: '主动技。走棋阶段，你可以消耗4点战气，指定对方一枚可以走动的非将帅棋。对方下回合只能行走该子。发动后消耗本回合走棋次数。',
+        desc: '主动技。走棋阶段，你可以消耗4点战气，指定对方一枚可以走动的非将帅棋。对方下回合只能行走该子。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -284,7 +284,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'huatuo-qingnang',
         name: '青囊',
-        desc: '主动技。走棋阶段，你可以消耗6点战气，随机将己方一枚非将帅棋移至己方半场的随机空位（须可落子：士须留在九宫，暗棋象不得过河）。若无合法落点，则此技能落空且不消耗战气。不消耗走棋次数。',
+        desc: '主动技。走棋阶段，你可以消耗6点战气，随机将己方一枚非将帅棋移至己方半场的随机空位（须可落子：士须留在九宫，暗棋象不得过河）。若无合法落点，则此技能落空且不消耗战气。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -426,7 +426,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'lvbu-chitu',
         name: '赤兔',
-        desc: '主动技。走棋阶段，你可以消耗6点战气，指定己方一枚明棋兵或卒，令其在原地变为马（同方、仍为明棋）。发动后揭示吕布。不消耗走棋次数。',
+        desc: '主动技。走棋阶段，你可以消耗6点战气，指定己方一枚明棋兵或卒，令其在原地变为马（同方、仍为明棋）。发动后揭示吕布。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -440,7 +440,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'lvbu-wushuang',
         name: '无双',
-        desc: '限定技。走棋阶段，你可以发动无双：在此后的3个己方回合内（发动当回合计1），己方将帅棋无法被吃，且无法被将军。不消耗走棋次数。',
+        desc: '限定技。走棋阶段，你可以发动无双：在此后的3个己方回合内（发动当回合计1），己方将帅棋无法被吃，且无法被将军。',
         kind: 'active',
         engineKind: 'limited',
         nature: '限定技',
@@ -461,7 +461,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'diaochan-lijian',
         name: '离间',
-        desc: '主动技。走棋阶段，你可以消耗5点战气，令对方的下个回合改由你操控，但只能移动对方的暗棋；若无可移动的暗棋，则该回合立即结束。不消耗走棋次数。',
+        desc: '主动技。走棋阶段，你可以消耗5点战气，令对方的下个回合改由你操控，但只能移动对方的暗棋；若无可移动的暗棋，则该回合立即结束。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
