@@ -1157,8 +1157,10 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
 {
   const gy = GENERALS.find((d) => d.id === 'guanyu')!;
   assert(skillTypeLabel(gy.skills.find((x) => x.id === 'guanyu-wusheng')!) === '限定技', '武圣 labeled 限定技');
-  assert(skillTypeLabel(gy.skills.find((x) => x.id === 'guanyu-wuguan')!) === '回合技', '过五关 labeled 回合技');
+  assert(skillTypeLabel(gy.skills.find((x) => x.id === 'guanyu-wuguan')!) === '回合主动技', '过五关 labeled 回合主动技');
   assert(skillTypeLabel(GENERALS.find((d) => d.id === 'zhangfei')!.skills.find((x) => x.id === 'zhangfei-paoxiao')!) === '主动技', '咆哮 stays 主动技');
+  assert(skillTypeLabel(GENERALS.find((d) => d.id === 'zhuge')!.skills.find((x) => x.id === 'zhuge-kongcheng')!) === '回合主动技', '空城 labeled 回合主动技');
+  assert(skillTypeLabel({ id: 'legacy', name: '旧', desc: '', kind: 'active', engineKind: 'window', labelKind: '回合技', maxUses: 1, rechargeNeed: 0, rechargeTrigger: 'none' }) === '回合技', 'old 回合技 label still returned');
 }
 
 console.log(`\n${passed} skill/engine checks passed`);

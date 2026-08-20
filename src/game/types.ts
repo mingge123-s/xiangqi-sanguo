@@ -24,7 +24,7 @@ export type Faction = 'shu' | 'wei' | 'wu' | 'qun';
 export type SkillUiKind = 'active' | 'passive';
 export type SkillEngineKind = 'start' | 'limited' | 'passive' | 'active' | 'window';
 /** Display tag in skill detail; overrides the default derived from kind/engineKind. `'none'` hides the badge. */
-export type SkillLabelKind = '主动技' | '锁定技' | '限定技' | '回合技' | 'none';
+export type SkillLabelKind = '主动技' | '锁定技' | '限定技' | '回合技' | '回合主动技' | 'none';
 export type Phase = 'home' | 'playing' | 'result';
 
 export interface PeekedBySide {
