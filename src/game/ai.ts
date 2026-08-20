@@ -445,7 +445,7 @@ export function applyAITurn(s0: GameState): GameState {
 
   s = doOne(s);
   if (s.winner) return s;
-  if (s.side === 'black' && (s.pending.zhangFeiMovesLeft ?? 0) > 0) {
+  if (s.side === 'black' && s.pending.zhangFeiPieceId && (s.movesLeft ?? 0) > 0) {
     s = doOne(s);
   }
   if (s.pending.awaitKongcheng) {

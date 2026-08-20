@@ -451,10 +451,10 @@ export default function App() {
               {!thinking && !checked && !targeting && !awaitOverFive && !awaitGuanxing && !awaitYingshi && !awaitKongcheng && lijianHumanControl && (
                 <span className="text-ink">离间 · 操控对方暗子行棋</span>
               )}
-              {!thinking && !checked && !targeting && !awaitOverFive && !awaitGuanxing && !awaitYingshi && !awaitKongcheng && !lijianHumanControl && state.pending.zhangFeiMovesLeft && (
+              {!thinking && !checked && !targeting && !awaitOverFive && !awaitGuanxing && !awaitYingshi && !awaitKongcheng && !lijianHumanControl && state.pending.zhangFeiPieceId && state.movesLeft > 0 && (
                 <span>咆哮 · 还可再走一步</span>
               )}
-              {!thinking && !checked && !awaitOverFive && !awaitGuanxing && !awaitYingshi && !awaitKongcheng && !targeting && !lijianHumanControl && !state.pending.zhangFeiMovesLeft && (
+              {!thinking && !checked && !awaitOverFive && !awaitGuanxing && !awaitYingshi && !awaitKongcheng && !targeting && !lijianHumanControl && !(state.pending.zhangFeiPieceId && state.movesLeft > 0) && (
                 <span className={state.side === 'red' ? 'text-red-piece' : 'text-ink'}>
                   {state.side === 'red' ? '红方回合' : '黑方回合'}
                 </span>

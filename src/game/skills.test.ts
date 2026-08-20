@@ -35,6 +35,7 @@ function base(): GameState {
   s.redGenerals = GENERALS.map((d) => readyAll(defToRuntime(d, true)));
   s.blackGenerals = [];
   s.qi = { red: 10, black: 10 };
+  s.movesLeft = 1;
   return s;
 }
 
@@ -72,6 +73,62 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
         }
       : x,
   );
+}
+
+// turn-start economy: startMatch grants red qi 1 / movesLeft 1; black stays 0
+{
+  const s = startMatch();
+  assert(s.qi.red === 1, 'startMatch: red qi === 1');
+  assert(s.qi.black === 0, 'startMatch: black qi === 0');
+  assert(s.movesLeft === 1, 'startMatch: red movesLeft === 1');
+}
+
+// turn-start economy: after red ply → black qi 1 / movesLeft 1; red qi stays 1
+{
+  let s = startMatch();
+  // Clear skill windows so a normal walk can resolve
+  for (let i = 0; i < 40 && (s.pending.awaitGuanxing || s.pending.awaitYingshi || s.pending.awaitOverFive); i++) {
+    if (s.pending.awaitGuanxing) {
+      const dark = s.board
+        .flatMap((row, r) => row.map((p, c) => ({ p, r, c })))
+        .filter((x) => x.p && !x.p.revealed)
+        .slice(0, 5)
+        .map((x) => ({ r: x.r, c: x.c }));
+      if (dark.length === 5) s = useSkill(s, 'zhuge-guanxing', { kind: 'posList', positions: dark });
+      else break;
+    }
+    if (s.pending.awaitYingshi) {
+      const enemy = s.board
+        .flatMap((row, r) => row.map((p, c) => ({ p, r, c })))
+        .find((x) => x.p && x.p.side === 'black' && !x.p.revealed);
+      if (enemy) s = useSkill(s, 'simayi-yingshi', { kind: 'pos', pos: { r: enemy.r, c: enemy.c } });
+      else break;
+    }
+    if (s.pending.awaitOverFive) s = skipOverFive(s);
+  }
+  assert(s.qi.red === 1 && s.side === 'red' && s.movesLeft === 1, 'red ready to move with economy applied once');
+  const moves = listLegalMoves(s);
+  assert(moves.length > 0, 'red has a legal move after windows');
+  s = settle(makeMove(s, moves[0].from, moves[0].to));
+  assert(s.side === 'black', 'after red ply: black to move');
+  assert(s.qi.black === 1, 'after red ply: black qi === 1');
+  assert(s.movesLeft === 1, 'after red ply: black movesLeft === 1');
+  assert(s.qi.red === 1, 'after red ply: red qi still 1 (no end-turn +1)');
+
+  // Clear black windows if any, then black ply → red second turn qi === 2
+  if (s.pending.awaitOverFive) s = skipOverFive(s);
+  if (s.pending.awaitYingshi) {
+    const enemy = s.board
+      .flatMap((row, r) => row.map((p, c) => ({ p, r, c })))
+      .find((x) => x.p && x.p.side === 'red' && !x.p.revealed);
+    if (enemy) s = useSkill(s, 'simayi-yingshi', { kind: 'pos', pos: { r: enemy.r, c: enemy.c } });
+  }
+  const bMoves = listLegalMoves(s);
+  assert(bMoves.length > 0, 'black has a legal move');
+  s = settle(makeMove(s, bMoves[0].from, bMoves[0].to));
+  assert(s.side === 'red', 'after black ply: red to move');
+  assert(s.qi.red === 2, 'red second turn: qi === 2');
+  assert(s.movesLeft === 1, 'red second turn: movesLeft === 1');
 }
 
 // 诸葛亮 观星 + 明暗置 (deal uniqueness; real jieqi board)
@@ -218,6 +275,8 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s = useSkill(s, 'guanyu-wuguan', { kind: 'fromTo', from: { r: 9, c: 1 }, to: dest });
   assert(!s.pending.awaitOverFive, 'awaitOverFive cleared after hop');
   assert(s.side === 'red', 'hop does not end the turn');
+  assert(s.movesLeft === 1, '过五关 hop does not spend movesLeft');
+  assert(s.movedThisTurn === true, '过五关 hop sets movedThisTurn');
   assert(getPiece(s.board, dest)?.type === 'N', 'horse landed on dest');
   assert(!g(s, 'guanyu').hidden, '关羽 revealed');
   assert(!s.skillUsedThisTurn, '过五关 hop does not consume the active-skill slot');
@@ -261,18 +320,20 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
 // 张飞 咆哮: same piece walks twice
 {
   let s = base();
+  assert(s.movesLeft === 1, '咆哮 turn starts with movesLeft 1');
   const pawn = getPiece(s.board, { r: 6, c: 0 })!;
   s = useSkill(s, 'zhangfei-paoxiao', { kind: 'pos', pos: { r: 6, c: 0 } });
-  assert(s.pending.zhangFeiMovesLeft === 2, '咆哮 grants two moves');
+  assert(s.movesLeft === 2, '咆哮 grants movesLeft += 1 → 2');
   assert(s.pending.zhangFeiPieceId === pawn.id, '咆哮 locks the designated piece');
   assert(s.qi.red === 5, '咆哮 costs 5 qi');
   assert(listLegalFrom(s, { r: 6, c: 2 }).length === 0, 'other pieces cannot move during 咆哮');
   s = makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 });
   assert(s.side === 'red', 'still red after first 咆哮 move');
-  assert(s.pending.zhangFeiMovesLeft === 1, 'one move left');
+  assert(s.movesLeft === 1, 'one move left after first walk');
   assert(listLegalFrom(s, { r: 6, c: 2 }).length === 0, 'still only the designated piece');
   s = settle(makeMove(s, { r: 5, c: 0 }, { r: 4, c: 0 }));
   assert(s.side === 'black', 'turn ends after second move');
+  assert(s.movesLeft === 1, 'black starts with movesLeft 1');
 }
 
 // 咆哮 cannot cast at 4
@@ -280,7 +341,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   const s = base();
   s.qi = { red: 4, black: 10 };
   const after = useSkill(s, 'zhangfei-paoxiao', { kind: 'pos', pos: { r: 6, c: 0 } });
-  assert(!after.pending.zhangFeiMovesLeft, '咆哮 no-ops when qi < 5');
+  assert(!after.pending.zhangFeiPieceId, '咆哮 no-ops when qi < 5');
   assert(after.qi.red === 4, 'qi unchanged when 咆哮 fails');
   assert(after.side === 'red', 'failed 咆哮 does not change side');
 }
@@ -294,9 +355,10 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   const a = getPiece(s.board, { r: 9, c: 0 });
   const b = getPiece(s.board, { r: 9, c: 8 });
   assert(a?.type === 'R' && b?.type === 'R', '赵云 swapped the two rooks (still rooks)');
-  assert(s.qi.red === qiBefore - 4 + 1, '龙魂 costs 4 战气 then end-turn +1');
+  assert(s.qi.red === qiBefore - 4, '龙魂 costs 4 战气; no end-turn +1 for caster');
   assert(s.side === 'black', '龙魂 consumes the turn like a spent move');
   assert(s.movedThisTurn === false, 'movedThisTurn cleared after turn ends');
+  assert(s.movesLeft === 1, 'black gets movesLeft 1 at turn start');
   assert(!canUseSkill(s, 'zhaoyun-longhun'), '龙魂 not usable on opponent turn');
 
   let sMoved = base();
@@ -305,6 +367,11 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(!canUseSkill(sMoved, 'zhaoyun-longhun'), '龙魂 blocked after already moving');
   const blocked = useSkill(sMoved, 'zhaoyun-longhun', { kind: 'twoPos', a: { r: 9, c: 0 }, b: { r: 9, c: 8 } });
   assert(getPiece(blocked.board, { r: 9, c: 0 })?.id === getPiece(sMoved.board, { r: 9, c: 0 })?.id, '龙魂 no-ops after move');
+
+  let sNoMoves = base();
+  sNoMoves.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'zhaoyun')!, false))];
+  sNoMoves.movesLeft = 0;
+  assert(!canUseSkill(sNoMoves, 'zhaoyun-longhun'), '龙魂 blocked when movesLeft is 0');
 
   const s2 = useSkill(base(), 'zhaoyun-longhun', { kind: 'twoPos', a: { r: 9, c: 4 }, b: { r: 9, c: 0 } });
   assert(getPiece(s2.board, { r: 9, c: 4 })?.type === 'K', '赵云 cannot swap 帅 out of palace');
@@ -335,13 +402,15 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
 // 司马懿 鬼才: lock one enemy piece; consumes the turn (same idea as 龙魂)
 {
   let s = base();
-  s.qi = { red: 4, black: 10 };
+  s.qi = { red: 4, black: 0 };
   const locked = getPiece(s.board, { r: 0, c: 0 })!;
   s = useSkill(s, 'simayi-guicai', { kind: 'pos', pos: { r: 0, c: 0 } });
   assert(s.pending.guicaiLock?.pieceId === locked.id, '鬼才 locks the chosen enemy piece');
   assert(s.pending.guicaiLock?.untilSide === 'black', '鬼才 untilSide is the opponent');
   assert(s.side === 'black', '鬼才 ends the turn');
-  assert(s.qi.red === 1, '鬼才 costs 4 qi then end-turn +1');
+  assert(s.qi.red === 0, '鬼才 costs 4 qi; caster gets no end-turn +1');
+  assert(s.qi.black === 1, 'black gets turn-start +1 after 鬼才');
+  assert(s.movesLeft === 1, 'black starts with movesLeft 1');
   const lockedMoves = listLegalMoves(s);
   assert(lockedMoves.length > 0, 'locked piece still has moves');
   assert(lockedMoves.every((m) => getPiece(s.board, m.from)?.id === locked.id), 'black can only move the locked piece');
@@ -478,8 +547,9 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board[2][0] = P('R', 'red', 'rr');
   s.side = 'black';
   s.qi = { red: 2, black: 0 };
+  s.movesLeft = 1;
   s = settle(makeMove(s, { r: 4, c: 4 }, { r: 5, c: 4 }));
-  assert(s.qi.red === 3, '锦帆：对方过河，红方战气+1');
+  assert(s.qi.red === 4, '锦帆 +1 and red turn-start +1');
   assert(s.crossedRiverIds.includes('bp'), 'black pawn marked crossed');
 }
 
@@ -568,7 +638,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
   assert(s.side === 'red', 'empty hijack skipped back to red');
   assert(!s.pending.lijianHijack, 'hijack cleared after skip');
-  assert(s.qi.black === 1, 'skipped black turn still got end-turn +1 qi');
+  assert(s.qi.black === 1, 'skipped black turn still got turn-start +1 qi');
 }
 
 // 离间：劫持回合不打开空城窗口，走完即还手
@@ -793,7 +863,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(!s.pending.kongcheng, 'skip does not arm a guard');
 }
 
-// 闭月：回合结束时若本回合有吃子 → +1 战气（叠加回合回复）
+// 闭月：回合结束时若本回合有吃子 → +1 战气（不再叠加回合结束回复）
 {
   let s = base();
   s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'diaochan')!, false))];
@@ -805,16 +875,18 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board[0][0] = P('A', 'black', 'ba');
   s.board[5][4] = P('P', 'red', 'block');
   s = settle(makeMove(s, { r: 7, c: 0 }, { r: 0, c: 0 }));
-  assert(s.qi.red === 2, '闭月 +1 and end-turn regen +1');
+  assert(s.qi.red === 1, '闭月 +1 only (no end-turn regen)');
 }
 
-// end of turn +1 qi (no capture)
+// turn-start economy: after red ply, black gets +1; red does not get end-turn +1
 {
   let s = base();
   s.qi = { red: 0, black: 0 };
   s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
   assert(s.side === 'black', 'pawn move ended the turn');
-  assert(s.qi.red === 1, 'end of turn +1 qi');
+  assert(s.qi.red === 0, 'red does not get +1 at end of turn');
+  assert(s.qi.black === 1, 'black gets +1 at start of turn');
+  assert(s.movesLeft === 1, 'black starts with movesLeft 1');
 }
 
 // qi cap at 10
@@ -823,9 +895,10 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.qi = { red: 10, black: 10 };
   s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
   assert(s.qi.red === 10, 'qi capped at 10');
+  assert(s.qi.black === 10, 'black turn-start +1 capped at 10');
 }
 
-// 破军: capture any piece → +1, plus end-turn regen
+// 破军: capture any piece → +1 (no end-turn regen)
 {
   let s = base();
   s.qi = { red: 0, black: 0 };
@@ -839,24 +912,10 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board[5][4] = P('P', 'red', 'block');
   s = settle(makeMove(s, { r: 7, c: 0 }, { r: 0, c: 0 }));
   assert(s.side === 'black', 'capture ended the turn');
-  assert(s.qi.red === 2, '破军 +1 and end-turn regen +1');
+  assert(s.qi.red === 1, '破军 +1 only');
 }
 
-// 过五关 window uses qi>=3
-{
-  let s = base();
-  s.qi = { red: 3, black: 0 };
-  s.board = emptyBoard();
-  s.board[9][4] = P('K', 'red', 'rk');
-  s.board[0][3] = P('K', 'black', 'bk');
-  s.board[9][1] = P('N', 'red', 'rn');
-  s.board[3][0] = P('P', 'black', 'bp');
-  s.side = 'black';
-  s = makeMove(s, { r: 3, c: 0 }, { r: 4, c: 0 });
-  assert(s.side === 'red', 'black ended, red to move');
-  assert(s.pending.awaitOverFive, '过五关 window opens when qi>=3');
-}
-
+// 过五关 window uses qi>=3 (after turn-start +1 on the incoming side)
 {
   let s = base();
   s.qi = { red: 2, black: 0 };
@@ -866,7 +925,25 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board[9][1] = P('N', 'red', 'rn');
   s.board[3][0] = P('P', 'black', 'bp');
   s.side = 'black';
+  s.movesLeft = 1;
   s = makeMove(s, { r: 3, c: 0 }, { r: 4, c: 0 });
+  assert(s.side === 'red', 'black ended, red to move');
+  assert(s.qi.red === 3, 'red turn-start +1 from 2');
+  assert(s.pending.awaitOverFive, '过五关 window opens when qi>=3');
+}
+
+{
+  let s = base();
+  s.qi = { red: 1, black: 0 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[9][1] = P('N', 'red', 'rn');
+  s.board[3][0] = P('P', 'black', 'bp');
+  s.side = 'black';
+  s.movesLeft = 1;
+  s = makeMove(s, { r: 3, c: 0 }, { r: 4, c: 0 });
+  assert(s.qi.red === 2, 'red turn-start +1 from 1');
   assert(!s.pending.awaitOverFive, '过五关 window stays closed when qi<3');
 }
 
@@ -887,7 +964,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(s.side === 'black', 'turn ended without 空城');
 }
 
-// 龙胆: start turn in check → +2 qi
+// 龙胆: start turn in check → +2 qi (stacks with turn-start +1)
 {
   let s = base();
   s.qi = { red: 0, black: 0 };
@@ -898,12 +975,13 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board[7][4] = P('R', 'black', 'br');
   s.board[3][0] = P('P', 'black', 'bp');
   s.side = 'black';
+  s.movesLeft = 1;
   s = makeMove(s, { r: 3, c: 0 }, { r: 4, c: 0 });
   assert(s.side === 'red', 'red to move after black ends');
-  assert(s.qi.red === 2, '龙胆 +2 when starting in check');
+  assert(s.qi.red === 3, '龙胆 +2 plus turn-start +1 when starting in check');
 }
 
-// 奸雄：吃掉暗车/炮/马 → +3
+// 奸雄：吃掉暗车/炮/马 → +3（无回合结束回复）
 {
   let s = base();
   s.qi = { red: 0, black: 0 };
@@ -915,10 +993,10 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board[7][0] = P('R', 'red', 'rr');
   s.board[5][0] = P('N', 'black', 'dark-n', { revealed: false, coverType: 'P' });
   s = settle(makeMove(s, { r: 7, c: 0 }, { r: 5, c: 0 }));
-  assert(s.qi.red === 4, '奸雄 +3 and end-turn +1');
+  assert(s.qi.red === 3, '奸雄 +3 only');
 }
 
-// 神医：己方子被吃 → +1
+// 神医：己方子被吃 → +1（对方交回后己方再拿回合开始 +1）
 {
   let s = base();
   s.qi = { red: 0, black: 0 };
@@ -930,8 +1008,9 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board[7][0] = P('R', 'red', 'rr');
   s.board[0][0] = P('R', 'black', 'br');
   s.side = 'black';
+  s.movesLeft = 1;
   s = settle(makeMove(s, { r: 0, c: 0 }, { r: 7, c: 0 }));
-  assert(s.qi.red === 1, '神医 +1 when own piece captured');
+  assert(s.qi.red === 2, '神医 +1 and red turn-start +1');
 }
 
 
@@ -1149,7 +1228,7 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
   s.board[5][4] = P('P', 'red', 'block');
   s.skillBroadcast = null;
   s = settle(makeMove(s, { r: 7, c: 0 }, { r: 0, c: 0 }));
-  assert(s.qi.red === 2, '破军 still grants +1 qi');
+  assert(s.qi.red === 1, '破军 still grants +1 qi');
   assert(s.skillBroadcast?.skill !== '破军', '破军 never broadcasts');
   assert(!s.skillBroadcast || s.skillBroadcast.skill !== '破军', 'no 破军 splash');
 }
