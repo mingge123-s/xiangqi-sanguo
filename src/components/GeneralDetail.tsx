@@ -59,12 +59,12 @@ export function GeneralDetail({
                 <div className="flex items-baseline gap-2">
                   {tag && (
                     <span
-                      className="text-[10px] tracking-widest"
+                      className="shrink-0 whitespace-nowrap text-[10px] tracking-wider"
                       style={{
                         color:
                           tag === '限定技'
                             ? '#a67c2a'
-                            : tag === '主动技' || tag === '回合技'
+                            : tag === '主动技' || tag === '回合技' || tag === '回合主动技'
                               ? '#2a2218'
                               : '#8a7349',
                       }}

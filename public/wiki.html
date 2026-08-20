@@ -312,11 +312,12 @@
     .badge {
       display: inline-block;
       font-size: 0.68rem;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.08em;
       padding: 0.06rem 0.32rem 0.02rem;
       border: 1px solid currentColor;
       line-height: 1.35;
       font-weight: 700;
+      white-space: nowrap;
     }
     .badge.active { color: var(--cinnabar); }
     .badge.lock { color: var(--ink-soft); }
@@ -413,6 +414,15 @@
           </ul>
         </article>
         <article class="rule wide">
+          <h3>技能标签</h3>
+          <ul>
+            <li>锁定技：条件一至，自行发动，无须点选。</li>
+            <li>主动技：出牌阶段，由你择时发动。</li>
+            <li>回合主动技：仅在己方回合开始或回合结束的窗口内，由你选择发动。</li>
+            <li>限定技：整局一次；标签写限定技，不写主动技。</li>
+          </ul>
+        </article>
+        <article class="rule wide">
           <h3>棋子分组</h3>
           <p>只给技能判定用，棋子上不显示。暗子对外按座位 coverType，翻开后按真身。</p>
           <dl class="groups">
@@ -448,7 +458,7 @@
             <div class="skill">
               <div class="skill-head">
                 <strong>过五关</strong>
-                <span class="badge window">回合技</span>
+                <span class="badge window">回合主动技</span>
                 <span class="qi"><i></i>3 战气</span>
               </div>
               <p>回合开始时，你可以消耗3点战气，指定己方一枚已翻开的马，令其立即走一步，此步不受蹩马腿限制。</p>
@@ -486,7 +496,7 @@
             <div class="skill">
               <div class="skill-head">
                 <strong>空城</strong>
-                <span class="badge active">主动技</span>
+                <span class="badge window">回合主动技</span>
                 <span class="qi"><i></i>3 战气</span>
               </div>
               <p>主动技。你的回合结束时，你可以消耗3点战气，指定己方一枚棋子。直至你的下个回合开始，该子无法被吃。</p>
