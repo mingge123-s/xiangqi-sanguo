@@ -178,7 +178,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'caocao-guixin',
         name: '归心',
-        desc: '主动技。走棋阶段，你可以消耗6点战气，将当前位于己方九宫内的所有敌方棋子收为己用（兵种、暗棋或明棋、身份均不变）。若无此类棋子，则此技能落空且不消耗战气。不消耗走棋次数。',
+        desc: '主动技。走棋阶段，若己方九宫内有敌方棋子，你可以消耗6点战气，将其全部收为己用。不消耗走棋次数。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -213,7 +213,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'simayi-guicai',
         name: '鬼才',
-        desc: '主动技。走棋阶段，你可以消耗4点战气，指定对方一枚可以走动的棋子（该子至少须有一步合法走法）。对方下回合只能行走该子。发动后消耗本回合走棋次数。',
+        desc: '主动技。走棋阶段，你可以消耗4点战气，指定对方一枚可以走动的非将帅棋。对方下回合只能行走该子。发动后消耗本回合走棋次数。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -227,7 +227,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'simayi-yingshi',
         name: '鹰视',
-        desc: '主动技。游戏开始时，你可以标记对方一枚暗棋并观看其真实身份。该子仍为暗棋，且仅对你可见。该子成为明棋或被吃后，你的下个回合开始时再次标记，直至对局结束。只能指定暗棋。',
+        desc: '主动技。游戏开始时，你可以标记对方一枚暗棋并观看其真实身份。该子成为明棋或被吃后，你的下个回合开始时再次标记。',
         kind: 'passive',
         engineKind: 'start',
         nature: '主动技',
