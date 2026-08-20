@@ -22,6 +22,7 @@ import {
   pieceLabel,
   posEq,
   squareName,
+  trueGroup,
 } from './core';
 import { dealGenerals, findOwnedSkill, isSkillReady, sideHasSkill } from './generals';
 import type {
@@ -71,6 +72,12 @@ function cloneState(s: GameState): GameState {
       guicaiLock: s.pending.guicaiLock ? { ...s.pending.guicaiLock } : undefined,
       wushuang: s.pending.wushuang ? { ...s.pending.wushuang } : undefined,
       lijianHijack: s.pending.lijianHijack ? { ...s.pending.lijianHijack } : undefined,
+      ganglieDice: s.pending.ganglieDice
+        ? {
+            ...s.pending.ganglieDice,
+            capturerPos: { ...s.pending.ganglieDice.capturerPos },
+          }
+        : undefined,
     },
     captured: {
       red: s.captured.red.map((p) => ({ ...p })),
@@ -301,7 +308,8 @@ function pendingBlocksPlay(s: GameState): boolean {
     s.pending.awaitOverFive ||
     s.pending.awaitGuanxing ||
     s.pending.awaitKongcheng ||
-    s.pending.awaitYingshi
+    s.pending.awaitYingshi ||
+    s.pending.ganglieDice
   );
 }
 
@@ -460,10 +468,47 @@ function finishIfOver(s: GameState, sideToMove: Side): void {
   }
 }
 
-function applyXiahou(s: GameState, victimSide: Side, capturerPos: Pos): void {
+const GANGLIE_PIP: Record<number, string> = {
+  1: '一',
+  2: '二',
+  3: '三',
+  4: '四',
+  5: '五',
+  6: '六',
+};
+
+/** Test-only: force next 刚烈 d6 roll (1–6). Pass undefined to clear. */
+let ganglieRollOverride: number | undefined;
+export function __testSetGanglieRoll(n: number | undefined): void {
+  ganglieRollOverride = n;
+}
+
+function rollGanglieDie(): number {
+  if (ganglieRollOverride != null) {
+    const n = Math.max(1, Math.min(6, Math.floor(ganglieRollOverride)));
+    ganglieRollOverride = undefined;
+    return n;
+  }
+  return 1 + Math.floor(Math.random() * 6);
+}
+
+function isJiangshuaiCapturer(cap: Piece): boolean {
+  return trueGroup(cap) === 'jiangshuai' || cap.type === 'K';
+}
+
+/**
+ * 刚烈：对方吃掉夏侯惇方棋子后。揭示（若仍隐藏），非将帅则挂起 d6。
+ * @returns true if `pending.ganglieDice` was set (caller must defer endTurn).
+ */
+function applyXiahou(
+  s: GameState,
+  victimSide: Side,
+  capturerPos: Pos,
+  opts?: { resumeTurn?: boolean; roll?: number },
+): boolean {
   const gens = sideGens(s, victimSide);
   const xh = gens.find((g) => g.id === 'xiahoudun');
-  if (!xh) return;
+  if (!xh) return false;
   if (xh.hidden) {
     setSideGens(
       s,
@@ -471,21 +516,63 @@ function applyXiahou(s: GameState, victimSide: Side, capturerPos: Pos): void {
       gens.map((g) => (g.id === 'xiahoudun' ? { ...g, hidden: false } : g)),
     );
     pushLog(s, `${victimSide === 'red' ? '红' : '黑'}方 夏侯惇 亮相！`, victimSide);
-    s.skillBroadcast = { name: '夏侯惇', skill: '刚烈', faction: 'wei' };
   }
-  if (Math.random() < 0.5) {
-    const cap = getPiece(s.board, capturerPos);
-    if (cap) {
-      s.board = cloneBoard(s.board);
-      s.board[capturerPos.r][capturerPos.c] = null;
-      s.captured[cap.side] = [...s.captured[cap.side], asCaptured(cap)];
-      pushLog(s, `刚烈！${pieceLabel(cap)} 同归于尽`, victimSide);
-      charge(s, cap.side, 'ownLoss', 1);
-      maybeTriggerYingshi(s, { capturedId: cap.id });
-    }
+  const cap = getPiece(s.board, capturerPos);
+  if (!cap || isJiangshuaiCapturer(cap)) {
+    ganglieRollOverride = undefined;
+    return false;
+  }
+
+  const roll = opts?.roll ?? rollGanglieDie();
+  s.pending = {
+    ...s.pending,
+    ganglieDice: {
+      victimSide,
+      capturerPos: { ...capturerPos },
+      capturerId: cap.id,
+      roll,
+      resumeTurn: opts?.resumeTurn !== false,
+    },
+  };
+  s.skillBroadcast = { name: '夏侯惇', skill: '刚烈', faction: 'wei' };
+  return true;
+}
+
+/** Resolve pending 刚烈 d6: odd destroys capturer; even logs miss. Then resume turn if needed. */
+export function resolveGanglie(s0: GameState): GameState {
+  const dice = s0.pending.ganglieDice;
+  if (!dice) return s0;
+  const s = cloneState(s0);
+  const { victimSide, capturerPos, capturerId, roll, resumeTurn } = dice;
+  s.pending = { ...s.pending, ganglieDice: undefined };
+
+  const odd = roll % 2 === 1;
+  const cap = getPiece(s.board, capturerPos);
+  if (odd && cap && cap.id === capturerId) {
+    s.board = cloneBoard(s.board);
+    s.board[capturerPos.r][capturerPos.c] = null;
+    s.captured[cap.side] = [...s.captured[cap.side], asCaptured(cap)];
+    pushLog(s, `刚烈！${pieceLabel(cap)} 同归于尽`, victimSide);
+    charge(s, cap.side, 'ownLoss', 1);
+    maybeTriggerYingshi(s, { capturedId: cap.id });
   } else {
-    pushLog(s, '刚烈判定：未触发', victimSide);
+    const pip = GANGLIE_PIP[roll] ?? String(roll);
+    pushLog(s, `刚烈判定：${pip}点，未触发`, victimSide);
   }
+
+  finishIfOver(s, s.side);
+  if (s.winner || !resumeTurn) return s;
+
+  const opp = opposite(s.side);
+  const oppOver = isGameOver(s.board, opp, legalOptions(s, opp));
+  const kingsGone = !findKing(s.board, 'red') || !findKing(s.board, 'black');
+  if (kingsGone || oppOver.over) {
+    endTurn(s);
+    return s;
+  }
+  if (maybeAwaitKongcheng(s)) return s;
+  endTurn(s);
+  return s;
 }
 
 function afterBoardMutation(s: GameState, mover: Side, events: {
@@ -813,6 +900,7 @@ export function canUseSkill(s: GameState, skillId: string): boolean {
   if (s.phase !== 'playing' || s.winner) return false;
   // 离间劫持回合：不可发动技能
   if (s.pending.lijianHijack && s.pending.lijianHijack.controller !== s.side) return false;
+  if (s.pending.ganglieDice) return false;
   if (s.pending.awaitGuanxing) {
     return skillId === 'zhuge-guanxing' && !!findOwnedSkill(sideGens(s, s.side), skillId);
   }
@@ -1004,7 +1092,7 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
       riverCrossNew: river,
       prevAdjacentEnemy: prevAdj,
     });
-    if (captured) applyXiahou(s, captured.side, payload.to);
+    if (captured) applyXiahou(s, captured.side, payload.to, { resumeTurn: false });
     maybeTriggerYingshi(s, {
       flippedId: !p.revealed ? p.id : undefined,
       capturedId: captured?.id,
@@ -1327,7 +1415,9 @@ export function makeMove(s0: GameState, from: Pos, to: Pos): GameState {
   });
 
   if (captured) {
-    applyXiahou(s, captured.side, to);
+    const zfLeft = s.pending.zhangFeiMovesLeft;
+    const zfContinues = !!(zfLeft && zfLeft > 1);
+    applyXiahou(s, captured.side, to, { resumeTurn: !zfContinues });
   }
 
   maybeTriggerYingshi(s, {
@@ -1348,6 +1438,11 @@ export function makeMove(s0: GameState, from: Pos, to: Pos): GameState {
     s.pending = { ...s.pending, zhangFeiMovesLeft: zf - 1 };
     finishIfOver(s, s.side);
     if (s.winner) return s;
+    return s;
+  }
+
+  if (s.pending.ganglieDice) {
+    finishIfOver(s, s.side);
     return s;
   }
 

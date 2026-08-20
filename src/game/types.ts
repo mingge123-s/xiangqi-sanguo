@@ -109,6 +109,17 @@ export interface PendingEffects {
   wushuang?: { owner: Side; turnsLeft: number };
   /** 貂蝉离间：controller 在对方回合操控对方暗子。 */
   lijianHijack?: { controller: Side };
+  /**
+   * 夏侯惇刚烈：吃子落地后抛 d6，动画结束前阻塞行棋。
+   * resumeTurn：resolve 后是否继续 makeMove 的结束回合流程（过五关额外吃子为 false）。
+   */
+  ganglieDice?: {
+    victimSide: Side;
+    capturerPos: Pos;
+    capturerId: string;
+    roll: number;
+    resumeTurn: boolean;
+  };
 }
 
 export interface SkillBroadcast {
