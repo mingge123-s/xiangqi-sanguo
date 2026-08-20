@@ -4,8 +4,12 @@ import {
   describeMove,
   emptyBoard,
   getLegalMoves,
+  groupName,
+  groupOfType,
   inCheck,
   isGameOver,
+  publicGroup,
+  trueGroup,
   type Board,
 } from './core';
 import type { Piece, PieceType, Side } from './types';
@@ -192,6 +196,45 @@ function set(b: Board, r: number, c: number, type: PieceType, side: Side, id?: s
   const rook: Piece = { type: 'R', side: 'black', id: 'br', revealed: true, coverType: 'R' };
   const line = describeMove({ side: 'black', from: { r: 0, c: 8 }, to: { r: 0, c: 3 }, piece: rook });
   assert(line === '黑方的車往右走了5格', 'black right is decreasing file');
+}
+
+// piece groups (rules-only)
+{
+  assert(groupOfType('K') === 'jiangshuai' && groupName('jiangshuai') === '将帅棋', '帅/将 → 将帅棋');
+  const redKing: Piece = { type: 'K', side: 'red', id: 'rk', revealed: true, coverType: 'K' };
+  const blackKing: Piece = { type: 'K', side: 'black', id: 'bk', revealed: true, coverType: 'K' };
+  assert(trueGroup(redKing) === 'jiangshuai' && publicGroup(redKing) === 'jiangshuai', '帅 true/public 将帅棋');
+  assert(trueGroup(blackKing) === 'jiangshuai' && publicGroup(blackKing) === 'jiangshuai', '将 true/public 将帅棋');
+}
+
+{
+  assert(groupOfType('R') === 'chepao' && groupOfType('C') === 'chepao', '车、炮 group id is chepao');
+  assert(groupName('chepao') === '车炮棋', '车、炮 → 车炮棋');
+}
+
+{
+  assert(groupOfType('N') === 'maxiangshi', '马 is 马象士, not 车炮');
+  assert(groupOfType('B') === 'maxiangshi' && groupOfType('A') === 'maxiangshi', '象、士 group id is maxiangshi');
+  assert(groupName('maxiangshi') === '马象士', '马、象、士 → 马象士');
+}
+
+{
+  assert(groupOfType('P') === 'bingzu' && groupName('bingzu') === '兵卒棋', '兵、卒 → 兵卒棋');
+  const redPawn: Piece = { type: 'P', side: 'red', id: 'rp', revealed: true, coverType: 'P' };
+  const blackPawn: Piece = { type: 'P', side: 'black', id: 'bp', revealed: true, coverType: 'P' };
+  assert(trueGroup(redPawn) === 'bingzu' && trueGroup(blackPawn) === 'bingzu', '兵、卒 trueGroup 兵卒棋');
+}
+
+{
+  const dark: Piece = { type: 'R', side: 'red', id: 'dark-r-p', revealed: false, coverType: 'P' };
+  assert(trueGroup(dark) === 'chepao' && groupName(trueGroup(dark)) === '车炮棋', 'dark R/P trueGroup is 车炮棋');
+  assert(publicGroup(dark) === 'bingzu' && groupName(publicGroup(dark)) === '兵卒棋', 'dark R/P publicGroup is 兵卒棋');
+}
+
+{
+  const shown: Piece = { type: 'R', side: 'red', id: 'shown-r-p', revealed: true, coverType: 'P' };
+  assert(trueGroup(shown) === 'chepao' && publicGroup(shown) === 'chepao', 'revealed R/P both 车炮棋');
+  assert(groupName(trueGroup(shown)) === '车炮棋' && groupName(publicGroup(shown)) === '车炮棋', 'revealed same piece names 车炮棋');
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

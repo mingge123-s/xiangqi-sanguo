@@ -1,12 +1,15 @@
 import {
   type Move,
   type Piece,
+  type PieceGroup,
   type PieceType,
   type Pos,
   type Side,
   CHAR,
   COLS,
   COVER_CHAR,
+  PIECE_GROUP,
+  PIECE_GROUP_NAME,
   PIECE_VALUES,
   ROWS,
 } from './types';
@@ -61,6 +64,24 @@ export function cloneBoard(board: Board): Board {
 
 export function clonePiece(p: Piece): Piece {
   return { ...p };
+}
+
+export function groupOfType(type: PieceType): PieceGroup {
+  return PIECE_GROUP[type];
+}
+
+/** True identity — skills that look at 真身. */
+export function trueGroup(p: Piece): PieceGroup {
+  return PIECE_GROUP[p.type];
+}
+
+/** Public group: revealed uses type, dark uses coverType (seat). */
+export function publicGroup(p: Piece): PieceGroup {
+  return PIECE_GROUP[p.revealed ? p.type : (p.coverType ?? p.type)];
+}
+
+export function groupName(g: PieceGroup): string {
+  return PIECE_GROUP_NAME[g];
 }
 
 function put(
