@@ -1,6 +1,6 @@
 import { FACTION_COLOR } from '../game/types';
 import type { GeneralRuntime } from '../game/types';
-import { skillTypeLabel } from '../game/generals';
+import { skillPhaseOf, skillTypeLabel } from '../game/generals';
 
 function portraitSrc(id: string): string {
   return `${import.meta.env.BASE_URL}generals/${id}.webp`;
@@ -52,24 +52,28 @@ export function GeneralDetail({
         </div>
         <div className="mt-3 space-y-2.5">
           {general.skills.map((sk) => {
-            const tag = skillTypeLabel(sk);
+            const nature = skillTypeLabel(sk);
+            const phase = skillPhaseOf(sk);
             const live = liveState?.(sk.id) ?? null;
+            const natureColor =
+              nature === '限定技' ? '#a67c2a' : nature === '主动技' ? '#2a2218' : '#8a7349';
             return (
               <div key={sk.id}>
-                <div className="flex items-baseline gap-2">
-                  {tag && (
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  {nature && (
                     <span
                       className="shrink-0 whitespace-nowrap text-[10px] tracking-wide"
-                      style={{
-                        color:
-                          tag === '限定技'
-                            ? '#a67c2a'
-                            : tag === '出牌技' || tag === '回合技' || tag === '开局技'
-                              ? '#2a2218'
-                              : '#8a7349',
-                      }}
+                      style={{ color: natureColor }}
                     >
-                      {tag}
+                      {nature}
+                    </span>
+                  )}
+                  {phase && (
+                    <span
+                      className="shrink-0 whitespace-nowrap text-[10px] tracking-wide"
+                      style={{ color: '#2c4a7c' }}
+                    >
+                      {phase}
                     </span>
                   )}
                   <span className="text-[15px] text-ink">{sk.name}</span>

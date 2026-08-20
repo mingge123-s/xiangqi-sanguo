@@ -23,8 +23,10 @@ export const PIECE_GROUP_NAME: Record<PieceGroup, string> = {
 export type Faction = 'shu' | 'wei' | 'wu' | 'qun';
 export type SkillUiKind = 'active' | 'passive';
 export type SkillEngineKind = 'start' | 'limited' | 'passive' | 'active' | 'window';
+export type SkillNature = '限定技' | '主动技' | '被动技' | '锁定技';
+export type SkillPhase = '游戏开始' | '回合开始' | '走棋阶段' | '回合结束';
 /** Display tag in skill detail; overrides the default derived from kind/engineKind. `'none'` hides the badge. */
-export type SkillLabelKind = '锁定技' | '出牌技' | '回合技' | '开局技' | '限定技' | '主动技' | '回合主动技' | 'none';
+export type SkillLabelKind = '锁定技' | '出牌技' | '回合技' | '开局技' | '限定技' | '主动技' | '被动技' | '回合主动技' | 'none';
 export type Phase = 'home' | 'playing' | 'result';
 
 export interface PeekedBySide {
@@ -68,6 +70,8 @@ export interface SkillDef {
   desc: string;
   kind: SkillUiKind;
   engineKind?: SkillEngineKind;
+  nature: SkillNature;
+  phase?: SkillPhase | null;
   /** Optional override for detail-card type badge. Use the five-way taxonomy. */
   labelKind?: SkillLabelKind;
   maxUses: number;
