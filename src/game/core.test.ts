@@ -213,9 +213,9 @@ function set(b: Board, r: number, c: number, type: PieceType, side: Side, id?: s
 }
 
 {
-  assert(groupOfType('N') === 'maxiangshi', '马 is 马象士, not 车炮');
-  assert(groupOfType('B') === 'maxiangshi' && groupOfType('A') === 'maxiangshi', '象、士 group id is maxiangshi');
-  assert(groupName('maxiangshi') === '马象士', '马、象、士 → 马象士');
+  assert(groupOfType('N') === 'jinwei', '马 is 近卫棋, not 车炮');
+  assert(groupOfType('B') === 'jinwei' && groupOfType('A') === 'jinwei', '象、士 group id is jinwei');
+  assert(groupName('jinwei') === '近卫棋', '马、象、士 → 近卫棋');
 }
 
 {

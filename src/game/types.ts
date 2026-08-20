@@ -1,22 +1,22 @@
 export type Side = 'red' | 'black';
 export type PieceType = 'K' | 'A' | 'B' | 'N' | 'R' | 'C' | 'P';
 
-export type PieceGroup = 'jiangshuai' | 'chepao' | 'maxiangshi' | 'bingzu';
+export type PieceGroup = 'jiangshuai' | 'chepao' | 'jinwei' | 'bingzu';
 
 export const PIECE_GROUP: Record<PieceType, PieceGroup> = {
   K: 'jiangshuai',
   R: 'chepao',
   C: 'chepao',
-  N: 'maxiangshi',
-  B: 'maxiangshi',
-  A: 'maxiangshi',
+  N: 'jinwei',
+  B: 'jinwei',
+  A: 'jinwei',
   P: 'bingzu',
 };
 
 export const PIECE_GROUP_NAME: Record<PieceGroup, string> = {
   jiangshuai: '将帅棋',
   chepao: '车炮棋',
-  maxiangshi: '马象士',
+  jinwei: '近卫棋',
   bingzu: '兵卒棋',
 };
 
