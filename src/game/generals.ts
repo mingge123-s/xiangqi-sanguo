@@ -108,7 +108,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhangfei-paoxiao',
         name: '咆哮',
-        desc: '主动技。走棋阶段，你可以消耗5点战气，指定己方一枚棋子。本回合该子可再走一步。',
+        desc: '主动技。走棋阶段，你可以消耗5点战气，指定己方一枚暗棋。该子走棋次数+1。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -143,7 +143,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhaoyun-longhun',
         name: '龙魂',
-        desc: '主动技。走棋阶段，在消耗走棋次数之前，你可以消耗4点战气，交换己方两枚棋子。发动后消耗本回合走棋次数。己方将帅棋须留在九宫之内。',
+        desc: '主动技。走棋阶段，你可以消耗1点走棋次数和4点战气，交换己方两枚非将帅棋的位置。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',

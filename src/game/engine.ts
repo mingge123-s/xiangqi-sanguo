@@ -968,7 +968,10 @@ export function validSkillTargets(s: GameState, skillId: string): {
     return { mode: 'ownPawn', positions };
   }
   if (skillId === 'zhangfei-paoxiao') {
-    return { mode: 'ownPiece', positions: allPieces(s.board, side).map((x) => x.pos) };
+    const positions = allPieces(s.board, side)
+      .filter((x) => !x.piece.revealed)
+      .map((x) => x.pos);
+    return { mode: 'ownPiece', positions };
   }
   if (skillId === 'guanyu-wuguan') {
     const positions = allPieces(s.board, side)
@@ -983,7 +986,10 @@ export function validSkillTargets(s: GameState, skillId: string): {
     return { mode: 'ownPiece', positions };
   }
   if (skillId === 'zhaoyun-longhun') {
-    return { mode: 'twoOwn', positions: allPieces(s.board, side).map((x) => x.pos) };
+    const positions = allPieces(s.board, side)
+      .filter((x) => x.piece.type !== 'K')
+      .map((x) => x.pos);
+    return { mode: 'twoOwn', positions };
   }
   if (skillId === 'simayi-guicai') {
     const view = { ...s, side: opposite(side) };
@@ -1026,11 +1032,6 @@ export function simaYiLegalDests(s: GameState, from: Pos): Pos[] {
     if (p.type === 'K') return inPalace(r, c, p.side);
     return true;
   });
-}
-
-function pieceCanSit(p: Piece, pos: Pos): boolean {
-  if (p.type === 'K') return inPalace(pos.r, pos.c, p.side);
-  return true;
 }
 
 /** 青囊落子：士须九宫；暗象不过河。 */
@@ -1131,6 +1132,7 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
     if (payload.kind !== 'pos') return s0;
     const p = getPiece(s.board, payload.pos);
     if (!p || p.side !== side) return s0;
+    if (p.revealed) return s0;
     consumeSkill(s, g, skill);
     s.pending = { ...s.pending, zhangFeiPieceId: p.id };
     s.movesLeft = (s.movesLeft ?? 0) + 1;
@@ -1144,7 +1146,7 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
     const b = getPiece(s.board, payload.b);
     if (!a || !b || a.side !== side || b.side !== side) return s0;
     if (posEq(payload.a, payload.b)) return s0;
-    if (!pieceCanSit(a, payload.b) || !pieceCanSit(b, payload.a)) return s0;
+    if (a.type === 'K' || b.type === 'K') return s0;
     const nb = cloneBoard(s.board);
     nb[payload.a.r][payload.a.c] = b;
     nb[payload.b.r][payload.b.c] = a;
@@ -1152,12 +1154,13 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
     consumeSkill(s, g, skill);
     s.board = nb;
     s.movedThisTurn = true;
-    s.movesLeft = 0;
+    s.movesLeft = (s.movesLeft ?? 0) - 1;
     s.pending = { ...s.pending, zhangFeiPieceId: undefined };
     pushLog(s, `龙魂：${pieceLabel(a)} 与 ${pieceLabel(b)} 换位`);
     maybeClearWushengGuard(s);
     finishIfOver(s, s.side);
     if (s.winner) return s;
+    if (s.movesLeft > 0) return s;
     const opp = opposite(s.side);
     const oppOver = isGameOver(s.board, opp, legalOptions(s, opp));
     const kingsGone = !findKing(s.board, 'red') || !findKing(s.board, 'black');

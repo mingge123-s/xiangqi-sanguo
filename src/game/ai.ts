@@ -174,7 +174,7 @@ function tryResolveCheckWithSkill(s: GameState): GameState | null {
       if (tryState(ns)) return ns;
     }
     if (id === 'zhangfei-paoxiao') {
-      const mine = allPieces(s.board, s.side);
+      const mine = allPieces(s.board, s.side).filter((m) => !m.piece.revealed);
       const scored = mine
         .map((m) => {
           const dests = listLegalFrom(s, m.pos);
@@ -189,7 +189,7 @@ function tryResolveCheckWithSkill(s: GameState): GameState | null {
       }
     }
     if (id === 'zhaoyun-longhun') {
-      const mine = allPieces(s.board, s.side);
+      const mine = allPieces(s.board, s.side).filter((m) => m.piece.type !== 'K');
       for (let i = 0; i < mine.length; i++) {
         for (let j = i + 1; j < mine.length; j++) {
           const ns = useSkill(s, 'zhaoyun-longhun', { kind: 'twoPos', a: mine[i].pos, b: mine[j].pos });
@@ -316,7 +316,7 @@ function heuristicSkill(s: GameState): { id: string; payload: SkillPayload } | n
   if (others.length && Math.random() < 0.25) {
     const id = others[Math.floor(Math.random() * others.length)];
     if (id === 'zhangfei-paoxiao') {
-      const mine = allPieces(s.board, s.side);
+      const mine = allPieces(s.board, s.side).filter((m) => !m.piece.revealed);
       const scored = mine
         .map((m) => {
           const dests = listLegalFrom(s, m.pos);

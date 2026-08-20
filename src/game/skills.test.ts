@@ -317,11 +317,23 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(!s.pending.awaitOverFive, 'window does not open after the move');
 }
 
-// 张飞 咆哮: same piece walks twice
+// 张飞 咆哮: same dark piece walks twice
 {
   let s = base();
   assert(s.movesLeft === 1, '咆哮 turn starts with movesLeft 1');
   const pawn = getPiece(s.board, { r: 6, c: 0 })!;
+  s.board[6][0] = { ...pawn, revealed: false };
+  const paoxiao = GENERALS.find((d) => d.id === 'zhangfei')!.skills.find((x) => x.id === 'zhangfei-paoxiao')!;
+  assert(paoxiao.desc === '主动技。走棋阶段，你可以消耗5点战气，指定己方一枚暗棋。该子走棋次数+1。', '咆哮 desc exact');
+  const targets = validSkillTargets(s, 'zhangfei-paoxiao');
+  assert(targets.positions.some((p) => p.r === 6 && p.c === 0), '咆哮 targets include own dark pawn');
+  assert(
+    targets.positions.every((p) => {
+      const piece = s.board[p.r][p.c];
+      return !!(piece && piece.side === 'red' && !piece.revealed);
+    }),
+    '咆哮 targets are only own dark pieces',
+  );
   s = useSkill(s, 'zhangfei-paoxiao', { kind: 'pos', pos: { r: 6, c: 0 } });
   assert(s.movesLeft === 2, '咆哮 grants movesLeft += 1 → 2');
   assert(s.pending.zhangFeiPieceId === pawn.id, '咆哮 locks the designated piece');
@@ -334,6 +346,20 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s = settle(makeMove(s, { r: 5, c: 0 }, { r: 4, c: 0 }));
   assert(s.side === 'black', 'turn ends after second move');
   assert(s.movesLeft === 1, 'black starts with movesLeft 1');
+}
+
+// 咆哮 no-ops on a revealed target
+{
+  const s = base();
+  const pawn = getPiece(s.board, { r: 6, c: 0 })!;
+  assert(pawn.revealed, 'revealAll pawn starts as 明棋');
+  const targets = validSkillTargets(s, 'zhangfei-paoxiao');
+  assert(!targets.positions.some((p) => p.r === 6 && p.c === 0), '咆哮 excludes revealed pawn');
+  const after = useSkill(s, 'zhangfei-paoxiao', { kind: 'pos', pos: { r: 6, c: 0 } });
+  assert(after === s, '咆哮 no-ops on revealed target');
+  assert(!after.pending.zhangFeiPieceId, '咆哮 does not lock a 明棋');
+  assert(after.qi.red === 10, 'qi unchanged when 咆哮 targets 明棋');
+  assert(after.movesLeft === 1, 'movesLeft unchanged when 咆哮 targets 明棋');
 }
 
 // 咆哮 cannot cast at 4
@@ -373,8 +399,23 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   sNoMoves.movesLeft = 0;
   assert(!canUseSkill(sNoMoves, 'zhaoyun-longhun'), '龙魂 blocked when movesLeft is 0');
 
-  const s2 = useSkill(base(), 'zhaoyun-longhun', { kind: 'twoPos', a: { r: 9, c: 4 }, b: { r: 9, c: 0 } });
-  assert(getPiece(s2.board, { r: 9, c: 4 })?.type === 'K', '赵云 cannot swap 帅 out of palace');
+  const sKing = base();
+  sKing.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'zhaoyun')!, false))];
+  const longhun = GENERALS.find((d) => d.id === 'zhaoyun')!.skills.find((x) => x.id === 'zhaoyun-longhun')!;
+  assert(longhun.desc === '主动技。走棋阶段，你可以消耗1点走棋次数和4点战气，交换己方两枚非将帅棋的位置。', '龙魂 desc exact');
+  const kingTargets = validSkillTargets(sKing, 'zhaoyun-longhun');
+  assert(
+    kingTargets.positions.every((p) => {
+      const piece = sKing.board[p.r][p.c];
+      return !!(piece && piece.side === 'red' && piece.type !== 'K');
+    }),
+    '龙魂 targets exclude 将帅棋',
+  );
+  assert(!kingTargets.positions.some((p) => p.r === 9 && p.c === 4), '龙魂 never lists the king');
+  const s2 = useSkill(sKing, 'zhaoyun-longhun', { kind: 'twoPos', a: { r: 9, c: 4 }, b: { r: 9, c: 0 } });
+  assert(s2 === sKing, '龙魂 no-ops when either piece is 将帅棋');
+  assert(getPiece(s2.board, { r: 9, c: 4 })?.type === 'K', '赵云 cannot swap 将帅棋');
+  assert(s2.qi.red === sKing.qi.red, 'king swap spends no qi');
 }
 
 // 曹操 归心：收编己方九宫内敌子；无敌子则落空不耗气
