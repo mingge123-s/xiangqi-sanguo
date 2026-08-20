@@ -1,5 +1,5 @@
 import { applyMove, createInitialBoard, createStandardBoard, emptyBoard, evaluateBoard, getPiece, inCheck, knownIdsOn, revealAll } from './core';
-import { canUseSkill, createHomeState, isKongchengCaptureAttempt, isWushuangCaptureAttempt, listLegalFrom, listLegalMoves, makeMove, overFiveDests, peekDark, peekedOf, skipKongcheng, skipOverFive, skillLiveState, startMatch, useSkill, validSkillTargets } from './engine';
+import { canUseSkill, createHomeState, isKongchengCaptureAttempt, isWushuangCaptureAttempt, listLegalFrom, listLegalMoves, makeMove, overFiveDests, peekDark, peekedOf, resolveGanglie, skipKongcheng, skipOverFive, skillLiveState, startMatch, useSkill, validSkillTargets, __testSetGanglieRoll } from './engine';
 import { defToRuntime, GENERALS, skillTypeLabel } from './generals';
 import type { GameState, GeneralRuntime, Piece, PieceType, Side, SkillRuntime } from './types';
 
@@ -43,6 +43,7 @@ function chargeOverFive(s: GameState): void {
 }
 
 function settle(s: GameState): GameState {
+  if (s.pending.ganglieDice) s = resolveGanglie(s);
   if (s.pending.awaitKongcheng) s = skipKongcheng(s);
   if (s.pending.awaitOverFive) s = skipOverFive(s);
   return s;
@@ -595,9 +596,11 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(listLegalMoves(s).length > 0, 'kongcheng-hijack: red can move after hijack');
 }
 
-// 夏侯惇
+// 夏侯惇 · 刚烈 d6
 {
+  // First capture reveals 夏侯惇 and sets pending dice
   let s = base();
+  s.redGenerals = [];
   s.blackGenerals = [defToRuntime(GENERALS.find((d) => d.id === 'xiahoudun')!, true)];
   s.board = emptyBoard();
   s.board[9][4] = P('K', 'red', 'rk');
@@ -605,16 +608,113 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board[7][0] = P('R', 'red', 'rr');
   s.board[0][0] = P('A', 'black', 'ba', { revealed: false });
   s.board[5][4] = P('P', 'red', 'block');
-  let revealed = false;
-  for (let i = 0; i < 20; i++) {
-    let t = JSON.parse(JSON.stringify(s)) as GameState;
-    t = makeMove(t, { r: 7, c: 0 }, { r: 0, c: 0 });
-    if (t.blackGenerals[0] && !t.blackGenerals[0].hidden) {
-      revealed = true;
-      break;
-    }
-  }
-  assert(revealed, '夏侯惇 reveals on first opponent capture');
+  __testSetGanglieRoll(3);
+  s = makeMove(s, { r: 7, c: 0 }, { r: 0, c: 0 });
+  assert(s.blackGenerals[0] && !s.blackGenerals[0].hidden, 'First capture still reveals 夏侯惇');
+  assert(!!s.pending.ganglieDice, 'non-king capture sets pending.ganglieDice');
+  assert(s.pending.ganglieDice!.roll === 3, 'injected roll is stored');
+  assert(s.skillBroadcast?.skill === '刚烈', '刚烈 broadcasts when dice is thrown');
+  assert(!!s.board[0][0], 'capturer stays until resolve');
+  assert(s.side === 'red', 'turn does not end while dice pending');
+
+  // Odd roll destroys capturer
+  s = resolveGanglie(s);
+  assert(!s.pending.ganglieDice, 'resolve clears ganglieDice');
+  assert(!s.board[0][0], 'odd roll destroys capturer');
+  assert(s.captured.red.some((p) => p.id === 'rr'), 'capturer goes to captured');
+  assert(s.log.some((l) => l.text.includes('同归于尽')), 'odd log 同归于尽');
+  assert(s.side === 'black', 'resolve ends turn after makeMove-style capture');
+}
+
+{
+  // Even roll leaves capturer
+  let s = base();
+  s.redGenerals = [];
+  s.blackGenerals = [defToRuntime(GENERALS.find((d) => d.id === 'xiahoudun')!, false)];
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[7][0] = P('R', 'red', 'rr');
+  s.board[0][0] = P('A', 'black', 'ba');
+  s.board[5][4] = P('P', 'red', 'block');
+  __testSetGanglieRoll(4);
+  s = makeMove(s, { r: 7, c: 0 }, { r: 0, c: 0 });
+  assert(s.pending.ganglieDice?.roll === 4, 'even roll pending');
+  s = resolveGanglie(s);
+  assert(s.board[0][0]?.id === 'rr', 'even roll leaves capturer');
+  assert(s.log.some((l) => l.text.includes('四点') && l.text.includes('未触发')), 'even log includes pip');
+}
+
+{
+  // King capturer: no dice, no kill (still reveals if hidden)
+  let s = base();
+  s.redGenerals = [];
+  s.blackGenerals = [defToRuntime(GENERALS.find((d) => d.id === 'xiahoudun')!, true)];
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[8][4] = P('A', 'black', 'victim');
+  __testSetGanglieRoll(1);
+  s = makeMove(s, { r: 9, c: 4 }, { r: 8, c: 4 });
+  assert(!s.blackGenerals[0].hidden, 'king capture still reveals 夏侯惇');
+  assert(!s.pending.ganglieDice, 'king capturer does not roll');
+  assert(s.board[8][4]?.id === 'rk', 'king capturer not destroyed');
+  assert(!s.captured.red.some((p) => p.id === 'rk'), 'king not in captured');
+}
+
+{
+  // Dark capturer: true type for 将帅 check (only K is king)
+  let s = base();
+  s.redGenerals = [];
+  s.blackGenerals = [defToRuntime(GENERALS.find((d) => d.id === 'xiahoudun')!, false)];
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  // Dark 车 still slides by coverType R; true type R ≠ K → must roll
+  s.board[7][0] = P('R', 'red', 'rr', { revealed: false, coverType: 'R' });
+  s.board[0][0] = P('A', 'black', 'ba');
+  s.board[5][4] = P('P', 'red', 'block');
+  __testSetGanglieRoll(1);
+  s = makeMove(s, { r: 7, c: 0 }, { r: 0, c: 0 });
+  assert(!!s.pending.ganglieDice, 'dark non-king capturer still rolls (true type R, not K)');
+  s = resolveGanglie(s);
+  assert(!s.board[0][0], 'odd roll destroys dark-faced capturer');
+}
+
+{
+  // Dark piece that is actually king? Kings are always revealed — simulate type K dark impossible;
+  // coverType P with type R already covered. Ensure type K never rolls even if somehow dark.
+  let s = base();
+  s.redGenerals = [];
+  s.blackGenerals = [defToRuntime(GENERALS.find((d) => d.id === 'xiahoudun')!, false)];
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk', { revealed: false, coverType: 'R' });
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[8][4] = P('A', 'black', 'victim');
+  __testSetGanglieRoll(5);
+  s = makeMove(s, { r: 9, c: 4 }, { r: 8, c: 4 });
+  assert(!s.pending.ganglieDice, 'type K capturer never rolls even if unrevealed flag set');
+  assert(s.board[8][4]?.type === 'K', 'K capturer survives');
+}
+
+{
+  // 啖睛 unchanged: still arms no-capture on enemy piece
+  let s = base();
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'xiahoudun')!, false))];
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[0][0] = P('R', 'black', 'br');
+  s.board[5][0] = P('P', 'red', 'rp');
+  s.qi = { ...s.qi, red: 10 };
+  assert(canUseSkill(s, 'xiahoudun-danjing'), '啖睛 usable');
+  s = useSkill(s, 'xiahoudun-danjing', { kind: 'pos', pos: { r: 0, c: 0 } });
+  assert(s.pending.danjing?.pieceId === 'br', '啖睛 arms on target');
+  s.side = 'black';
+  s.skillUsedThisTurn = false;
+  const after = listLegalFrom(s, { r: 0, c: 0 });
+  assert(!after.some((d) => d.r === 5 && d.c === 0), '啖睛 blocks capture');
+  assert(after.some((d) => d.c === 0 && d.r > 0 && d.r < 5), '啖睛 still allows non-capture moves');
 }
 
 // 武圣 5: protect a red 车 on r=9; black cannot capture; after 车 crosses to r=4, capturable

@@ -393,6 +393,8 @@ export function applyAITurn(s0: GameState): GameState {
     s0.side === 'red';
   if (s0.phase !== 'playing' || s0.winner) return s0;
   if (s0.side !== 'black' && !hijackAsBlack) return s0;
+  // UI owns 刚烈 dice animation; do not advance while pending.
+  if (s0.pending.ganglieDice) return s0;
   let s = s0;
 
   // 离间劫持：只走暗子，不放技能

@@ -1,14 +1,24 @@
 import { applyAITurn } from './ai';
-import { listLegalMoves, makeMove, skipKongcheng, skipOverFive, startMatch, useSkill } from './engine';
+import { listLegalMoves, makeMove, resolveGanglie, skipKongcheng, skipOverFive, startMatch, useSkill } from './engine';
 import { isSkillReady } from './generals';
+import type { GameState } from './types';
+
+function settlePending(s: GameState): GameState {
+  if (s.pending.ganglieDice) s = resolveGanglie(s);
+  return s;
+}
 
 function playOnce(seedLabel: string): { turns: number; winner: string | null; last: string } {
   let s = startMatch();
   let guard = 0;
   while (!s.winner && s.phase === 'playing' && guard < 180) {
     guard += 1;
+    if (s.pending.ganglieDice) {
+      s = resolveGanglie(s);
+      continue;
+    }
     if (s.side === 'black') {
-      s = applyAITurn(s);
+      s = settlePending(applyAITurn(s));
       continue;
     }
     if (s.pending.awaitGuanxing) {
@@ -48,7 +58,7 @@ function playOnce(seedLabel: string): { turns: number; winner: string | null; la
       break;
     }
     const m = moves[Math.floor(Math.random() * moves.length)];
-    s = makeMove(s, m.from, m.to);
+    s = settlePending(makeMove(s, m.from, m.to));
   }
   return {
     turns: s.turnCount,

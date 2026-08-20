@@ -1,5 +1,6 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { PieceView } from './Piece';
+import { GanglieDice } from './GanglieDice';
 import type { Piece, PieceType, Pos } from '../game/types';
 import { posEq } from '../game/core';
 
@@ -120,6 +121,8 @@ export function Board({
   showCoverHint,
   yingshiMarkId,
   lockedPieceId,
+  ganglieDice,
+  onGanglieSettled,
 }: {
   board: (Piece | null)[][];
   selected: Pos | Pos[] | null;
@@ -133,9 +136,13 @@ export function Board({
   showCoverHint?: boolean;
   yingshiMarkId?: string;
   lockedPieceId?: string;
+  ganglieDice?: { roll: number; capturerPos: Pos } | null;
+  onGanglieSettled?: () => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
+  const [killBloom, setKillBloom] = useState<Pos | null>(null);
+  const settledRef = useRef(false);
 
   useLayoutEffect(() => {
     const el = hostRef.current;
@@ -168,9 +175,27 @@ export function Board({
   const lastTint = pieceSize * 1.06;
   const bloomSize = pieceSize * 1.7;
   const legalDot = Math.max(4, cell * 0.16);
+  const dieSize = Math.max(22, Math.min(pieceSize * 0.92, 36));
   const lastKey = lastMove
     ? `${lastMove.from.r},${lastMove.from.c}->${lastMove.to.r},${lastMove.to.c}`
     : '';
+  const diceKey = ganglieDice
+    ? `${ganglieDice.capturerPos.r},${ganglieDice.capturerPos.c}:${ganglieDice.roll}`
+    : '';
+
+  const handleGanglieSettled = useCallback(() => {
+    if (settledRef.current) return;
+    settledRef.current = true;
+    if (ganglieDice && ganglieDice.roll % 2 === 1) {
+      setKillBloom({ ...ganglieDice.capturerPos });
+      window.setTimeout(() => setKillBloom(null), 800);
+    }
+    onGanglieSettled?.();
+  }, [ganglieDice, onGanglieSettled]);
+
+  useLayoutEffect(() => {
+    settledRef.current = false;
+  }, [diceKey]);
 
   return (
     <div
@@ -195,6 +220,7 @@ export function Board({
                 const isLastFrom = !!(lastMove && posEq(lastMove.from, pos));
                 const isLastTo = !!(lastMove && posEq(lastMove.to, pos));
                 const isLast = isLastFrom || isLastTo;
+                const showKillBloom = !!(killBloom && posEq(killBloom, pos));
                 return (
                   <div
                     key={`${r}-${c}`}
@@ -213,9 +239,9 @@ export function Board({
                       style={{ width: hit, height: hit }}
                       onClick={() => onCell(pos)}
                     />
-                    {isLastTo && (
+                    {(isLastTo || showKillBloom) && (
                       <div
-                        key={lastKey}
+                        key={showKillBloom ? `kill-${r}-${c}` : lastKey}
                         className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
                         style={{ width: bloomSize, height: bloomSize, zIndex: 0 }}
                         aria-hidden
@@ -274,6 +300,16 @@ export function Board({
               }),
             )}
           </div>
+          {ganglieDice && (
+            <GanglieDice
+              key={diceKey}
+              roll={ganglieDice.roll}
+              landLeft={pad + ganglieDice.capturerPos.c * cell}
+              landTop={pad + ganglieDice.capturerPos.r * cell}
+              size={dieSize}
+              onSettled={handleGanglieSettled}
+            />
+          )}
         </div>
       )}
     </div>

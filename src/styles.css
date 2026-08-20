@@ -265,6 +265,59 @@ body {
   will-change: transform, opacity;
 }
 
+/* 刚烈 d6 — 宣纸 / 水墨 */
+.ganglie-die-scene {
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+.ganglie-die-cube {
+  position: relative;
+  transform-style: preserve-3d;
+  transform-origin: center center;
+}
+
+.ganglie-die-face-wrap {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+}
+
+.ganglie-die-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 14%;
+  background:
+    linear-gradient(145deg, #faf6ec 0%, #f0ead8 42%, #e6dfcc 100%);
+  border: 1px solid rgba(58, 46, 32, 0.35);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 252, 245, 0.75),
+    inset 0 -1px 2px rgba(70, 55, 35, 0.12),
+    0 1px 2px rgba(40, 30, 18, 0.18);
+}
+
+.ganglie-die-pip {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #3a3228 0%, #1a1510 70%);
+  box-shadow: inset 0 0.5px 1px rgba(0, 0, 0, 0.35);
+}
+
+.ganglie-die-caption {
+  text-align: center;
+  font-family: "Songti SC", "Noto Serif SC", "STSong", serif;
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  color: #2a2218;
+  text-shadow:
+    0 0 8px rgba(244, 236, 214, 0.9),
+    0 1px 0 rgba(255, 250, 240, 0.7);
+  white-space: nowrap;
+}
+
 
 .hidden-seal {
   background:

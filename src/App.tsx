@@ -21,6 +21,7 @@ import {
   overFiveDests,
   peekDark,
   peekedOf,
+  resolveGanglie,
   sideInCheck,
   skipKongcheng,
   skipOverFive,
@@ -125,6 +126,7 @@ export default function App() {
   const awaitYingshi = !!state.pending.awaitYingshi && state.side === 'red';
   const awaitKongcheng = !!state.pending.awaitKongcheng && state.side === 'red';
   const kongchengReady = awaitKongcheng && !state.skillBroadcast;
+  const gangliePending = !!state.pending.ganglieDice;
   const lijianHumanControl =
     !!state.pending.lijianHijack &&
     state.pending.lijianHijack.controller === 'red' &&
@@ -137,6 +139,7 @@ export default function App() {
     thinking ||
     (!!state.winner) ||
     !!state.skillBroadcast ||
+    gangliePending ||
     (state.side === 'black' && !lijianHumanControl) ||
     lijianAiOnRed;
   const showCoverFog = false;
@@ -214,6 +217,7 @@ export default function App() {
     const aiShouldPlay =
       state.phase === 'playing' &&
       !state.winner &&
+      !state.pending.ganglieDice &&
       ((state.side === 'black' && !lijianHumanControl) || lijianAiOnRed);
     if (!aiShouldPlay) {
       setThinking(false);
@@ -240,9 +244,14 @@ export default function App() {
     state.winner,
     state.moveSerial,
     state.turnCount,
+    state.pending.ganglieDice,
     lijianHumanControl,
     lijianAiOnRed,
   ]);
+
+  const onGanglieSettled = useCallback(() => {
+    setState((s) => (s.pending.ganglieDice ? resolveGanglie(s) : s));
+  }, []);
 
   /** Keep skillBroadcast so splash plays AFTER the click/target resolves. */
   const applyPayload = (id: string, payload: SkillPayload) => {
@@ -498,6 +507,15 @@ export default function App() {
                   highlights={highlights}
                   disabled={inputLocked}
                   onCell={onCell}
+                  ganglieDice={
+                    state.pending.ganglieDice
+                      ? {
+                          roll: state.pending.ganglieDice.roll,
+                          capturerPos: state.pending.ganglieDice.capturerPos,
+                        }
+                      : null
+                  }
+                  onGanglieSettled={onGanglieSettled}
                 />
               </div>
               <CapturedRail pieces={state.captured.black} align="bottom" />
