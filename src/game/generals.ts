@@ -249,7 +249,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'xiahoudun-ganglie',
         name: '刚烈',
-        desc: '被动技。每当对方吃掉己方棋子时，若吃子者不是将帅棋，则于棋盘上抛一枚六面骰：点数为奇数（1、3、5）时，该子与被吃子同归于尽；点数为偶数（2、4、6）时，无额外效果。将帅棋吃子不抛骰，亦不击杀。对方第一次吃掉己方棋子时，揭示此武将。',
+        desc: '被动技。每当对方以非将帅棋吃掉己方棋子时，抛一枚六面骰。奇数则该子与被吃子同归于尽。对方第一次吃掉己方棋子时，揭示此武将。',
         kind: 'passive',
         engineKind: 'passive',
         nature: '被动技',
@@ -262,7 +262,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'xiahoudun-danjing',
         name: '啖睛',
-        desc: '主动技。走棋阶段，你可以消耗2点战气，指定对方一枚棋子。该子于下个回合不能吃子，惟可行不吃子之棋。',
+        desc: '主动技。走棋阶段，你可以消耗2点战气，指定对方一枚棋子。该子于其下个回合不能吃子。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
