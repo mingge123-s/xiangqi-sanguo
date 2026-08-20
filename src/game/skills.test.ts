@@ -1127,7 +1127,7 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
   const locked = getPiece(s.board, { r: 0, c: 0 })!;
   s = useSkill(s, 'simayi-guicai', { kind: 'pos', pos: { r: 0, c: 0 } });
   assert(s.skillBroadcast?.skill === '鬼才', '鬼才 broadcasts after target');
-  assert(skillTypeLabel(GENERALS.find((d) => d.id === 'simayi')!.skills.find((x) => x.id === 'simayi-guicai')!) === null, '鬼才 is not labeled 主动技');
+  assert(skillTypeLabel(GENERALS.find((d) => d.id === 'simayi')!.skills.find((x) => x.id === 'simayi-guicai')!) === '出牌技', '鬼才 labeled 出牌技');
   assert(s.side === 'black', 'victim turn after 鬼才');
   assert(s.pending.guicaiLock?.pieceId === locked.id, 'lock still present for highlight');
   assert(s.pending.guicaiLock?.untilSide === 'black', 'untilSide is victim');
@@ -1153,14 +1153,52 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
   assert(!s.skillBroadcast || s.skillBroadcast.skill !== '破军', 'no 破军 splash');
 }
 
-// 武圣 / 过五关 labeling
+// Five-way disjoint skill labels
 {
-  const gy = GENERALS.find((d) => d.id === 'guanyu')!;
-  assert(skillTypeLabel(gy.skills.find((x) => x.id === 'guanyu-wusheng')!) === '限定技', '武圣 labeled 限定技');
-  assert(skillTypeLabel(gy.skills.find((x) => x.id === 'guanyu-wuguan')!) === '回合主动技', '过五关 labeled 回合主动技');
-  assert(skillTypeLabel(GENERALS.find((d) => d.id === 'zhangfei')!.skills.find((x) => x.id === 'zhangfei-paoxiao')!) === '主动技', '咆哮 stays 主动技');
-  assert(skillTypeLabel(GENERALS.find((d) => d.id === 'zhuge')!.skills.find((x) => x.id === 'zhuge-kongcheng')!) === '回合主动技', '空城 labeled 回合主动技');
+  const expect: Record<string, string> = {
+    'zhangfei-pojun': '锁定技',
+    'zhaoyun-longdan': '锁定技',
+    'caocao-jianxiong': '锁定技',
+    'xiahoudun-ganglie': '锁定技',
+    'huatuo-shenyi': '锁定技',
+    'zhouyu-huogong': '锁定技',
+    'sunshangxiang-xiaoji': '锁定技',
+    'ganning-jinfan': '锁定技',
+    'diaochan-biyue': '锁定技',
+    'zhangfei-paoxiao': '出牌技',
+    'zhaoyun-longhun': '出牌技',
+    'caocao-guixin': '出牌技',
+    'simayi-guicai': '出牌技',
+    'xiahoudun-danjing': '出牌技',
+    'huatuo-qingnang': '出牌技',
+    'zhouyu-fanjian': '出牌技',
+    'sunshangxiang-lianyin': '出牌技',
+    'ganning-chaiqiao': '出牌技',
+    'lvbu-chitu': '出牌技',
+    'diaochan-lijian': '出牌技',
+    'guanyu-wuguan': '回合技',
+    'zhuge-kongcheng': '回合技',
+    'zhuge-guanxing': '开局技',
+    'simayi-yingshi': '开局技',
+    'guanyu-wusheng': '限定技',
+    'lvbu-wushuang': '限定技',
+  };
+  for (const g of GENERALS) {
+    for (const sk of g.skills) {
+      const tag = skillTypeLabel(sk);
+      assert(expect[sk.id] === tag, `${sk.id} labeled ${expect[sk.id]} (got ${tag})`);
+      assert(tag !== '主动技' && tag !== '回合主动技', `${sk.id} never shows old tag`);
+    }
+  }
   assert(skillTypeLabel({ id: 'legacy', name: '旧', desc: '', kind: 'active', engineKind: 'window', labelKind: '回合技', maxUses: 1, rechargeNeed: 0, rechargeTrigger: 'none' }) === '回合技', 'old 回合技 label still returned');
+  assert(skillTypeLabel({ id: 'd1', name: 'd', desc: '', kind: 'active', engineKind: 'limited', maxUses: 1, rechargeNeed: 0, rechargeTrigger: 'none' }) === '限定技', 'derive limited → 限定技');
+  assert(skillTypeLabel({ id: 'd2', name: 'd', desc: '', kind: 'active', engineKind: 'window', maxUses: 1, rechargeNeed: 0, rechargeTrigger: 'none' }) === '回合技', 'derive window → 回合技');
+  assert(skillTypeLabel({ id: 'd3', name: 'd', desc: '', kind: 'passive', engineKind: 'start', maxUses: 1, rechargeNeed: 0, rechargeTrigger: 'none' }) === '开局技', 'derive start → 开局技');
+  assert(skillTypeLabel({ id: 'd4', name: 'd', desc: '', kind: 'passive', engineKind: 'passive', maxUses: 0, rechargeNeed: 0, rechargeTrigger: 'none' }) === '锁定技', 'derive passive → 锁定技');
+  assert(skillTypeLabel({ id: 'd5', name: 'd', desc: '', kind: 'active', engineKind: 'active', maxUses: 1, rechargeNeed: 0, rechargeTrigger: 'none' }) === '出牌技', 'derive active → 出牌技');
+  assert(skillTypeLabel({ id: 'd6', name: 'd', desc: '', kind: 'active', engineKind: 'active', labelKind: '主动技', maxUses: 1, rechargeNeed: 0, rechargeTrigger: 'none' }) === '出牌技', 'legacy 主动技 maps to 出牌技');
+  assert(skillTypeLabel({ id: 'd7', name: 'd', desc: '', kind: 'active', engineKind: 'window', labelKind: '回合主动技', maxUses: 1, rechargeNeed: 0, rechargeTrigger: 'none' }) === '回合技', 'legacy 回合主动技 maps to 回合技');
+  assert(skillTypeLabel({ id: 'd8', name: 'd', desc: '', kind: 'active', engineKind: 'active', labelKind: 'none', maxUses: 1, rechargeNeed: 0, rechargeTrigger: 'none' }) === null, 'none hides badge');
 }
 
 console.log(`\n${passed} skill/engine checks passed`);
