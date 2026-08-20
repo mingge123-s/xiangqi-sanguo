@@ -32,7 +32,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'guanyu-wuguan',
         name: '过五关',
-        desc: '回合开始时，你可以消耗3点战气，指定己方一枚已翻开的马，令其立即走一步，此步不受蹩马腿限制。此步完成后，你仍可进行本回合的正常行棋。',
+        desc: '回合开始时，你可以消耗3点战气，指定己方一枚已翻开的马，令其立即走一步，此步不受蹩马腿限制。',
         kind: 'active',
         engineKind: 'window',
         labelKind: '回合技',
@@ -44,7 +44,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'guanyu-wusheng',
         name: '武圣',
-        desc: '限定技。出牌阶段，指定己方一枚已翻开且在己方河界内的非将帅棋。该子如处于己方河界内，则无法被吃；一旦过河，此效果立即消失。',
+        desc: '限定技。出牌阶段，指定己方一枚已翻开且在己方河界内的非将帅棋。该子如处于己方河界内，则无法被吃。',
         kind: 'active',
         engineKind: 'limited',
         labelKind: '限定技',
