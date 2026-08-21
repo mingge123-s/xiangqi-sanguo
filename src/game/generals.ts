@@ -462,7 +462,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'diaochan-lijian',
         name: '离间',
-        desc: '主动技。走棋阶段，你可以消耗5点战气，令对方的下个回合只能使用你选定的暗棋，否则随机失去一枚非将帅棋。',
+        desc: '主动技。走棋阶段，你可以消耗5点战气，指定对方一枚暗棋。若其下回合行走其他棋子，则随机失去一枚非将帅棋。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',

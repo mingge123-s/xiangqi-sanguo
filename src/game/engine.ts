@@ -280,9 +280,7 @@ export function legalOptions(s: GameState, side: Side) {
   const onlyPieceId =
     s.pending.guicaiLock && s.pending.guicaiLock.untilSide === side
       ? s.pending.guicaiLock.pieceId
-      : s.pending.lijianMark && s.pending.lijianMark.untilSide === side
-        ? s.pending.lijianMark.pieceId
-        : undefined;
+      : undefined;
   const wu = s.pending.wushuang;
   const mustNotCheck =
     wu && wu.turnsLeft > 0 && wu.owner !== side ? wu.owner : undefined;
@@ -328,13 +326,6 @@ export function listLegalFrom(s: GameState, from: Pos): Pos[] {
     s.pending.guicaiLock &&
     s.pending.guicaiLock.untilSide === s.side &&
     p.id !== s.pending.guicaiLock.pieceId
-  ) {
-    return [];
-  }
-  if (
-    s.pending.lijianMark &&
-    s.pending.lijianMark.untilSide === s.side &&
-    p.id !== s.pending.lijianMark.pieceId
   ) {
     return [];
   }
@@ -744,12 +735,21 @@ function applyLijianPenalty(s: GameState, victim: Side): void {
 function settleLijianMark(s: GameState, endingSide: Side): void {
   const mark = s.pending.lijianMark;
   if (!mark || mark.untilSide !== endingSide) return;
-  const walked =
-    s.movedThisTurn && !!s.lastMove && s.lastMove.piece.id === mark.pieceId;
-  if (!walked) {
+  // Penalty only if victim moved a *different* piece. Walking the mark or
+  // ending the turn without moving is fine.
+  const movedOther =
+    s.movedThisTurn && !!s.lastMove && s.lastMove.piece.id !== mark.pieceId;
+  if (movedOther) {
     applyLijianPenalty(s, endingSide);
   }
   s.pending = { ...s.pending, lijianMark: undefined };
+}
+
+/** Test-only: force end of the current turn (e.g. pass without moving). */
+export function __testEndTurn(s0: GameState): GameState {
+  const s = cloneState(s0);
+  endTurn(s);
+  return s;
 }
 
 function endTurn(s: GameState): void {
@@ -799,17 +799,6 @@ function endTurn(s: GameState): void {
   s.turnCount += 1;
   applyTurnStartEconomy(s);
   applyStartOfTurnPassives(s);
-
-  // 离间：被标记暗棋已不在或无可走步，跳过该回合并结算惩罚（须在胜负判定之前）
-  if (
-    !s.winner &&
-    s.pending.lijianMark &&
-    s.pending.lijianMark.untilSide === s.side &&
-    listLegalMoves(s).length === 0
-  ) {
-    endTurn(s);
-    return;
-  }
 
   finishIfOver(s, s.side);
   maybeOpenYingshiReload(s);
@@ -1376,7 +1365,7 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
       ...s.pending,
       lijianMark: { pieceId: p.id, untilSide: opposite(side) },
     };
-    pushLog(s, `离间：对方下回合只能走${pieceLabel(p)}`);
+    pushLog(s, `离间：标记对方${pieceLabel(p)}；若其下回合行走其他棋子则随机失去一枚非将帅棋`);
     return s;
   }
 
@@ -1614,10 +1603,10 @@ export function skillLiveState(s: GameState, skillId: string, viewer: Side = 're
     const hit = allPieces(s.board).find((x) => x.piece.id === mark.pieceId);
     if (!hit) return '标记之子已不在棋盘';
     if (mark.untilSide === opposite(viewer)) {
-      return `离间已发动：对方下回合只能走${fmt(hit.piece, hit.pos)}`;
+      return `离间已发动：已标记${fmt(hit.piece, hit.pos)}；对方行走其他棋子将随机失去一枚非将帅棋`;
     }
     if (mark.untilSide === viewer) {
-      return `离间中：本回合只能走${fmt(hit.piece, hit.pos)}`;
+      return `离间中：已标记${fmt(hit.piece, hit.pos)}；行走其他棋子将随机失去一枚非将帅棋`;
     }
     return null;
   }

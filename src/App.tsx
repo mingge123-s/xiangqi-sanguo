@@ -66,7 +66,7 @@ function hintFor(id: string): string {
     case 'lvbu-wushuang':
       return '无双：之后3个敌方回合内，己方将帅棋无法被吃，且无法被将军';
     case 'diaochan-lijian':
-      return '离间：点选对方一枚暗棋，其下回合只能使用该子，否则随机失去一枚非将帅棋';
+      return '离间：点选对方一枚暗棋；其下回合若行走其他棋子，则随机失去一枚非将帅棋';
     case 'zhuge-guanxing':
       return '观星：点选五枚暗棋，观看其真实身份';
     case 'zhuge-kongcheng':
