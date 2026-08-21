@@ -1,5 +1,5 @@
 import { applyMove, createInitialBoard, createStandardBoard, emptyBoard, evaluateBoard, getPiece, inCheck, knownIdsOn, revealAll } from './core';
-import { canUseSkill, createHomeState, isKongchengCaptureAttempt, isWushuangCaptureAttempt, listLegalFrom, listLegalMoves, makeMove, overFiveDests, peekDark, peekedOf, resolveGanglie, skipKongcheng, skipOverFive, skillLiveState, startMatch, useSkill, validSkillTargets, __testSetGanglieRoll } from './engine';
+import { canUseSkill, createHomeState, isKongchengCaptureAttempt, isWushuangCaptureAttempt, listLegalFrom, listLegalMoves, makeMove, overFiveDests, peekDark, peekedOf, resolveGanglie, skipKongcheng, skipOverFive, skillLiveState, startMatch, useSkill, validSkillTargets, __testSetFanjianDest, __testSetGanglieRoll } from './engine';
 import { defToRuntime, GENERALS, skillPhaseOf, skillTypeLabel } from './generals';
 import type { GameState, GeneralRuntime, Piece, PieceType, Side, SkillDef, SkillRuntime } from './types';
 
@@ -561,14 +561,61 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(sk(s, 'huatuo-qingnang').uses === 0, '青囊 no-op does not consume uses');
 }
 
-// 周瑜
+// 周瑜 反间：标记后行走该子则随机落点
+{
+  const fanjian = GENERALS.find((d) => d.id === 'zhouyu')!.skills.find((x) => x.id === 'zhouyu-fanjian')!;
+  assert(fanjian.desc === '主动技。走棋阶段，你可以消耗3点战气，标记对方一枚棋子。若其下回合行走该子，则改为随机落点。', '反间 desc exact');
+  let s = base();
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[0][0] = P('R', 'black', 'br');
+  s.board[6][0] = P('P', 'red', 'rp');
+  s.board[3][8] = P('P', 'black', 'bp');
+  const qiBefore = s.qi.red;
+  const movesBefore = s.movesLeft;
+  const targets = validSkillTargets(s, 'zhouyu-fanjian');
+  assert(targets.positions.some((p) => p.r === 0 && p.c === 0), '反间 can mark any enemy');
+  assert(targets.positions.some((p) => p.r === 0 && p.c === 3), '反间 can mark enemy king');
+  s = useSkill(s, 'zhouyu-fanjian', { kind: 'pos', pos: { r: 0, c: 0 } });
+  assert(s.pending.fanjianMark?.pieceId === 'br', '反间 marks black rook by id');
+  assert(s.pending.fanjianMark?.untilSide === 'black', '反间 until victim turn');
+  assert(s.qi.red === qiBefore - 3, '反间 costs 3');
+  assert(s.side === 'red', '反间 does not end turn');
+  assert(s.movesLeft === movesBefore, '反间 does not spend movesLeft');
+  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
+  assert(s.side === 'black', 'black to move after red walk');
+  const dests = listLegalFrom(s, { r: 0, c: 0 });
+  assert(dests.length > 1, 'marked piece is not frozen');
+  const chosen = dests.find((d) => d.r === 1 && d.c === 0) ?? dests[0];
+  const injected = dests.find((d) => !(d.r === chosen.r && d.c === chosen.c))!;
+  __testSetFanjianDest(injected);
+  s = settle(makeMove(s, { r: 0, c: 0 }, chosen));
+  const landed = s.board.flatMap((row, r) => row.map((p, c) => ({ p, r, c }))).find((x) => x.p?.id === 'br');
+  assert(landed?.r === injected.r && landed?.c === injected.c, 'marked piece lands on injected dest');
+  assert(s.log.some((x) => x.text.includes('反间：随机落点')), 'logs 反间 random dest');
+  assert(!s.pending.fanjianMark, 'mark gone after victim turn');
+}
+
+// 周瑜 反间：走其他子不受影响，回合结束标记消失
 {
   let s = base();
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[0][0] = P('R', 'black', 'br');
+  s.board[6][0] = P('P', 'red', 'rp');
+  s.board[3][8] = P('P', 'black', 'bp');
   s = useSkill(s, 'zhouyu-fanjian', { kind: 'pos', pos: { r: 0, c: 0 } });
-  assert(s.pending.zhouYuFrozen?.r === 0 && s.pending.zhouYuFrozen?.c === 0, '周瑜 froze black rook');
-  s = settle(makeMove(s, { r: 6, c: 8 }, { r: 5, c: 8 }));
-  const frozenMoves = listLegalFrom(s, { r: 0, c: 0 });
-  assert(frozenMoves.length === 0, 'frozen piece has no moves on its turn');
+  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
+  assert(s.pending.fanjianMark?.pieceId === 'br', 'mark still on black rook');
+  __testSetFanjianDest({ r: 2, c: 0 });
+  s = settle(makeMove(s, { r: 3, c: 8 }, { r: 4, c: 8 }));
+  assert(getPiece(s.board, { r: 4, c: 8 })?.id === 'bp', 'other piece dest unchanged');
+  assert(getPiece(s.board, { r: 0, c: 0 })?.id === 'br', 'marked piece unmoved');
+  assert(s.log.every((x) => !x.text.includes('反间：随机落点')), 'no random-dest log when other piece walks');
+  assert(!s.pending.fanjianMark, 'mark gone after that turn even if other piece walked');
+  __testSetFanjianDest(undefined);
 }
 
 // 孙尚香 联姻
