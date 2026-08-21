@@ -284,7 +284,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'huatuo-qingnang',
         name: '青囊',
-        desc: '主动技。走棋阶段，你可以消耗6点战气，随机将己方一枚非将帅棋移至己方半场的随机空位（须可落子：士须留在九宫，暗棋象不得过河）。若无合法落点，则此技能落空且不消耗战气。',
+        desc: '主动技。走棋阶段，你可以消耗6点战气，随机将己方一枚非将帅棋移至己方半场的随机空位（须可落子：士须留在九宫，暗棋象不得过河）。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
