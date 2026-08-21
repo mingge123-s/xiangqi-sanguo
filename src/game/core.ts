@@ -404,7 +404,7 @@ export interface AllLegalOptions {
   noCapturePieceId?: string;
   blockRiverCross?: boolean;
   onlyPieceId?: string;
-  /** Only generate moves for unrevealed pieces (离间劫持). */
+  /** Only generate moves for unrevealed pieces. */
   onlyUnrevealed?: boolean;
   mustNotCheck?: Side;
 }
