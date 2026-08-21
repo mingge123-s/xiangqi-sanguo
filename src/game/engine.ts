@@ -930,6 +930,12 @@ export function __testEndTurn(s0: GameState): GameState {
 
 function endTurn(s: GameState): void {
   const endingSide = s.side;
+  // 空城 window belongs to the ending side only. Any path that endTurns
+  // without skipKongcheng/useSkill must not hand awaitKongcheng to the opponent
+  // (else applyAITurn → resolveKongcheng → skipKongcheng skips their whole turn).
+  if (s.pending.awaitKongcheng) {
+    s.pending = { ...s.pending, awaitKongcheng: undefined };
+  }
   if (s.pending.bridgeDown && s.pending.bridgeDown.owner !== endingSide) {
     const left = s.pending.bridgeDown.enemyTurnsLeft - 1;
     s.pending =

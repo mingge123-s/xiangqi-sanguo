@@ -362,6 +362,11 @@ function heuristicSkill(s: GameState): { id: string; payload: SkillPayload } | n
 
 function resolveKongcheng(s: GameState): GameState {
   if (!s.pending.awaitKongcheng) return s;
+  // Stale flag (e.g. leaked across endTurn): clear only — do not skipKongcheng
+  // a turn that never owned a real 空城 window.
+  if (!canUseSkill(s, 'zhuge-kongcheng')) {
+    return { ...s, pending: { ...s.pending, awaitKongcheng: undefined } };
+  }
   const t = validSkillTargets(s, 'zhuge-kongcheng');
   const king = findKing(s.board, s.side);
   const ranked = t.positions
@@ -403,7 +408,9 @@ export function applyAITurn(s0: GameState): GameState {
     if (s.winner || s.side !== 'black') return s;
   }
   if (s.pending.awaitKongcheng) {
-    return resolveKongcheng(s);
+    s = resolveKongcheng(s);
+    // Real 空城 use/skip flips side; stale-flag clear keeps black — keep playing.
+    if (s.winner || s.side !== 'black') return s;
   }
 
   const checkFix = tryResolveCheckWithSkill(s);
@@ -419,7 +426,8 @@ export function applyAITurn(s0: GameState): GameState {
   if (s.winner) return s;
   if (s.side !== 'black') return s;
   if (s.pending.awaitKongcheng) {
-    return resolveKongcheng(s);
+    s = resolveKongcheng(s);
+    if (s.winner || s.side !== 'black') return s;
   }
 
   const doOne = (st: GameState): GameState => {
@@ -436,7 +444,7 @@ export function applyAITurn(s0: GameState): GameState {
     s = doOne(s);
   }
   if (s.pending.awaitKongcheng) {
-    return resolveKongcheng(s);
+    s = resolveKongcheng(s);
   }
   return s;
 }

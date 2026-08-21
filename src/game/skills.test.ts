@@ -1,4 +1,5 @@
 import { applyMove, createInitialBoard, createStandardBoard, emptyBoard, evaluateBoard, getPiece, inCheck, knownIdsOn, revealAll } from './core';
+import { applyAITurn } from './ai';
 import { canUseSkill, createHomeState, isKongchengCaptureAttempt, isWushengCaptureAttempt, isWushuangCaptureAttempt, isWushuangCheckAttempt, listLegalFrom, listLegalMoves, makeMove, peekDark, peekedOf, resolveGanglie, sideInCheck, skipKongcheng, skillLiveState, startMatch, useSkill, validSkillTargets, whyIllegalDest, whyPieceStuck, __testEndTurn, __testSetFanjianDest, __testSetGanglieRoll, __testSetLijianLoss } from './engine';
 import { defToRuntime, GENERALS, skillPhaseOf, skillTypeLabel } from './generals';
 import type { GameState, GeneralRuntime, Piece, PieceType, Side, SkillDef, SkillRuntime } from './types';
@@ -1161,6 +1162,107 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(!!live && live.includes('离间已发动'), 'skillLiveState after cast');
   assert(!live!.includes('操控') && !live!.includes('劫持'), 'skillLiveState has no hijack wording');
   assert(!live!.includes('只能走'), 'skillLiveState has no only-move lock wording');
+}
+
+// 离间 + 空城：红诸葛貂蝉离间后走子，黑 AI 必须走棋（用户报告回归）
+{
+  let s = base();
+  s.redGenerals = [
+    readyAll(defToRuntime(GENERALS.find((d) => d.id === 'zhuge')!, false)),
+    readyAll(defToRuntime(GENERALS.find((d) => d.id === 'diaochan')!, false)),
+  ];
+  s.blackGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'caocao')!, true))];
+  s.qi = { red: 10, black: 10 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[3][0] = P('P', 'black', 'dark-p', { revealed: false, coverType: 'P' });
+  s.board[0][0] = P('R', 'black', 'open-r');
+  s.board[6][0] = P('P', 'red', 'rp');
+  s = useSkill(s, 'diaochan-lijian', { kind: 'pos', pos: { r: 3, c: 0 } });
+  assert(s.pending.lijianMark?.pieceId === 'dark-p', 'user-report: mark armed');
+  s = makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 });
+  assert(s.pending.awaitKongcheng && s.side === 'red', 'user-report: 空城 window after red move');
+  s = skipKongcheng(s);
+  assert(s.side === 'black', 'user-report: black to move after skipKongcheng');
+  assert(!s.pending.awaitKongcheng, 'user-report: awaitKongcheng cleared for black');
+  assert(s.pending.lijianMark?.pieceId === 'dark-p', 'user-report: mark still waiting on black');
+  assert(listLegalMoves(s).length > 0, 'user-report: black has legal moves');
+  const blackBefore = s.board.flat().filter((p) => p && p.side === 'black').length;
+  const boardBefore = JSON.stringify(s.board);
+  s = applyAITurn(s);
+  assert(!s.winner || s.winner === 'red', 'user-report: no spurious black win');
+  if (!s.winner) {
+    assert(s.lastMove?.piece.side === 'black', 'user-report: applyAITurn made a black board move');
+    assert(JSON.stringify(s.board) !== boardBefore, 'user-report: black board changed');
+    if (s.lastMove && s.lastMove.piece.id !== 'dark-p') {
+      assert(
+        s.board.flat().filter((p) => p && p.side === 'black').length === blackBefore - 1,
+        'user-report: walking non-mark triggers 离间 loss',
+      );
+    } else {
+      assert(
+        s.board.flat().filter((p) => p && p.side === 'black').length === blackBefore,
+        'user-report: walking mark does not penalize',
+      );
+    }
+  }
+}
+
+// 空城泄漏：endTurn 不得把 awaitKongcheng 留给下一方；黑无空城时 AI 不得 skip 秒过
+{
+  let s = base();
+  s.redGenerals = [
+    readyAll(defToRuntime(GENERALS.find((d) => d.id === 'zhuge')!, false)),
+    readyAll(defToRuntime(GENERALS.find((d) => d.id === 'diaochan')!, false)),
+  ];
+  s.blackGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'caocao')!, true))];
+  s.qi = { red: 10, black: 10 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[3][0] = P('P', 'black', 'dark-p', { revealed: false, coverType: 'P' });
+  s.board[0][0] = P('R', 'black', 'open-r');
+  s.board[6][0] = P('P', 'red', 'rp');
+  s = useSkill(s, 'diaochan-lijian', { kind: 'pos', pos: { r: 3, c: 0 } });
+  s = makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 });
+  assert(s.pending.awaitKongcheng && s.side === 'red', 'leak: window open on red');
+  // Simulate any path that endTurns without resolving 空城 (historical leak).
+  s = __testEndTurn(s);
+  assert(s.side === 'black', 'leak: side is black after endTurn');
+  assert(!s.pending.awaitKongcheng, 'leak: endTurn must not hand awaitKongcheng to black');
+  assert(s.pending.lijianMark?.pieceId === 'dark-p', 'leak: lijian mark still active');
+  const boardBefore = JSON.stringify(s.board);
+  s = applyAITurn(s);
+  assert(s.lastMove?.piece.side === 'black', 'leak: black AI still walks a piece');
+  assert(JSON.stringify(s.board) !== boardBefore, 'leak: black board changes');
+  assert(s.side === 'red' || !!s.winner, 'leak: turn advances after black move');
+}
+
+// 空城泄漏：黑方误带 awaitKongcheng 且无空城时，AI 只清 flag 并继续走棋
+{
+  let s = base();
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'diaochan')!, false))];
+  s.blackGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'caocao')!, true))];
+  s.qi = { red: 5, black: 10 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[3][0] = P('P', 'black', 'dark-p', { revealed: false, coverType: 'P' });
+  s.board[0][0] = P('R', 'black', 'open-r');
+  s.board[6][0] = P('P', 'red', 'rp');
+  s = useSkill(s, 'diaochan-lijian', { kind: 'pos', pos: { r: 3, c: 0 } });
+  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
+  assert(s.side === 'black' && s.pending.lijianMark?.pieceId === 'dark-p', 'stale-flag: black turn with mark');
+  // Plant a leaked window the way a buggy endTurn used to.
+  s = { ...s, pending: { ...s.pending, awaitKongcheng: true } };
+  assert(!canUseSkill(s, 'zhuge-kongcheng'), 'stale-flag: black cannot cast 空城');
+  assert(listLegalMoves(s).length === 0, 'stale-flag: awaitKongcheng blocks legal moves');
+  const boardBefore = JSON.stringify(s.board);
+  s = applyAITurn(s);
+  assert(!s.pending.awaitKongcheng, 'stale-flag: flag cleared');
+  assert(s.lastMove?.piece.side === 'black', 'stale-flag: AI still made a black move');
+  assert(JSON.stringify(s.board) !== boardBefore, 'stale-flag: board changed');
 }
 
 // 夏侯惇 · 刚烈 d6（耗 5 战气抛骰；偶恢复 2）
