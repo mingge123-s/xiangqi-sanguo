@@ -1305,11 +1305,11 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   const ganglie = GENERALS.find((d) => d.id === 'xiahoudun')!.skills.find((sk) => sk.id === 'xiahoudun-ganglie')!;
   assert(
     ganglie.desc ===
-      '被动技。每当对方以非将帅棋吃掉己方棋子时，消耗5点战气，抛一枚六面骰。奇数则该子与被吃子同归于尽；偶数则恢复2点战气。对方第一次吃掉己方棋子时，揭示此武将。',
+      '主动技。每当对方以非将帅棋吃掉己方棋子时，消耗5点战气，抛一枚六面骰。奇数则该子与被吃子同归于尽；偶数则恢复2点战气。对方第一次吃掉己方棋子时，揭示此武将。',
     '刚烈 desc exact',
   );
   assert(ganglie.qiCost === 5, '刚烈 qiCost 5 (wiki badge; still passive)');
-  assert(ganglie.nature === '被动技' && ganglie.phase === null, '刚烈 stays 被动技 / phase null');
+  assert(ganglie.nature === '主动技' && ganglie.phase === null, '刚烈 stays 主动技 / phase null');
   assert(ganglie.kind === 'passive' && ganglie.engineKind === 'passive', '刚烈 not click-to-cast');
 }
 
@@ -1969,7 +1969,7 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
     'caocao-jianxiong': { nature: '被动技', phase: null },
     'simayi-guicai': { nature: '主动技', phase: '走棋阶段' },
     'simayi-yingshi': { nature: '主动技', phase: '游戏开始' },
-    'xiahoudun-ganglie': { nature: '被动技', phase: null },
+    'xiahoudun-ganglie': { nature: '主动技', phase: null },
     'xiahoudun-danjing': { nature: '主动技', phase: '走棋阶段' },
     'huatuo-qingnang': { nature: '主动技', phase: '走棋阶段' },
     'huatuo-shenyi': { nature: '被动技', phase: null },
