@@ -110,7 +110,7 @@ export interface PendingEffects {
   yingshiMark?: { owner: Side; pieceId: string };
   yingshiReload?: { red?: boolean; black?: boolean };
   guicaiLock?: { pieceId: string; untilSide: Side };
-  /** 吕布无双：剩余己方回合数（发动当回合计 1，己方回合结束时递减）。 */
+  /** 吕布无双：剩余敌方回合数（发动后立即生效；敌方回合结束时递减，己方回合结束不减）。 */
   wushuang?: { owner: Side; turnsLeft: number };
   /** 貂蝉离间：controller 在对方回合操控对方暗子。 */
   lijianHijack?: { controller: Side };

@@ -725,8 +725,14 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(s.crossedRiverIds.includes('bp'), 'black pawn marked crossed');
 }
 
-// 吕布 无双：保护将帅 3 回合；不可被吃、不可被将军
+// 吕布 无双：保护将帅 3 个敌方回合；不可被吃、不可被将军
 {
+  const wushuang = GENERALS.find((d) => d.id === 'lvbu')!.skills.find((x) => x.id === 'lvbu-wushuang')!;
+  assert(
+    wushuang.desc ===
+      '限定技。走棋阶段，你可以发动无双：在你之后的3个敌方回合内，己方将帅棋无法被吃，且无法被将军。',
+    '无双 desc exact',
+  );
   let s = base();
   s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'lvbu')!, true))];
   s.board = emptyBoard();
@@ -735,13 +741,13 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board[2][0] = P('R', 'black', 'br');
   s.board[6][0] = P('P', 'red', 'rp');
   s = useSkill(s, 'lvbu-wushuang', { kind: 'none' });
-  assert(s.pending.wushuang?.turnsLeft === 3, '无双 arms 3 turns');
+  assert(s.pending.wushuang?.turnsLeft === 3, '无双 arms 3 enemy turns');
   assert(!g(s, 'lvbu').hidden, '吕布 revealed by 无双');
   assert(sk(s, 'lvbu-wushuang').uses === 1, '无双 limited use consumed');
   assert(s.side === 'red', '无双 does not end turn');
-  assert(skillLiveState(s, 'lvbu-wushuang', 'red')?.includes('剩余 3'), 'live state shows remaining');
+  assert(skillLiveState(s, 'lvbu-wushuang', 'red')?.includes('剩余 3 敌方回合'), 'live state shows remaining enemy turns');
   s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
-  assert(s.pending.wushuang?.turnsLeft === 2, 'decrement at caster turn end');
+  assert(s.pending.wushuang?.turnsLeft === 3, 'caster turn end does not decrement');
   assert(s.side === 'black', 'black to move');
   // Sliding onto the king file would 将军 — banned
   const rookMoves = listLegalFrom(s, { r: 2, c: 0 });
@@ -751,10 +757,19 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board[2][0] = null;
   assert(isWushuangCaptureAttempt(s, { r: 0, c: 4 }, { r: 9, c: 4 }), 'wushuang capture attempt detected');
   assert(!listLegalFrom(s, { r: 0, c: 4 }).some((m) => m.r === 9 && m.c === 4), 'capture filtered from legal');
+  // Enemy turn end decrements
+  s = settle(makeMove(s, { r: 0, c: 4 }, { r: 0, c: 5 }));
+  assert(s.pending.wushuang?.turnsLeft === 2, 'decrement at enemy turn end');
 }
 
 // 吕布 赤兔：明兵化马
 {
+  const chitu = GENERALS.find((d) => d.id === 'lvbu')!.skills.find((x) => x.id === 'lvbu-chitu')!;
+  assert(
+    chitu.desc ===
+      '主动技。走棋阶段，你可以消耗6点战气，指定己方一枚明棋兵卒棋，令其在所在位置变为马。',
+    '赤兔 desc exact',
+  );
   let s = base();
   s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'lvbu')!, true))];
   s.qi = { red: 6, black: 10 };

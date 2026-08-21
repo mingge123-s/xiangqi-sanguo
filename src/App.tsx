@@ -62,9 +62,9 @@ function hintFor(id: string): string {
     case 'sunshangxiang-lianyin':
       return '联姻：点选己方一枚非将帅明棋，移至对方半场随机空位';
     case 'lvbu-chitu':
-      return '赤兔：点选己方明棋兵或卒，令其化为马';
+      return '赤兔：点选己方一枚明棋兵卒棋，令其变为马';
     case 'lvbu-wushuang':
-      return '无双：三回合内己方将帅棋无法被吃，且无法被将军';
+      return '无双：之后3个敌方回合内，己方将帅棋无法被吃，且无法被将军';
     case 'diaochan-lijian':
       return '离间：对方下个回合改由你操控，惟可移动其暗棋';
     case 'zhuge-guanxing':
