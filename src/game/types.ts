@@ -112,8 +112,8 @@ export interface PendingEffects {
   guicaiLock?: { pieceId: string; untilSide: Side };
   /** 吕布无双：剩余敌方回合数（发动后立即生效；敌方回合结束时递减，己方回合结束不减）。 */
   wushuang?: { owner: Side; turnsLeft: number };
-  /** 貂蝉离间：controller 在对方回合操控对方暗子。 */
-  lijianHijack?: { controller: Side };
+  /** 貂蝉离间：标记对方一枚暗棋，其下回合只能行走该子，否则随机失去一枚非将帅棋。 */
+  lijianMark?: { pieceId: string; untilSide: Side };
   /**
    * 夏侯惇刚烈：吃子落地后抛 d6，动画结束前阻塞行棋。
    * resumeTurn：resolve 后是否继续 makeMove 的结束回合流程（过五关额外吃子为 false）。

@@ -239,7 +239,12 @@ function heuristicSkill(s: GameState): { id: string; payload: SkillPayload } | n
 
   if (ready.includes('diaochan-lijian')) {
     const dark = allPieces(s.board, opposite(s.side)).filter((x) => !x.piece.revealed);
-    if (dark.length >= 2) return { id: 'diaochan-lijian', payload: { kind: 'none' } };
+    if (dark.length >= 1) {
+      const scored = dark
+        .map((x) => ({ pos: x.pos, v: pieceValueAt(x.piece, x.pos.r) }))
+        .sort((a, b) => b.v - a.v);
+      if (scored[0]) return { id: 'diaochan-lijian', payload: { kind: 'pos', pos: scored[0].pos } };
+    }
   }
 
   if (ready.includes('lvbu-chitu')) {
@@ -387,25 +392,11 @@ function resolveOverFive(s: GameState): GameState {
 }
 
 export function applyAITurn(s0: GameState): GameState {
-  const hijackAsBlack =
-    !!s0.pending.lijianHijack &&
-    s0.pending.lijianHijack.controller === 'black' &&
-    s0.side === 'red';
   if (s0.phase !== 'playing' || s0.winner) return s0;
-  if (s0.side !== 'black' && !hijackAsBlack) return s0;
+  if (s0.side !== 'black') return s0;
   // UI owns 刚烈 dice animation; do not advance while pending.
   if (s0.pending.ganglieDice) return s0;
   let s = s0;
-
-  // 离间劫持：只走暗子，不放技能
-  if (s.pending.lijianHijack && s.pending.lijianHijack.controller !== s.side) {
-    const mv = pickBoardMove(s);
-    if (!mv) {
-      // 引擎应已跳过；兜底直接判无子可动
-      return { ...s, winner: opposite(s.side), phase: 'result', log: [...s.log, { text: '离间回合无子可动', side: s.side }] };
-    }
-    return makeMove(s, mv.from, mv.to);
-  }
 
   if (s.pending.awaitYingshi) {
     s = resolveYingshi(s);

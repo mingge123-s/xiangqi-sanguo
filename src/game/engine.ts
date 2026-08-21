@@ -70,7 +70,7 @@ function cloneState(s: GameState): GameState {
       yingshiReload: s.pending.yingshiReload ? { ...s.pending.yingshiReload } : undefined,
       guicaiLock: s.pending.guicaiLock ? { ...s.pending.guicaiLock } : undefined,
       wushuang: s.pending.wushuang ? { ...s.pending.wushuang } : undefined,
-      lijianHijack: s.pending.lijianHijack ? { ...s.pending.lijianHijack } : undefined,
+      lijianMark: s.pending.lijianMark ? { ...s.pending.lijianMark } : undefined,
       ganglieDice: s.pending.ganglieDice
         ? {
             ...s.pending.ganglieDice,
@@ -280,10 +280,9 @@ export function legalOptions(s: GameState, side: Side) {
   const onlyPieceId =
     s.pending.guicaiLock && s.pending.guicaiLock.untilSide === side
       ? s.pending.guicaiLock.pieceId
-      : undefined;
-  const onlyUnrevealed = !!(
-    s.pending.lijianHijack && s.pending.lijianHijack.controller !== side
-  );
+      : s.pending.lijianMark && s.pending.lijianMark.untilSide === side
+        ? s.pending.lijianMark.pieceId
+        : undefined;
   const wu = s.pending.wushuang;
   const mustNotCheck =
     wu && wu.turnsLeft > 0 && wu.owner !== side ? wu.owner : undefined;
@@ -293,7 +292,6 @@ export function legalOptions(s: GameState, side: Side) {
     noCapturePieceId,
     blockRiverCross,
     onlyPieceId,
-    onlyUnrevealed,
     mustNotCheck,
   };
 }
@@ -306,10 +304,6 @@ function pendingBlocksPlay(s: GameState): boolean {
     s.pending.awaitYingshi ||
     s.pending.ganglieDice
   );
-}
-
-function isLijianHijacked(s: GameState): boolean {
-  return !!(s.pending.lijianHijack && s.pending.lijianHijack.controller !== s.side);
 }
 
 export function listLegalMoves(s: GameState, side?: Side) {
@@ -337,8 +331,14 @@ export function listLegalFrom(s: GameState, from: Pos): Pos[] {
   ) {
     return [];
   }
+  if (
+    s.pending.lijianMark &&
+    s.pending.lijianMark.untilSide === s.side &&
+    p.id !== s.pending.lijianMark.pieceId
+  ) {
+    return [];
+  }
   const opt = legalOptions(s, s.side);
-  if (opt.onlyUnrevealed && p.revealed) return [];
   const noCapture = !!(opt.noCapturePieceId && p.id === opt.noCapturePieceId);
   return getLegalMoves(s.board, from, s.side, {
     noCapture,
@@ -679,7 +679,6 @@ function maybeOpenYingshiWindow(s: GameState, owner: Side): boolean {
 }
 
 function maybeOpenYingshiReload(s: GameState): void {
-  if (isLijianHijacked(s)) return;
   if (s.winner || s.phase !== 'playing') return;
   const flag = s.pending.yingshiReload?.[s.side];
   if (!flag) return;
@@ -689,7 +688,6 @@ function maybeOpenYingshiReload(s: GameState): void {
 }
 
 function maybeOpenOverFive(s: GameState): void {
-  if (isLijianHijacked(s)) return;
   if (s.winner || s.pending.awaitYingshi || s.pending.awaitGuanxing) return;
   if (canReadyOverFive(s)) {
     // Window opens quietly; broadcast only after the jump resolves (not an 主动技 splash-before-target).
@@ -706,6 +704,42 @@ function maybeTriggerYingshi(s: GameState, opts: { flippedId?: string; capturedI
   if (!hit) return;
   const reload = { ...(s.pending.yingshiReload ?? {}), [mark.owner]: true };
   s.pending = { ...s.pending, yingshiMark: undefined, yingshiReload: reload };
+}
+
+/** Test-only: force next 离间 random loss by piece id. Pass undefined to clear. */
+let lijianLossOverride: string | undefined;
+export function __testSetLijianLoss(pieceId: string | undefined): void {
+  lijianLossOverride = pieceId;
+}
+
+function applyLijianPenalty(s: GameState, victim: Side): void {
+  const candidates = allPieces(s.board, victim).filter((x) => x.piece.type !== 'K');
+  if (candidates.length === 0) return;
+  let pick = candidates[0];
+  if (lijianLossOverride) {
+    const forced = candidates.find((x) => x.piece.id === lijianLossOverride);
+    lijianLossOverride = undefined;
+    pick = forced ?? pickRandom(candidates)!;
+  } else {
+    pick = pickRandom(candidates)!;
+  }
+  s.board = cloneBoard(s.board);
+  s.board[pick.pos.r][pick.pos.c] = null;
+  s.captured[victim] = [...s.captured[victim], asCaptured(pick.piece)];
+  charge(s, victim, 'ownLoss', 1);
+  pushLog(s, `离间：随机失去${pieceLabel(pick.piece)}`, victim);
+  maybeTriggerYingshi(s, { capturedId: pick.piece.id });
+}
+
+function settleLijianMark(s: GameState, endingSide: Side): void {
+  const mark = s.pending.lijianMark;
+  if (!mark || mark.untilSide !== endingSide) return;
+  const walked =
+    s.movedThisTurn && !!s.lastMove && s.lastMove.piece.id === mark.pieceId;
+  if (!walked) {
+    applyLijianPenalty(s, endingSide);
+  }
+  s.pending = { ...s.pending, lijianMark: undefined };
 }
 
 function endTurn(s: GameState): void {
@@ -726,6 +760,7 @@ function endTurn(s: GameState): void {
   if (s.pending.guicaiLock && s.pending.guicaiLock.untilSide === endingSide) {
     s.pending = { ...s.pending, guicaiLock: undefined };
   }
+  settleLijianMark(s, endingSide);
   if (s.pending.wushuang && s.pending.wushuang.owner !== endingSide) {
     const left = s.pending.wushuang.turnsLeft - 1;
     s.pending =
@@ -736,9 +771,6 @@ function endTurn(s: GameState): void {
   if (s.capturedThisTurn && sideHasSkill(sideGens(s, endingSide), 'diaochan-biyue')) {
     addQi(s, endingSide, 1);
     pushLog(s, '闭月：本回合有吃子，战气+1', endingSide);
-  }
-  if (s.pending.lijianHijack && s.pending.lijianHijack.controller !== endingSide) {
-    s.pending = { ...s.pending, lijianHijack: undefined };
   }
 
   s.pending = { ...s.pending, zhangFeiPieceId: undefined, awaitOverFive: undefined };
@@ -758,14 +790,13 @@ function endTurn(s: GameState): void {
   applyTurnStartEconomy(s);
   applyStartOfTurnPassives(s);
 
-  // 离间：对方无可动暗子则立刻跳过（须在胜负判定之前，避免被当成无子可动）
+  // 离间：被标记暗棋已不在或无可走步，跳过该回合并结算惩罚（须在胜负判定之前）
   if (
     !s.winner &&
-    s.pending.lijianHijack &&
-    s.pending.lijianHijack.controller !== s.side &&
+    s.pending.lijianMark &&
+    s.pending.lijianMark.untilSide === s.side &&
     listLegalMoves(s).length === 0
   ) {
-    pushLog(s, '离间：对方无暗子可动，跳过该回合', s.pending.lijianHijack.controller);
     endTurn(s);
     return;
   }
@@ -910,8 +941,6 @@ function consumeSkill(s: GameState, g: GeneralRuntime, skill: SkillRuntime): voi
 
 export function canUseSkill(s: GameState, skillId: string): boolean {
   if (s.phase !== 'playing' || s.winner) return false;
-  // 离间劫持回合：不可发动技能
-  if (s.pending.lijianHijack && s.pending.lijianHijack.controller !== s.side) return false;
   if (s.pending.ganglieDice) return false;
   if (s.pending.awaitGuanxing) {
     return skillId === 'zhuge-guanxing' && !!findOwnedSkill(sideGens(s, s.side), skillId);
@@ -941,6 +970,12 @@ export function canUseSkill(s: GameState, skillId: string): boolean {
   if (skillId === 'zhaoyun-longhun' && (s.movedThisTurn || (s.movesLeft ?? 0) <= 0)) return false;
   if (skillId === 'caocao-guixin' && enemiesInOwnPalace(s, s.side).length === 0) return false;
   if (skillId === 'sunshangxiang-lianyin' && lianyinTargets(s, s.side).length === 0) return false;
+  if (
+    skillId === 'diaochan-lijian' &&
+    !allPieces(s.board, opposite(s.side)).some((x) => !x.piece.revealed)
+  ) {
+    return false;
+  }
   const owned = findOwnedSkill(sideGens(s, s.side), skillId);
   if (!owned) return false;
   return isSkillReady(owned.skill, s.qi[s.side] ?? 0);
@@ -956,7 +991,6 @@ export function validSkillTargets(s: GameState, skillId: string): {
   if (
     skillId === 'caocao-guixin' ||
     skillId === 'ganning-chaiqiao' ||
-    skillId === 'diaochan-lijian' ||
     skillId === 'huatuo-qingnang' ||
     skillId === 'lvbu-wushuang'
   ) {
@@ -1000,6 +1034,12 @@ export function validSkillTargets(s: GameState, skillId: string): {
     return { mode: 'enemy', positions };
   }
   if (skillId === 'simayi-yingshi') {
+    const positions = allPieces(s.board, opposite(side))
+      .filter((x) => !x.piece.revealed)
+      .map((x) => x.pos);
+    return { mode: 'dark', positions };
+  }
+  if (skillId === 'diaochan-lijian') {
     const positions = allPieces(s.board, opposite(side))
       .filter((x) => !x.piece.revealed)
       .map((x) => x.pos);
@@ -1318,9 +1358,15 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
   }
 
   if (skillId === 'diaochan-lijian') {
+    if (payload.kind !== 'pos') return s0;
+    const p = getPiece(s.board, payload.pos);
+    if (!p || p.side === side || p.revealed) return s0;
     consumeSkill(s, g, skill);
-    s.pending = { ...s.pending, lijianHijack: { controller: side } };
-    pushLog(s, '离间：对方下回合由你操控其暗子');
+    s.pending = {
+      ...s.pending,
+      lijianMark: { pieceId: p.id, untilSide: opposite(side) },
+    };
+    pushLog(s, `离间：对方下回合只能走${pieceLabel(p)}`);
     return s;
   }
 
@@ -1376,7 +1422,6 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
 }
 
 function maybeAwaitKongcheng(s: GameState): boolean {
-  if (isLijianHijacked(s)) return false;
   if (s.winner || s.phase !== 'playing') return false;
   const owned = findOwnedSkill(sideGens(s, s.side), 'zhuge-kongcheng');
   if (!owned || !isSkillReady(owned.skill, s.qi[s.side] ?? 0)) return false;
@@ -1554,9 +1599,15 @@ export function skillLiveState(s: GameState, skillId: string, viewer: Side = 're
     return '尚未发动';
   }
   if (skillId === 'diaochan-lijian') {
-    const hijack = s.pending.lijianHijack;
-    if (hijack && hijack.controller === viewer) {
-      return s.side === viewer ? '离间已发动，对方下回合由你操控暗子' : '离间中：正在操控对方暗子';
+    const mark = s.pending.lijianMark;
+    if (!mark) return null;
+    const hit = allPieces(s.board).find((x) => x.piece.id === mark.pieceId);
+    if (!hit) return '标记之子已不在棋盘';
+    if (mark.untilSide === opposite(viewer)) {
+      return `离间已发动：对方下回合只能走${fmt(hit.piece, hit.pos)}`;
+    }
+    if (mark.untilSide === viewer) {
+      return `离间中：本回合只能走${fmt(hit.piece, hit.pos)}`;
     }
     return null;
   }
