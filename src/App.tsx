@@ -381,66 +381,7 @@ export default function App() {
             />
           </div>
 
-          <div className="play-status">
-            <AnimatePresence>
-              {thinking && (
-                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  黑方思考中…
-                </motion.span>
-              )}
-              {!thinking && checked && (
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="play-status-check text-red-piece"
-                >
-                  将军!
-                </motion.span>
-              )}
-              {!thinking && awaitOverFive && (
-                <span className="flex items-center gap-2 text-ink">
-                  过五关 · 回合开始，点马来跳，或点跳过
-                  <button
-                    type="button"
-                    className="rounded border border-aged/50 px-1.5 py-0 text-[11px] tracking-widest text-aged"
-                    onClick={() => {
-                      setState((s) => skipOverFive(s));
-                      setTargeting(null);
-                      setSelected(null);
-                    }}
-                  >
-                    跳过
-                  </button>
-                </span>
-              )}
-              {!thinking && !checked && !awaitOverFive && !awaitGuanxing && !awaitYingshi && !awaitKongcheng && targeting && (
-                <span className="flex items-center gap-2 text-ink">
-                  {targeting.hint}
-                  <button
-                    type="button"
-                    className="rounded border border-aged/50 px-1.5 py-0 text-[11px] tracking-widest text-aged"
-                    onClick={() => {
-                      setTargeting(null);
-                      setSelected(null);
-                    }}
-                  >
-                    取消
-                  </button>
-                </span>
-              )}
-              {!thinking && !checked && !targeting && !awaitOverFive && !awaitGuanxing && !awaitYingshi && !awaitKongcheng && state.pending.zhangFeiPieceId && state.movesLeft > 0 && (
-                <span>咆哮 · 还可再走一步</span>
-              )}
-              {!thinking && !checked && !awaitOverFive && !awaitGuanxing && !awaitYingshi && !awaitKongcheng && !targeting && !(state.pending.zhangFeiPieceId && state.movesLeft > 0) && (
-                <span className={state.side === 'red' ? 'text-red-piece' : 'text-ink'}>
-                  {state.side === 'red' ? '红方回合' : '黑方回合'}
-                </span>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Opponent / black skill prompts — above the board, never over 棋面 */}
+          {/* Enemy skill announce only — flush to board top; never turn/status for player */}
           <div className="skill-slot skill-slot-top" aria-live="polite">
             {turnSplash === 'black' && (
               <TurnBroadcast side="black" onDone={() => setTurnSplash(null)} />
@@ -500,58 +441,129 @@ export default function App() {
             </div>
           </div>
 
-          {/* Own / red skill prompts — below the board (图2 gap), never over 棋面 */}
+          {/* Player status + red prompts — one strip at board bottom (priority: 将军>思考>过五关>观星/鹰视/空城>targeting>咆哮>回合; lastLine waits for windows) */}
           <div className="skill-slot skill-slot-bottom" aria-live="polite">
             {turnSplash === 'red' && (
               <TurnBroadcast side="red" onDone={() => setTurnSplash(null)} />
             )}
-            {awaitGuanxing && !state.skillBroadcast && turnSplash !== 'red' && (
-              <div className="skill-slot-prompt">
-                <div className="skill-center-mask">
-                  <span className="skill-center-text">
-                    {targeting?.hint ?? '观星：点选五枚暗棋'}
-                  </span>
-                </div>
-              </div>
-            )}
-            {awaitYingshi && !state.skillBroadcast && turnSplash !== 'red' && (
-              <div className="skill-slot-prompt">
-                <div className="skill-center-mask">
-                  <span className="skill-center-text">鹰视：点选对方一枚暗棋，标记并观看其真实身份</span>
-                </div>
-              </div>
-            )}
-            {kongchengReady && turnSplash !== 'red' && (
-              <div className="skill-slot-prompt">
-                <div className="skill-center-mask skill-center-mask-inline">
-                  <span className="skill-center-text">空城 · 点己方一子护到下回合</span>
-                  <button
-                    type="button"
-                    className="pointer-events-auto relative rounded border border-aged/50 px-2 py-0.5 text-[12px] tracking-widest text-aged"
-                    onClick={() => {
-                      setState((s) => skipKongcheng(s));
-                      setTargeting(null);
-                      setSelected(null);
-                    }}
+            {turnSplash !== 'red' && (
+              <AnimatePresence mode="wait">
+                {checked ? (
+                  <motion.div
+                    key="check"
+                    className="skill-slot-prompt"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                   >
-                    跳过
-                  </button>
-                </div>
-              </div>
-            )}
-            {centerPrompt && !kongchengReady && !awaitGuanxing && !awaitYingshi && turnSplash !== 'red' && (
-              <div className="skill-slot-prompt">
-                <div className="skill-center-mask">
-                  <span className="skill-center-text">{centerPrompt}</span>
-                </div>
-              </div>
-            )}
-            {!awaitGuanxing && !awaitYingshi && !kongchengReady && !centerPrompt && turnSplash !== 'red' && lastLine?.side === 'red' && lastLine.text && (
-              <div className="skill-slot-prompt">
-                <div className="skill-center-mask">
-                  <span className="skill-center-text play-log-line">{lastLine.text}</span>
-                </div>
-              </div>
+                    <div className="skill-center-mask">
+                      <span className="skill-center-text play-status-check text-red-piece">将军!</span>
+                    </div>
+                  </motion.div>
+                ) : thinking ? (
+                  <motion.div
+                    key="thinking"
+                    className="skill-slot-prompt"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <div className="skill-center-mask">
+                      <span className="skill-center-text">黑方思考中…</span>
+                    </div>
+                  </motion.div>
+                ) : awaitOverFive ? (
+                  <div key="overfive" className="skill-slot-prompt">
+                    <div className="skill-center-mask skill-center-mask-inline">
+                      <span className="skill-center-text">过五关 · 回合开始，点马来跳，或点跳过</span>
+                      <button
+                        type="button"
+                        className="skill-slot-action"
+                        onClick={() => {
+                          setState((s) => skipOverFive(s));
+                          setTargeting(null);
+                          setSelected(null);
+                        }}
+                      >
+                        跳过
+                      </button>
+                    </div>
+                  </div>
+                ) : awaitGuanxing && !state.skillBroadcast ? (
+                  <div key="guanxing" className="skill-slot-prompt">
+                    <div className="skill-center-mask">
+                      <span className="skill-center-text">
+                        {targeting?.hint ?? '观星：点选五枚暗棋'}
+                      </span>
+                    </div>
+                  </div>
+                ) : awaitYingshi && !state.skillBroadcast ? (
+                  <div key="yingshi" className="skill-slot-prompt">
+                    <div className="skill-center-mask">
+                      <span className="skill-center-text">鹰视：点选对方一枚暗棋，标记并观看其真实身份</span>
+                    </div>
+                  </div>
+                ) : kongchengReady ? (
+                  <div key="kongcheng" className="skill-slot-prompt">
+                    <div className="skill-center-mask skill-center-mask-inline">
+                      <span className="skill-center-text">空城 · 点己方一子护到下回合</span>
+                      <button
+                        type="button"
+                        className="skill-slot-action"
+                        onClick={() => {
+                          setState((s) => skipKongcheng(s));
+                          setTargeting(null);
+                          setSelected(null);
+                        }}
+                      >
+                        跳过
+                      </button>
+                    </div>
+                  </div>
+                ) : targeting ? (
+                  <div key="targeting" className="skill-slot-prompt">
+                    <div className="skill-center-mask skill-center-mask-inline">
+                      <span className="skill-center-text">{targeting.hint}</span>
+                      <button
+                        type="button"
+                        className="skill-slot-action"
+                        onClick={() => {
+                          setTargeting(null);
+                          setSelected(null);
+                        }}
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </div>
+                ) : state.pending.zhangFeiPieceId && state.movesLeft > 0 ? (
+                  <div key="paoxiao" className="skill-slot-prompt">
+                    <div className="skill-center-mask">
+                      <span className="skill-center-text">咆哮 · 还可再走一步</span>
+                    </div>
+                  </div>
+                ) : centerPrompt ? (
+                  <div key="center" className="skill-slot-prompt">
+                    <div className="skill-center-mask">
+                      <span className="skill-center-text">{centerPrompt}</span>
+                    </div>
+                  </div>
+                ) : lastLine?.side === 'red' && lastLine.text ? (
+                  <div key="last-red" className="skill-slot-prompt">
+                    <div className="skill-center-mask">
+                      <span className="skill-center-text play-log-line">{lastLine.text}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div key="turn" className="skill-slot-prompt">
+                    <div className="skill-center-mask">
+                      <span className={`skill-center-text ${state.side === 'red' ? 'text-red-piece' : ''}`}>
+                        {state.side === 'red' ? '红方回合' : '黑方回合'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </AnimatePresence>
             )}
           </div>
 
