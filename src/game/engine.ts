@@ -1876,6 +1876,19 @@ export function skillLiveState(s: GameState, skillId: string, viewer: Side = 're
     if (owned.skill.uses >= owned.skill.maxUses) return '本局已发动';
     return '尚未发动';
   }
+  if (skillId === 'zhouyu-fanjian') {
+    const mark = s.pending.fanjianMark;
+    if (!mark) return null;
+    const hit = allPieces(s.board).find((x) => x.piece.id === mark.pieceId);
+    if (!hit) return '标记之子已不在棋盘';
+    if (mark.untilSide === opposite(viewer)) {
+      return `已标记对方${fmt(hit.piece, hit.pos)}`;
+    }
+    if (mark.untilSide === viewer) {
+      return `己方${fmt(hit.piece, hit.pos)}被反间，本回合走该子则随机落点`;
+    }
+    return null;
+  }
   if (skillId === 'diaochan-lijian') {
     const mark = s.pending.lijianMark;
     if (!mark) return null;

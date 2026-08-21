@@ -123,6 +123,9 @@ export function Board({
   showCoverHint,
   yingshiMarkId,
   lockedPieceId,
+  fanjianMarkId,
+  lijianMarkId,
+  guicaiMarkId,
   ganglieDice,
   onGanglieSettled,
   topSlot,
@@ -140,6 +143,12 @@ export function Board({
   showCoverHint?: boolean;
   yingshiMarkId?: string;
   lockedPieceId?: string;
+  /** 反间标记子 id → 棋面「反」印 */
+  fanjianMarkId?: string;
+  /** 离间标记子 id → 棋面「离」印 */
+  lijianMarkId?: string;
+  /** 鬼才锁定子 id → 棋面「鬼」印 */
+  guicaiMarkId?: string;
   ganglieDice?: { roll: number; capturerPos: Pos } | null;
   onGanglieSettled?: () => void;
   /** Announce strip flush to the wood board's top edge. */
@@ -300,6 +309,15 @@ export function Board({
                           size={pieceSize}
                           peeked={!!(showPeek && peekedIds?.includes(piece.id))}
                           peekMark={yingshiMarkId === piece.id ? '鹰' : '观'}
+                          statusMark={
+                            guicaiMarkId === piece.id
+                              ? '鬼'
+                              : fanjianMarkId === piece.id
+                                ? '反'
+                                : lijianMarkId === piece.id
+                                  ? '离'
+                                  : undefined
+                          }
                           locked={lockedPieceId === piece.id}
                           coverHint={
                             showCoverHint && !piece.revealed && piece.side === 'black'
