@@ -38,7 +38,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'guanyu-yijue',
         name: '义绝',
-        desc: '主动技。走棋阶段，你可以消耗5点战气，指定己方一枚暗棋与对方一枚暗棋。若两者为同一种棋子，则摧毁对方该子；否则两者同时被摧毁。',
+        desc: '主动技。走棋阶段，你可以消耗8点战气，指定己方一枚暗棋与对方一枚暗棋。若两者为同一种棋子，则摧毁对方该子；否则两者同时被摧毁。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -47,7 +47,7 @@ export const GENERALS: GeneralDef[] = [
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 5,
+        qiCost: 8,
       },
       {
         id: 'guanyu-wusheng',
@@ -86,7 +86,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhuge-kongcheng',
         name: '空城',
-        desc: '主动技。回合结束时，你可以消耗3点战气，指定己方一枚棋子。直至你的下个回合开始，该子无法被吃。',
+        desc: '主动技。回合结束时，你可以消耗5点战气，指定己方一枚棋子。直至你的下个回合开始，该子无法被吃。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -95,7 +95,7 @@ export const GENERALS: GeneralDef[] = [
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 3,
+        qiCost: 5,
       },
     ],
   },
@@ -108,7 +108,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhangfei-paoxiao',
         name: '咆哮',
-        desc: '主动技。走棋阶段，你可以消耗5点战气，指定己方一枚暗棋。该子走棋次数+1。',
+        desc: '主动技。走棋阶段，你可以消耗8点战气，指定己方一枚暗棋。该子走棋次数+1。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -117,7 +117,7 @@ export const GENERALS: GeneralDef[] = [
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 5,
+        qiCost: 8,
       },
       {
         id: 'zhangfei-pojun',
@@ -143,7 +143,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhaoyun-longhun',
         name: '龙魂',
-        desc: '主动技。走棋阶段，你可以消耗1点走棋次数和4点战气，交换己方两枚非将帅棋的位置。',
+        desc: '主动技。走棋阶段，你可以消耗1点走棋次数和6点战气，交换己方两枚非将帅棋的位置。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -152,7 +152,7 @@ export const GENERALS: GeneralDef[] = [
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 4,
+        qiCost: 6,
       },
       {
         id: 'zhaoyun-longdan',
@@ -178,7 +178,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'caocao-guixin',
         name: '归心',
-        desc: '主动技。走棋阶段，若己方九宫内有敌方棋子，你可以消耗6点战气，将其全部收为己用。',
+        desc: '主动技。走棋阶段，若己方九宫内有敌方棋子，你可以消耗9点战气，将其全部收为己用。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -187,7 +187,7 @@ export const GENERALS: GeneralDef[] = [
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 6,
+        qiCost: 9,
       },
       {
         id: 'caocao-jianxiong',
@@ -213,7 +213,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'simayi-guicai',
         name: '鬼才',
-        desc: '主动技。走棋阶段，你可以消耗4点战气，指定对方一枚可以走动的非将帅棋。对方下回合只能行走该子。',
+        desc: '主动技。走棋阶段，你可以消耗6点战气，指定对方一枚可以走动的非将帅棋。对方下回合只能行走该子。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -222,7 +222,7 @@ export const GENERALS: GeneralDef[] = [
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 4,
+        qiCost: 6,
       },
       {
         id: 'simayi-yingshi',
@@ -249,7 +249,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'xiahoudun-ganglie',
         name: '刚烈',
-        desc: '主动技。每当对方以非将帅棋吃掉己方棋子时，消耗5点战气，抛一枚六面骰。奇数则该子与被吃子同归于尽；偶数则恢复2点战气。对方第一次吃掉己方棋子时，揭示此武将。',
+        desc: '主动技。每当对方以非将帅棋吃掉己方棋子时，消耗8点战气，抛一枚六面骰。奇数则该子与被吃子同归于尽；偶数则恢复2点战气。对方第一次吃掉己方棋子时，揭示此武将。',
         kind: 'passive',
         engineKind: 'passive',
         nature: '主动技',
@@ -258,12 +258,12 @@ export const GENERALS: GeneralDef[] = [
         maxUses: 0,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 5,
+        qiCost: 8,
       },
       {
         id: 'xiahoudun-danjing',
         name: '啖睛',
-        desc: '主动技。走棋阶段，你可以消耗2点战气，指定对方一枚棋子。该子于其下个回合不能吃子。',
+        desc: '主动技。走棋阶段，你可以消耗3点战气，指定对方一枚棋子。该子于其下个回合不能吃子。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -272,7 +272,7 @@ export const GENERALS: GeneralDef[] = [
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 2,
+        qiCost: 3,
       },
     ],
   },
@@ -285,7 +285,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'huatuo-qingnang',
         name: '青囊',
-        desc: '主动技。走棋阶段，你可以消耗6点战气，随机将己方一枚非将帅棋移至己方半场的随机空位（须可落子：士须留在九宫，暗棋象不得过河）。',
+        desc: '主动技。走棋阶段，你可以消耗9点战气，随机将己方一枚非将帅棋移至己方半场的随机空位（须可落子：暗士须留在九宫，暗棋象不得过河）。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -294,7 +294,7 @@ export const GENERALS: GeneralDef[] = [
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 6,
+        qiCost: 9,
       },
       {
         id: 'huatuo-shenyi',
@@ -320,7 +320,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhouyu-fanjian',
         name: '反间',
-        desc: '主动技。走棋阶段，你可以消耗5点战气，标记对方一枚棋子。若其下回合行走该子，则改为随机落点。',
+        desc: '主动技。走棋阶段，你可以消耗8点战气，标记对方一枚棋子。若其下回合行走该子，则改为随机落点。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -329,7 +329,7 @@ export const GENERALS: GeneralDef[] = [
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 5,
+        qiCost: 8,
       },
       {
         id: 'zhouyu-huogong',
@@ -355,7 +355,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'sunshangxiang-lianyin',
         name: '联姻',
-        desc: '主动技。走棋阶段，你可以消耗5点战气，指定己方一枚非将帅明棋，将其移至对方半场的随机空位。',
+        desc: '主动技。走棋阶段，你可以消耗8点战气，指定己方一枚非将帅明棋，将其移至对方半场的随机空位。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -364,7 +364,7 @@ export const GENERALS: GeneralDef[] = [
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 5,
+        qiCost: 8,
       },
       {
         id: 'sunshangxiang-xiaoji',
@@ -391,7 +391,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'ganning-chaiqiao',
         name: '奇袭',
-        desc: '主动技。走棋阶段，你可以消耗5点战气发动奇袭：两回合内，对方棋子不能过河，己方不受此限。已过河的对方棋子仍可在对岸活动。',
+        desc: '主动技。走棋阶段，你可以消耗8点战气发动奇袭：两回合内，对方棋子不能过河，己方不受此限。已过河的对方棋子仍可在对岸活动。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -400,7 +400,7 @@ export const GENERALS: GeneralDef[] = [
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 5,
+        qiCost: 8,
       },
       {
         id: 'ganning-jinfan',
@@ -427,7 +427,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'lvbu-chitu',
         name: '赤兔',
-        desc: '主动技。走棋阶段，你可以消耗6点战气，指定己方一枚明棋兵卒棋，令其在所在位置变为马。',
+        desc: '主动技。走棋阶段，你可以消耗9点战气，指定己方一枚明棋兵卒棋，令其在所在位置变为马。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -436,7 +436,7 @@ export const GENERALS: GeneralDef[] = [
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 6,
+        qiCost: 9,
       },
       {
         id: 'lvbu-wushuang',
@@ -462,7 +462,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'diaochan-lijian',
         name: '离间',
-        desc: '主动技。走棋阶段，你可以消耗5点战气，指定对方一枚暗棋。若其下回合行走其他棋子，则随机失去一枚非将帅棋。',
+        desc: '主动技。走棋阶段，你可以消耗8点战气，指定对方一枚暗棋。若其下回合行走其他棋子，则随机失去一枚非将帅棋。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -471,7 +471,7 @@ export const GENERALS: GeneralDef[] = [
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 5,
+        qiCost: 8,
       },
       {
         id: 'diaochan-biyue',

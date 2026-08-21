@@ -48,7 +48,7 @@ function hintFor(id: string): string {
     case 'zhangfei-paoxiao':
       return '咆哮：点选己方一枚暗棋，该子走棋次数+1';
     case 'zhaoyun-longhun':
-      return '龙魂：点选己方两枚非将帅棋交换位置（耗1步、4战气）';
+      return '龙魂：点选己方两枚非将帅棋交换位置（耗1步、6战气）';
     case 'caocao-guixin':
       return '归心：己方九宫有敌子时，将其全部收为己用';
     case 'simayi-guicai':

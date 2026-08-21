@@ -183,7 +183,7 @@ export type SkillPayload =
 export const ROWS = 10;
 export const COLS = 9;
 
-export const QI_MAX = 10;
+export const QI_MAX = 20;
 export const QI_START = 0;
 
 export const PIECE_VALUES: Record<PieceType, number> = {
