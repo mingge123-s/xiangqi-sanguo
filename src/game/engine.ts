@@ -499,7 +499,7 @@ function isJiangshuaiCapturer(cap: Piece): boolean {
 }
 
 /**
- * 刚烈：对方吃掉夏侯惇方棋子后。揭示（若仍隐藏），非将帅则挂起 d6。
+ * 刚烈：对方吃掉夏侯惇方棋子后。揭示（若仍隐藏）；非将帅且战气≥5 则立刻耗 5 并挂起 d6。
  * @returns true if `pending.ganglieDice` was set (caller must defer endTurn).
  */
 function applyXiahou(
@@ -524,6 +524,13 @@ function applyXiahou(
     ganglieRollOverride = undefined;
     return false;
   }
+  const ganglie = findOwnedSkill(sideGens(s, victimSide), 'xiahoudun-ganglie')?.skill;
+  const cost = ganglie?.qiCost ?? 5;
+  if ((s.qi[victimSide] ?? 0) < cost) {
+    ganglieRollOverride = undefined;
+    return false;
+  }
+  spendQi(s, victimSide, cost);
 
   const roll = opts?.roll ?? rollGanglieDie();
   s.pending = {
@@ -540,7 +547,7 @@ function applyXiahou(
   return true;
 }
 
-/** Resolve pending 刚烈 d6: odd destroys capturer; even logs miss. Then resume turn if needed. */
+/** Resolve pending 刚烈 d6: odd destroys capturer; even restores 2 战气. Then resume turn if needed. */
 export function resolveGanglie(s0: GameState): GameState {
   const dice = s0.pending.ganglieDice;
   if (!dice) return s0;
@@ -550,16 +557,19 @@ export function resolveGanglie(s0: GameState): GameState {
 
   const odd = roll % 2 === 1;
   const cap = getPiece(s.board, capturerPos);
-  if (odd && cap && cap.id === capturerId) {
-    s.board = cloneBoard(s.board);
-    s.board[capturerPos.r][capturerPos.c] = null;
-    s.captured[cap.side] = [...s.captured[cap.side], asCaptured(cap)];
-    pushLog(s, `刚烈！${pieceLabel(cap)} 同归于尽`, victimSide);
-    charge(s, cap.side, 'ownLoss', 1);
-    maybeTriggerYingshi(s, { capturedId: cap.id });
+  if (odd) {
+    if (cap && cap.id === capturerId) {
+      s.board = cloneBoard(s.board);
+      s.board[capturerPos.r][capturerPos.c] = null;
+      s.captured[cap.side] = [...s.captured[cap.side], asCaptured(cap)];
+      pushLog(s, `刚烈！${pieceLabel(cap)} 同归于尽`, victimSide);
+      charge(s, cap.side, 'ownLoss', 1);
+      maybeTriggerYingshi(s, { capturedId: cap.id });
+    }
   } else {
+    addQi(s, victimSide, 2);
     const pip = GANGLIE_PIP[roll] ?? String(roll);
-    pushLog(s, `刚烈判定：${pip}点，未触发`, victimSide);
+    pushLog(s, `刚烈判定：${pip}点，恢复2点战气`, victimSide);
   }
 
   finishIfOver(s, s.side);
