@@ -95,7 +95,6 @@ export interface GeneralRuntime {
 }
 
 export interface PendingEffects {
-  awaitOverFive?: boolean;
   awaitGuanxing?: boolean;
   awaitKongcheng?: boolean;
   wushengGuard?: { pieceId: string; owner: Side };
@@ -116,7 +115,7 @@ export interface PendingEffects {
   lijianMark?: { pieceId: string; untilSide: Side };
   /**
    * 夏侯惇刚烈：吃子落地后抛 d6，动画结束前阻塞行棋。
-   * resumeTurn：resolve 后是否继续 makeMove 的结束回合流程（过五关额外吃子为 false）。
+   * resumeTurn：resolve 后是否继续 makeMove 的结束回合流程。
    */
   ganglieDice?: {
     victimSide: Side;
@@ -147,11 +146,11 @@ export interface GameState {
   skillBroadcast: SkillBroadcast | null;
   turnCount: number;
   skillUsedThisTurn: boolean;
-  /** True after this side has made a chess move (含过五关跳) this turn. */
+  /** True after this side has made a chess move this turn. */
   movedThisTurn: boolean;
   /**
    * Remaining normal chess plies this turn. +1 at turn start; each normal walk spends 1.
-   * Leftover does not carry across side changes. 过五关 hop does not spend this.
+   * Leftover does not carry across side changes.
    */
   movesLeft: number;
   crossedRiverIds: string[];

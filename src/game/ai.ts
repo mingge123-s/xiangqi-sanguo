@@ -19,11 +19,9 @@ import {
   listLegalFrom,
   listLegalMoves,
   makeMove,
-  overFiveDests,
   peekedOf,
   pickYingshiTarget,
   skipKongcheng,
-  skipOverFive,
   useSkill,
   validSkillTargets,
 } from './engine';
@@ -292,6 +290,28 @@ function heuristicSkill(s: GameState): { id: string; payload: SkillPayload } | n
     if (high[0]) return { id: 'guanyu-wusheng', payload: { kind: 'pos', pos: high[0].pos } };
   }
 
+  if (ready.includes('guanyu-yijue')) {
+    const mine = allPieces(s.board, s.side).filter((x) => !x.piece.revealed && x.piece.type !== 'K');
+    const theirs = allPieces(s.board, opposite(s.side)).filter(
+      (x) => !x.piece.revealed && x.piece.type !== 'K',
+    );
+    for (const m of mine) {
+      const match = theirs.find((e) => e.piece.type === m.piece.type);
+      if (match) {
+        return { id: 'guanyu-yijue', payload: { kind: 'twoPos', a: m.pos, b: match.pos } };
+      }
+    }
+    const bestEnemy = theirs
+      .map((e) => ({ e, v: pieceValueAt(e.piece, e.pos.r) }))
+      .sort((a, b) => b.v - a.v)[0];
+    if (bestEnemy && bestEnemy.v >= 40 && mine[0] && Math.random() < 0.35) {
+      return {
+        id: 'guanyu-yijue',
+        payload: { kind: 'twoPos', a: mine[0].pos, b: bestEnemy.e.pos },
+      };
+    }
+  }
+
   if (ready.includes('huatuo-qingnang') && Math.random() < 0.2) {
     return { id: 'huatuo-qingnang', payload: { kind: 'none' } };
   }
@@ -314,7 +334,7 @@ function heuristicSkill(s: GameState): { id: string; payload: SkillPayload } | n
     'huatuo-qingnang',
     'ganning-chaiqiao',
     'guanyu-wusheng',
-    'guanyu-wuguan',
+    'guanyu-yijue',
     'caocao-guixin',
   ]);
   const others = ready.filter((id) => !skip.has(id));
@@ -371,26 +391,6 @@ function resolveYingshi(s: GameState): GameState {
   return useSkill(s, 'simayi-yingshi', { kind: 'pos', pos: t.pos });
 }
 
-function resolveOverFive(s: GameState): GameState {
-  if (!s.pending.awaitOverFive) return s;
-  const horses = allPieces(s.board, s.side).filter((x) => x.piece.type === 'N' && x.piece.revealed);
-  let best: { from: Pos; to: Pos; v: number } | null = null;
-  for (const h of horses) {
-    const dests = overFiveDests(s, h.pos);
-    for (const d of dests) {
-      const t = s.board[d.r][d.c];
-      if (t && t.side !== s.side) {
-        const v = pieceValueAt(t, d.r);
-        if (!best || v > best.v) best = { from: h.pos, to: d, v };
-      }
-    }
-  }
-  if (best) {
-    return useSkill(s, 'guanyu-wuguan', { kind: 'fromTo', from: best.from, to: best.to });
-  }
-  return skipOverFive(s);
-}
-
 export function applyAITurn(s0: GameState): GameState {
   if (s0.phase !== 'playing' || s0.winner) return s0;
   if (s0.side !== 'black') return s0;
@@ -400,10 +400,6 @@ export function applyAITurn(s0: GameState): GameState {
 
   if (s.pending.awaitYingshi) {
     s = resolveYingshi(s);
-    if (s.winner || s.side !== 'black') return s;
-  }
-  if (s.pending.awaitOverFive) {
-    s = resolveOverFive(s);
     if (s.winner || s.side !== 'black') return s;
   }
   if (s.pending.awaitKongcheng) {

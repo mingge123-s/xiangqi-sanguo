@@ -1,5 +1,5 @@
 import { applyAITurn } from './ai';
-import { listLegalMoves, makeMove, resolveGanglie, skipKongcheng, skipOverFive, startMatch, useSkill } from './engine';
+import { listLegalMoves, makeMove, resolveGanglie, skipKongcheng, startMatch, useSkill } from './engine';
 import { isSkillReady } from './generals';
 import type { GameState } from './types';
 
@@ -42,9 +42,6 @@ function playOnce(seedLabel: string): { turns: number; winner: string | null; la
     if (s.pending.awaitKongcheng) {
       s = skipKongcheng(s);
       continue;
-    }
-    if (s.pending.awaitOverFive) {
-      s = skipOverFive(s);
     }
     // red: maybe use a ready no-target skill rarely
     const ready = s.redGenerals.flatMap((g) => g.skills).filter((sk) => isSkillReady(sk, s.qi?.red ?? 0) && !s.skillUsedThisTurn);
