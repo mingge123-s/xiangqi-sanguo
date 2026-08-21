@@ -19,13 +19,11 @@ import {
   isWushuangCaptureAttempt,
   listLegalFrom,
   makeMove,
-  overFiveDests,
   peekDark,
   peekedOf,
   resolveGanglie,
   sideInCheck,
   skipKongcheng,
-  skipOverFive,
   skillLiveState,
   startMatch,
   useSkill,
@@ -42,8 +40,8 @@ interface Targeting {
 
 function hintFor(id: string): string {
   switch (id) {
-    case 'guanyu-wuguan':
-      return '过五关：回合开始时，点选己方明棋马及其落点（此步不受蹩马腿限制）';
+    case 'guanyu-yijue':
+      return '义绝：点选己方一枚暗棋与对方一枚暗棋';
     case 'guanyu-wusheng':
       return '武圣：点选己方位于己方河界内的非将帅明棋';
     case 'zhangfei-paoxiao':
@@ -102,15 +100,21 @@ export default function App() {
 
   const legal = useMemo(() => {
     if (!selected || state.phase !== 'playing') return [];
-    if (targeting?.skillId === 'guanyu-wuguan' && targeting.picks.length === 1) {
-      return overFiveDests(state, targeting.picks[0]);
-    }
     return listLegalFrom(state, selected);
-  }, [selected, state, targeting]);
+  }, [selected, state]);
 
   const highlights = useMemo(() => {
     if (!targeting) return [];
     const t = validSkillTargets(state, targeting.skillId);
+    if (targeting.skillId === 'guanyu-yijue' && targeting.picks.length === 1) {
+      const first = state.board[targeting.picks[0].r][targeting.picks[0].c];
+      if (first) {
+        return t.positions.filter((p) => {
+          const pc = state.board[p.r][p.c];
+          return !!pc && pc.side !== first.side;
+        });
+      }
+    }
     const extra =
       targeting.skillId === 'zhuge-guanxing'
         ? targeting.picks.filter((p) => !t.positions.some((q) => posEq(q, p)))
@@ -123,7 +127,6 @@ export default function App() {
   }, []);
 
   const checked = state.phase === 'playing' && sideInCheck(state);
-  const awaitOverFive = !!state.pending.awaitOverFive && state.side === 'red';
   const awaitGuanxing = !!state.pending.awaitGuanxing && state.side === 'red';
   const awaitYingshi = !!state.pending.awaitYingshi && state.side === 'red';
   const awaitKongcheng = !!state.pending.awaitKongcheng && state.side === 'red';
@@ -190,16 +193,6 @@ export default function App() {
       });
     }
   }, [state.pending.awaitYingshi, state.side, state.skillBroadcast]);
-
-  useEffect(() => {
-    if (state.pending.awaitOverFive && state.side === 'red' && !state.skillBroadcast) {
-      setTargeting({
-        skillId: 'guanyu-wuguan',
-        hint: hintFor('guanyu-wuguan'),
-        picks: [],
-      });
-    }
-  }, [state.pending.awaitOverFive, state.side, state.moveSerial, state.skillBroadcast]);
 
   useEffect(() => {
     if (state.pending.awaitKongcheng && state.side === 'red' && !state.skillBroadcast) {
@@ -315,14 +308,17 @@ export default function App() {
         return;
       }
 
-      if (id === 'guanyu-wuguan') {
+      if (id === 'guanyu-yijue') {
+        if (!t.positions.some((p) => posEq(p, pos))) return;
         if (targeting.picks.length === 0) {
-          if (!t.positions.some((p) => posEq(p, pos))) return;
           setTargeting({ ...targeting, picks: [pos] });
           setSelected(pos);
           return;
         }
-        applyPayload(id, { kind: 'fromTo', from: targeting.picks[0], to: pos });
+        const first = state.board[targeting.picks[0].r][targeting.picks[0].c];
+        const second = state.board[pos.r][pos.c];
+        if (!first || !second || first.side === second.side) return;
+        applyPayload(id, { kind: 'twoPos', a: targeting.picks[0], b: pos });
         return;
       }
 
@@ -417,17 +413,13 @@ export default function App() {
                   }
                   lockedPieceId={lockHighlightId ?? wushuangKingId}
                   selected={
-                    targeting?.skillId === 'zhuge-guanxing' || targeting?.skillId === 'simayi-yingshi'
+                    targeting?.skillId === 'zhuge-guanxing' ||
+                    targeting?.skillId === 'simayi-yingshi' ||
+                    targeting?.skillId === 'guanyu-yijue'
                       ? targeting.picks
                       : selected
                   }
-                  legal={
-                    targeting?.skillId === 'guanyu-wuguan' && targeting.picks.length === 1
-                      ? legal
-                      : targeting
-                        ? []
-                        : legal
-                  }
+                  legal={targeting ? [] : legal}
                   lastMove={state.lastMove}
                   highlights={highlights}
                   disabled={inputLocked}
@@ -453,7 +445,7 @@ export default function App() {
             />
           </div>
 
-          {/* Player status + red prompts — one strip at board bottom (priority: 将军>思考>过五关>观星/鹰视/空城>targeting>咆哮>回合; lastLine waits for windows) */}
+          {/* Player status + red prompts — one strip at board bottom (priority: 将军>思考>观星/鹰视/空城>targeting>咆哮>回合; lastLine waits for windows) */}
           <div className="skill-slot skill-slot-bottom" aria-live="polite">
             {turnSplash === 'red' && (
               <TurnBroadcast side="red" onDone={() => setTurnSplash(null)} />
@@ -484,23 +476,6 @@ export default function App() {
                       <span className="skill-center-text">黑方思考中…</span>
                     </div>
                   </motion.div>
-                ) : awaitOverFive ? (
-                  <div key="overfive" className="skill-slot-prompt">
-                    <div className="skill-center-mask skill-center-mask-inline">
-                      <span className="skill-center-text">过五关 · 回合开始，点马来跳，或点跳过</span>
-                      <button
-                        type="button"
-                        className="skill-slot-action"
-                        onClick={() => {
-                          setState((s) => skipOverFive(s));
-                          setTargeting(null);
-                          setSelected(null);
-                        }}
-                      >
-                        跳过
-                      </button>
-                    </div>
-                  </div>
                 ) : awaitGuanxing && !state.skillBroadcast ? (
                   <div key="guanxing" className="skill-slot-prompt">
                     <div className="skill-center-mask">

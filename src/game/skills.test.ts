@@ -1,5 +1,5 @@
 import { applyMove, createInitialBoard, createStandardBoard, emptyBoard, evaluateBoard, getPiece, inCheck, knownIdsOn, revealAll } from './core';
-import { canUseSkill, createHomeState, isKongchengCaptureAttempt, isWushuangCaptureAttempt, listLegalFrom, listLegalMoves, makeMove, overFiveDests, peekDark, peekedOf, resolveGanglie, skipKongcheng, skipOverFive, skillLiveState, startMatch, useSkill, validSkillTargets, __testEndTurn, __testSetFanjianDest, __testSetGanglieRoll, __testSetLijianLoss } from './engine';
+import { canUseSkill, createHomeState, isKongchengCaptureAttempt, isWushuangCaptureAttempt, listLegalFrom, listLegalMoves, makeMove, peekDark, peekedOf, resolveGanglie, skipKongcheng, skillLiveState, startMatch, useSkill, validSkillTargets, __testEndTurn, __testSetFanjianDest, __testSetGanglieRoll, __testSetLijianLoss } from './engine';
 import { defToRuntime, GENERALS, skillPhaseOf, skillTypeLabel } from './generals';
 import type { GameState, GeneralRuntime, Piece, PieceType, Side, SkillDef, SkillRuntime } from './types';
 
@@ -39,14 +39,9 @@ function base(): GameState {
   return s;
 }
 
-function chargeOverFive(s: GameState): void {
-  s.qi = { ...s.qi, red: Math.max(s.qi.red, 3) };
-}
-
 function settle(s: GameState): GameState {
   if (s.pending.ganglieDice) s = resolveGanglie(s);
   if (s.pending.awaitKongcheng) s = skipKongcheng(s);
-  if (s.pending.awaitOverFive) s = skipOverFive(s);
   return s;
 }
 
@@ -87,7 +82,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
 {
   let s = startMatch();
   // Clear skill windows so a normal walk can resolve
-  for (let i = 0; i < 40 && (s.pending.awaitGuanxing || s.pending.awaitYingshi || s.pending.awaitOverFive); i++) {
+  for (let i = 0; i < 40 && (s.pending.awaitGuanxing || s.pending.awaitYingshi); i++) {
     if (s.pending.awaitGuanxing) {
       const dark = s.board
         .flatMap((row, r) => row.map((p, c) => ({ p, r, c })))
@@ -104,7 +99,6 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
       if (enemy) s = useSkill(s, 'simayi-yingshi', { kind: 'pos', pos: { r: enemy.r, c: enemy.c } });
       else break;
     }
-    if (s.pending.awaitOverFive) s = skipOverFive(s);
   }
   assert(s.qi.red === 1 && s.side === 'red' && s.movesLeft === 1, 'red ready to move with economy applied once');
   const moves = listLegalMoves(s);
@@ -116,7 +110,6 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(s.qi.red === 1, 'after red ply: red qi still 1 (no end-turn +1)');
 
   // Clear black windows if any, then black ply → red second turn qi === 2
-  if (s.pending.awaitOverFive) s = skipOverFive(s);
   if (s.pending.awaitYingshi) {
     const enemy = s.board
       .flatMap((row, r) => row.map((p, c) => ({ p, r, c })))
@@ -254,67 +247,116 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   }
 }
 
-// 关羽 过五关 1: window opens at turn start when ready
+// 关羽 义绝：desc + qiCost 5 exact
 {
-  let s = base();
-  chargeOverFive(s);
-  s.pending = { ...s.pending, awaitOverFive: true };
-  assert(canUseSkill(s, 'guanyu-wuguan'), '过五关 castable at turn start');
-  assert(s.side === 'red', 'still red before hop');
+  const yijue = GENERALS.find((d) => d.id === 'guanyu')!.skills.find((x) => x.id === 'guanyu-yijue')!;
+  assert(
+    yijue.desc ===
+      '主动技。走棋阶段，你可以消耗5点战气，指定己方一枚暗棋与对方一枚暗棋。若两者为同一种棋子，则摧毁对方该子；否则两者同时被摧毁。',
+    '义绝 desc exact',
+  );
+  assert(yijue.qiCost === 5, '义绝 qiCost 5');
+  assert(yijue.nature === '主动技', '义绝 nature 主动技');
+  assert(yijue.phase === '走棋阶段', '义绝 phase 走棋阶段');
+  assert(!yijue.desc.includes('不消耗走棋次数'), '义绝 desc has no free-move wording');
+  assert(!yijue.desc.includes('出牌阶段'), '义绝 not 出牌阶段');
+  assert(!GENERALS.find((d) => d.id === 'guanyu')!.skills.some((x) => x.id === 'guanyu-wuguan'), '过五关 removed');
 }
 
-// 关羽 过五关 2: hop ignores 马腿; then still red, can make the normal move
+// 关羽 义绝：cannot cast without own+enemy 暗棋
 {
   let s = base();
-  chargeOverFive(s);
-  s.pending = { ...s.pending, awaitOverFive: true };
-  s.board[8][1] = P('P', 'red', 'blocker');
-  const dests = overFiveDests(s, { r: 9, c: 1 });
-  assert(dests.some((m) => m.r === 7 && (m.c === 0 || m.c === 2)), '过五关 hop ignores 马腿');
-  const dest = dests.find((m) => m.r === 7 && (m.c === 0 || m.c === 2))!;
-  s = useSkill(s, 'guanyu-wuguan', { kind: 'fromTo', from: { r: 9, c: 1 }, to: dest });
-  assert(!s.pending.awaitOverFive, 'awaitOverFive cleared after hop');
-  assert(s.side === 'red', 'hop does not end the turn');
-  assert(s.movesLeft === 1, '过五关 hop does not spend movesLeft');
-  assert(s.movedThisTurn === true, '过五关 hop sets movedThisTurn');
-  assert(getPiece(s.board, dest)?.type === 'N', 'horse landed on dest');
-  assert(!g(s, 'guanyu').hidden, '关羽 revealed');
-  assert(!s.skillUsedThisTurn, '过五关 hop does not consume the active-skill slot');
-  assert(canUseSkill(s, 'zhangfei-paoxiao'), 'can still cast an active after 过五关');
-  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
-  assert(s.side === 'black', 'normal move after hop ends the turn');
+  s.qi = { ...s.qi, red: 10 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[6][0] = P('P', 'red', 'rp'); // 明棋
+  s.board[3][0] = P('P', 'black', 'bp'); // 明棋
+  assert(!canUseSkill(s, 'guanyu-yijue'), 'cannot cast 义绝 without dark pieces');
+  s.board[6][2] = P('N', 'red', 'rn', { revealed: false, coverType: 'N' });
+  assert(!canUseSkill(s, 'guanyu-yijue'), 'cannot cast 义绝 with only own 暗棋');
+  s.board[3][2] = P('N', 'black', 'bn', { revealed: false, coverType: 'N' });
+  assert(canUseSkill(s, 'guanyu-yijue'), '义绝 castable with own+enemy 暗棋');
 }
 
-// 关羽 过五关 3: skipOverFive keeps the turn, horse stays
+// 关羽 义绝：same type — enemy gone, own remains, qi −5, side still caster, movesLeft unchanged
 {
   let s = base();
-  chargeOverFive(s);
-  s.pending = { ...s.pending, awaitOverFive: true };
-  s = skipOverFive(s);
-  assert(!s.pending.awaitOverFive, 'skip clears awaitOverFive');
-  assert(s.side === 'red', 'skipOverFive does not end the turn');
-  assert(getPiece(s.board, { r: 9, c: 1 })?.type === 'N', 'horse did not hop');
-  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
-  assert(s.side === 'black', 'normal move after skip ends the turn');
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'guanyu')!, true))];
+  s.qi = { red: 8, black: 0 };
+  s.movesLeft = 1;
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[6][0] = P('P', 'red', 'own-dark', { revealed: false, coverType: 'A' });
+  s.board[3][0] = P('P', 'black', 'enemy-dark', { revealed: false, coverType: 'N' });
+  const beforeMoves = s.movesLeft;
+  s = useSkill(s, 'guanyu-yijue', { kind: 'twoPos', a: { r: 6, c: 0 }, b: { r: 3, c: 0 } });
+  assert(!getPiece(s.board, { r: 3, c: 0 }), '同种：对方暗棋摧毁');
+  assert(!!getPiece(s.board, { r: 6, c: 0 }), '同种：己方暗棋仍在');
+  assert(!getPiece(s.board, { r: 6, c: 0 })!.revealed, '同种：己方仍为暗棋');
+  assert(s.qi.red === 3, '义绝 spends 5 qi');
+  assert(s.side === 'red', '义绝 does not end caster turn');
+  assert(s.movesLeft === beforeMoves, '义绝 does not spend movesLeft');
+  assert(s.skillUsedThisTurn, '义绝 consumes active-skill slot');
+  assert(s.captured.black.some((p) => p.id === 'enemy-dark'), 'enemy on captured rail');
+  assert(!s.captured.red.some((p) => p.id === 'own-dark'), 'own not captured on same type');
+  assert(s.log.some((l) => l.text.includes('义绝：同种')), '同种 log');
+  assert(!g(s, 'guanyu').hidden, '关羽 revealed by 义绝');
 }
 
-// 关羽 过五关 4: cannot be used outside the start-of-turn window
-{
-  const s = base();
-  chargeOverFive(s);
-  assert(!canUseSkill(s, 'guanyu-wuguan'), '过五关 not castable without the window');
-  const after = useSkill(s, 'guanyu-wuguan', { kind: 'fromTo', from: { r: 9, c: 1 }, to: { r: 7, c: 0 } });
-  assert(getPiece(after.board, { r: 9, c: 1 })?.type === 'N', 'horse stays put if used early');
-  assert(after.side === 'red', 'early 过五关 does not end the turn');
-}
-
-// 关羽 过五关 5: a normal move does not open the window
+// 关羽 义绝：different type — both gone
 {
   let s = base();
-  chargeOverFive(s);
-  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
-  assert(s.side === 'black', 'normal move ends the turn');
-  assert(!s.pending.awaitOverFive, 'window does not open after the move');
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'guanyu')!, true))];
+  s.qi = { red: 8, black: 0 };
+  s.movesLeft = 1;
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[6][0] = P('R', 'red', 'own-dark', { revealed: false, coverType: 'P' });
+  s.board[3][0] = P('N', 'black', 'enemy-dark', { revealed: false, coverType: 'P' });
+  s = useSkill(s, 'guanyu-yijue', { kind: 'twoPos', a: { r: 6, c: 0 }, b: { r: 3, c: 0 } });
+  assert(!getPiece(s.board, { r: 6, c: 0 }), '异种：己方摧毁');
+  assert(!getPiece(s.board, { r: 3, c: 0 }), '异种：对方摧毁');
+  assert(s.captured.red.some((p) => p.id === 'own-dark'), 'own on captured rail');
+  assert(s.captured.black.some((p) => p.id === 'enemy-dark'), 'enemy on captured rail');
+  assert(s.side === 'red', '异种 义绝 does not end turn');
+  assert(s.movesLeft === 1, '异种 义绝 does not spend movesLeft');
+  assert(s.log.some((l) => l.text.includes('义绝：异种')), '异种 log');
+}
+
+// 关羽 义绝：cannot target 明棋
+{
+  let s = base();
+  s.qi = { red: 10, black: 0 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[6][0] = P('P', 'red', 'own-dark', { revealed: false, coverType: 'P' });
+  s.board[3][0] = P('P', 'black', 'enemy-dark', { revealed: false, coverType: 'P' });
+  s.board[6][2] = P('N', 'red', 'own-ming');
+  s.board[3][2] = P('N', 'black', 'enemy-ming');
+  const t = validSkillTargets(s, 'guanyu-yijue');
+  assert(t.positions.some((p) => p.r === 6 && p.c === 0), 'targets own 暗棋');
+  assert(t.positions.some((p) => p.r === 3 && p.c === 0), 'targets enemy 暗棋');
+  assert(!t.positions.some((p) => p.r === 6 && p.c === 2), 'rejects own 明棋');
+  assert(!t.positions.some((p) => p.r === 3 && p.c === 2), 'rejects enemy 明棋');
+  const mingTry = useSkill(s, 'guanyu-yijue', { kind: 'twoPos', a: { r: 6, c: 2 }, b: { r: 3, c: 0 } });
+  assert(!!getPiece(mingTry.board, { r: 6, c: 2 }), '明棋 target rejected');
+  assert(mingTry.qi.red === 10, 'rejected cast spends no qi');
+}
+
+// 武圣 still works
+{
+  let s = base();
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[9][0] = P('R', 'red', 'rr');
+  s.board[0][0] = P('R', 'black', 'br');
+  s = useSkill(s, 'guanyu-wusheng', { kind: 'pos', pos: { r: 9, c: 0 } });
+  assert(s.pending.wushengGuard?.pieceId === 'rr', '武圣 still arms');
 }
 
 // 张飞 咆哮: same dark piece walks twice
@@ -1241,38 +1283,6 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(s.qi.red === 1, '破军 +1 only');
 }
 
-// 过五关 window uses qi>=3 (after turn-start +1 on the incoming side)
-{
-  let s = base();
-  s.qi = { red: 2, black: 0 };
-  s.board = emptyBoard();
-  s.board[9][4] = P('K', 'red', 'rk');
-  s.board[0][3] = P('K', 'black', 'bk');
-  s.board[9][1] = P('N', 'red', 'rn');
-  s.board[3][0] = P('P', 'black', 'bp');
-  s.side = 'black';
-  s.movesLeft = 1;
-  s = makeMove(s, { r: 3, c: 0 }, { r: 4, c: 0 });
-  assert(s.side === 'red', 'black ended, red to move');
-  assert(s.qi.red === 3, 'red turn-start +1 from 2');
-  assert(s.pending.awaitOverFive, '过五关 window opens when qi>=3');
-}
-
-{
-  let s = base();
-  s.qi = { red: 1, black: 0 };
-  s.board = emptyBoard();
-  s.board[9][4] = P('K', 'red', 'rk');
-  s.board[0][3] = P('K', 'black', 'bk');
-  s.board[9][1] = P('N', 'red', 'rn');
-  s.board[3][0] = P('P', 'black', 'bp');
-  s.side = 'black';
-  s.movesLeft = 1;
-  s = makeMove(s, { r: 3, c: 0 }, { r: 4, c: 0 });
-  assert(s.qi.red === 2, 'red turn-start +1 from 1');
-  assert(!s.pending.awaitOverFive, '过五关 window stays closed when qi<3');
-}
-
 // 空城 window opens at end of turn when qi>=3
 {
   let s = base();
@@ -1373,7 +1383,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
 
   s.redGenerals = [s.redGenerals.find((x) => x.id === 'simayi')!];
   s.blackGenerals = [];
-  s.pending = { ...s.pending, awaitOverFive: undefined, awaitKongcheng: undefined, awaitGuanxing: undefined };
+  s.pending = { ...s.pending, awaitKongcheng: undefined, awaitGuanxing: undefined };
   s.board = emptyBoard();
   s.board[9][4] = P('K', 'red', 'rk');
   s.board[0][3] = P('K', 'black', 'bk');
@@ -1413,7 +1423,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s = useSkill(s, 'simayi-yingshi', { kind: 'pos', pos: { r: enemy!.r, c: enemy!.c } });
   s.redGenerals = [s.redGenerals.find((x) => x.id === 'simayi')!];
   s.blackGenerals = [];
-  s.pending = { ...s.pending, awaitOverFive: undefined, awaitKongcheng: undefined, awaitGuanxing: undefined };
+  s.pending = { ...s.pending, awaitKongcheng: undefined, awaitGuanxing: undefined };
   s.board = emptyBoard();
   s.board[9][4] = P('K', 'red', 'rk');
   s.board[0][3] = P('K', 'black', 'bk');
@@ -1635,7 +1645,7 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
 // Nature + phase axes
 {
   const expect: Record<string, { nature: string; phase: string | null }> = {
-    'guanyu-wuguan': { nature: '主动技', phase: '回合开始' },
+    'guanyu-yijue': { nature: '主动技', phase: '走棋阶段' },
     'guanyu-wusheng': { nature: '限定技', phase: '走棋阶段' },
     'zhuge-guanxing': { nature: '主动技', phase: '游戏开始' },
     'zhuge-kongcheng': { nature: '主动技', phase: '回合结束' },
