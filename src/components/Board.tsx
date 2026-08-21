@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { PieceView } from './Piece';
 import { GanglieDice } from './GanglieDice';
 import type { Piece, PieceType, Pos } from '../game/types';
@@ -9,6 +9,8 @@ const COLS = 9;
 /** Visible disc ≤ this fraction of the smaller cell so neighbors never overlap. */
 const PIECE_RATIO = 0.82;
 const EDGE_SLACK = 2;
+/** Vertical reserve per announce slot (min ~34px, up to ~2 wrapped lines). */
+const SLOT_RESERVE = 44;
 
 function BoardArt({
   w,
@@ -123,6 +125,8 @@ export function Board({
   lockedPieceId,
   ganglieDice,
   onGanglieSettled,
+  topSlot,
+  bottomSlot,
 }: {
   board: (Piece | null)[][];
   selected: Pos | Pos[] | null;
@@ -138,11 +142,17 @@ export function Board({
   lockedPieceId?: string;
   ganglieDice?: { roll: number; capturerPos: Pos } | null;
   onGanglieSettled?: () => void;
+  /** Announce strip flush to the wood board's top edge. */
+  topSlot?: ReactNode;
+  /** Announce strip flush to the wood board's bottom edge. */
+  bottomSlot?: ReactNode;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [killBloom, setKillBloom] = useState<Pos | null>(null);
   const settledRef = useRef(false);
+  const hasTopSlot = topSlot != null;
+  const hasBottomSlot = bottomSlot != null;
 
   useLayoutEffect(() => {
     const el = hostRef.current;
@@ -157,7 +167,9 @@ export function Board({
   }, []);
 
   const availW = Math.max(0, box.w - 12);
-  const availH = Math.max(0, box.h);
+  const slotPad =
+    (hasTopSlot ? SLOT_RESERVE : 0) + (hasBottomSlot ? SLOT_RESERVE : 0);
+  const availH = Math.max(0, box.h - slotPad);
   // pad = pieceR + 2 = 0.41*cell + 2  →  W = 8.82*cell + 4,  H = 9.82*cell + 4
   const cell = Math.max(
     8,
@@ -198,118 +210,122 @@ export function Board({
   }, [diceKey]);
 
   return (
-    <div
-      ref={hostRef}
-      className={`absolute inset-0 ${disabled ? 'pointer-events-none opacity-90' : ''}`}
-    >
+    <div ref={hostRef} className="absolute inset-0">
       {ready && (
         <div
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-          style={{ width: boardW, height: boardH }}
+          className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
+          style={{ width: boardW }}
         >
-          <BoardArt w={boardW} h={boardH} pad={pad} cell={cell} />
-          <div className="absolute inset-0">
-            {Array.from({ length: ROWS }, (_, r) =>
-              Array.from({ length: COLS }, (_, c) => {
-                const piece = board[r][c];
-                const pos = { r, c };
-                const selectedList = !selected ? [] : Array.isArray(selected) ? selected : [selected];
-                const isSel = selectedList.some((p) => posEq(p, pos));
-                const isLegal = legal.some((p) => posEq(p, pos));
-                const isHi = highlights.some((p) => posEq(p, pos));
-                const isLastFrom = !!(lastMove && posEq(lastMove.from, pos));
-                const isLastTo = !!(lastMove && posEq(lastMove.to, pos));
-                const isLast = isLastFrom || isLastTo;
-                const showKillBloom = !!(killBloom && posEq(killBloom, pos));
-                return (
-                  <div
-                    key={`${r}-${c}`}
-                    className="absolute"
-                    style={{
-                      top: pad + r * cell,
-                      left: pad + c * cell,
-                      width: 0,
-                      height: 0,
-                    }}
-                  >
-                    <button
-                      type="button"
-                      aria-label={`${r},${c}`}
-                      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-                      style={{ width: hit, height: hit }}
-                      onClick={() => onCell(pos)}
-                    />
-                    {(isLastTo || showKillBloom) && (
-                      <div
-                        key={showKillBloom ? `kill-${r}-${c}` : lastKey}
-                        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-                        style={{ width: bloomSize, height: bloomSize, zIndex: 0 }}
-                        aria-hidden
-                      >
-                        <div className="ink-landing-bloom" />
-                      </div>
-                    )}
-                    {isLast && (
-                      <div
-                        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-stone-700/10"
-                        style={{ width: lastTint, height: lastTint, zIndex: 1 }}
+          {hasTopSlot && topSlot}
+          <div
+            className={`relative shrink-0 ${disabled ? 'pointer-events-none opacity-90' : ''}`}
+            style={{ width: boardW, height: boardH }}
+          >
+            <BoardArt w={boardW} h={boardH} pad={pad} cell={cell} />
+            <div className="absolute inset-0">
+              {Array.from({ length: ROWS }, (_, r) =>
+                Array.from({ length: COLS }, (_, c) => {
+                  const piece = board[r][c];
+                  const pos = { r, c };
+                  const selectedList = !selected ? [] : Array.isArray(selected) ? selected : [selected];
+                  const isSel = selectedList.some((p) => posEq(p, pos));
+                  const isLegal = legal.some((p) => posEq(p, pos));
+                  const isHi = highlights.some((p) => posEq(p, pos));
+                  const isLastFrom = !!(lastMove && posEq(lastMove.from, pos));
+                  const isLastTo = !!(lastMove && posEq(lastMove.to, pos));
+                  const isLast = isLastFrom || isLastTo;
+                  const showKillBloom = !!(killBloom && posEq(killBloom, pos));
+                  return (
+                    <div
+                      key={`${r}-${c}`}
+                      className="absolute"
+                      style={{
+                        top: pad + r * cell,
+                        left: pad + c * cell,
+                        width: 0,
+                        height: 0,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        aria-label={`${r},${c}`}
+                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                        style={{ width: hit, height: hit }}
+                        onClick={() => onCell(pos)}
                       />
-                    )}
-                    {isHi && (
-                      <div
-                        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-amber-300/85"
-                        style={{ width: pieceSize + 6, height: pieceSize + 6, zIndex: 1 }}
-                      />
-                    )}
-                    {piece && lockedPieceId === piece.id && (
-                      <div
-                        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-[2.5px] ring-[#6b8f71]/95"
-                        style={{ width: pieceSize + 10, height: pieceSize + 10, zIndex: 1 }}
-                      />
-                    )}
-                    {isLegal && !piece && (
-                      <div
-                        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#3d2a14]/70"
-                        style={{ width: legalDot, height: legalDot, zIndex: 1 }}
-                      />
-                    )}
-                    {isLegal && piece && (
-                      <div
-                        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-red-800/70"
-                        style={{ width: pieceSize + 4, height: pieceSize + 4, zIndex: 1 }}
-                      />
-                    )}
-                    {piece && (
-                      <PieceView
-                        piece={piece}
-                        selected={isSel}
-                        size={pieceSize}
-                        peeked={!!(showPeek && peekedIds?.includes(piece.id))}
-                        peekMark={yingshiMarkId === piece.id ? '鹰' : '观'}
-                        locked={lockedPieceId === piece.id}
-                        coverHint={
-                          showCoverHint && !piece.revealed && piece.side === 'black'
-                            ? (piece.coverType as PieceType)
-                            : undefined
-                        }
-                        onPointer={() => onCell(pos)}
-                      />
-                    )}
-                  </div>
-                );
-              }),
+                      {(isLastTo || showKillBloom) && (
+                        <div
+                          key={showKillBloom ? `kill-${r}-${c}` : lastKey}
+                          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                          style={{ width: bloomSize, height: bloomSize, zIndex: 0 }}
+                          aria-hidden
+                        >
+                          <div className="ink-landing-bloom" />
+                        </div>
+                      )}
+                      {isLast && (
+                        <div
+                          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-stone-700/10"
+                          style={{ width: lastTint, height: lastTint, zIndex: 1 }}
+                        />
+                      )}
+                      {isHi && (
+                        <div
+                          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-amber-300/85"
+                          style={{ width: pieceSize + 6, height: pieceSize + 6, zIndex: 1 }}
+                        />
+                      )}
+                      {piece && lockedPieceId === piece.id && (
+                        <div
+                          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-[2.5px] ring-[#6b8f71]/95"
+                          style={{ width: pieceSize + 10, height: pieceSize + 10, zIndex: 1 }}
+                        />
+                      )}
+                      {isLegal && !piece && (
+                        <div
+                          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#3d2a14]/70"
+                          style={{ width: legalDot, height: legalDot, zIndex: 1 }}
+                        />
+                      )}
+                      {isLegal && piece && (
+                        <div
+                          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-red-800/70"
+                          style={{ width: pieceSize + 4, height: pieceSize + 4, zIndex: 1 }}
+                        />
+                      )}
+                      {piece && (
+                        <PieceView
+                          piece={piece}
+                          selected={isSel}
+                          size={pieceSize}
+                          peeked={!!(showPeek && peekedIds?.includes(piece.id))}
+                          peekMark={yingshiMarkId === piece.id ? '鹰' : '观'}
+                          locked={lockedPieceId === piece.id}
+                          coverHint={
+                            showCoverHint && !piece.revealed && piece.side === 'black'
+                              ? (piece.coverType as PieceType)
+                              : undefined
+                          }
+                          onPointer={() => onCell(pos)}
+                        />
+                      )}
+                    </div>
+                  );
+                }),
+              )}
+            </div>
+            {ganglieDice && (
+              <GanglieDice
+                key={diceKey}
+                roll={ganglieDice.roll}
+                landLeft={pad + ganglieDice.capturerPos.c * cell}
+                landTop={pad + ganglieDice.capturerPos.r * cell}
+                size={dieSize}
+                onSettled={handleGanglieSettled}
+              />
             )}
           </div>
-          {ganglieDice && (
-            <GanglieDice
-              key={diceKey}
-              roll={ganglieDice.roll}
-              landLeft={pad + ganglieDice.capturerPos.c * cell}
-              landTop={pad + ganglieDice.capturerPos.r * cell}
-              size={dieSize}
-              onSettled={handleGanglieSettled}
-            />
-          )}
+          {hasBottomSlot && bottomSlot}
         </div>
       )}
     </div>

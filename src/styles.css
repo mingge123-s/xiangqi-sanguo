@@ -107,22 +107,23 @@ body {
   justify-content: flex-end;
 }
 
-/* One strip per board edge — single line, clear of 战气 */
+/* Announce strips — siblings of the wood board, flush to its edges (not screen edges) */
 .skill-slot {
-  flex: 0 0 34px;
-  height: 34px;
+  flex: none;
+  width: 100%;
   min-height: 34px;
-  max-height: 34px;
+  height: auto;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   z-index: 5;
-  padding: 0 10px;
-  overflow: hidden;
+  padding: 2px 8px;
+  overflow: visible;
+  box-sizing: border-box;
 }
 
-/* Top slot: flush to board top (away from enemy 战气 above) */
+/* Top slot: flush to wood top (away from enemy 战气 above) */
 .skill-slot-top {
   align-items: flex-end;
 }
@@ -132,7 +133,7 @@ body {
   align-items: flex-end;
 }
 
-/* Bottom slot: flush to board bottom (away from own 战气 below) */
+/* Bottom slot: flush to wood bottom (away from own 战气 below) */
 .skill-slot-bottom {
   align-items: flex-start;
 }
@@ -144,15 +145,14 @@ body {
 
 .skill-slot-prompt,
 .skill-slot-splash {
-  position: absolute;
-  inset: 0;
+  position: relative;
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
   z-index: 5;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .skill-center-mask {
@@ -166,7 +166,7 @@ body {
   gap: 0;
   max-width: 100%;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .skill-center-mask-compact {
@@ -175,11 +175,12 @@ body {
 
 .skill-center-mask-inline {
   flex-direction: row;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 2px 10px;
 }
 
-/* Tight ink blot — clipped by skill-slot overflow; no spill onto 战气 */
+/* Ink wash blot — sized to text, not clipped to one line */
 .skill-center-mask::before {
   content: "";
   position: absolute;
@@ -202,10 +203,11 @@ body {
   font-size: 15px;
   letter-spacing: 0.08em;
   color: #2c2418;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.25;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   min-width: 0;
   max-width: 100%;
   text-shadow:
