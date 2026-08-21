@@ -1989,4 +1989,118 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
   assert(skillPhaseOf(blank({ phase: null })) === null, 'skillPhaseOf null when phase is null');
 }
 
+// 禁止长将：同一方连续将军到第 3 次非法
+{
+  function longCheckBoard(): GameState {
+    const s = base();
+    s.board = emptyBoard();
+    // Kings off the same file so flying-general never interferes
+    s.board[9][8] = P('K', 'red', 'rk');
+    s.board[0][3] = P('K', 'black', 'bk');
+    s.board[5][0] = P('R', 'red', 'rr');
+    // Black pawn gives a quiet reply that does not check red
+    s.board[3][8] = P('P', 'black', 'bp');
+    // Red pawn: quiet non-checking alternative when streak === 2
+    s.board[6][0] = P('P', 'red', 'rp');
+    return s;
+  }
+
+  // 第 1、第 2 次连将合法；streak 正确累加
+  {
+    let s = longCheckBoard();
+    assert((s.checkStreak?.red ?? 0) === 0, 'streak starts at 0');
+    assert(listLegalFrom(s, { r: 5, c: 0 }).some((m) => m.r === 5 && m.c === 3), '1st check dest legal');
+    s = settle(makeMove(s, { r: 5, c: 0 }, { r: 5, c: 3 }));
+    assert(s.checkStreak.red === 1, 'after 1st check streak === 1');
+    assert(inCheck(s.board, 'black'), 'black in check after 1st');
+    // Black king steps aside
+    s = settle(makeMove(s, { r: 0, c: 3 }, { r: 0, c: 4 }));
+    assert(s.checkStreak.red === 1, 'red streak preserved while black replies');
+    assert(listLegalFrom(s, { r: 5, c: 3 }).some((m) => m.r === 5 && m.c === 4), '2nd check dest legal');
+    s = settle(makeMove(s, { r: 5, c: 3 }, { r: 5, c: 4 }));
+    assert(s.checkStreak.red === 2, 'after 2nd check streak === 2');
+    assert(inCheck(s.board, 'black'), 'black in check after 2nd');
+  }
+
+  // 第 3 次连将不在 legal 里；whyIllegalDest 提示
+  {
+    let s = longCheckBoard();
+    s = settle(makeMove(s, { r: 5, c: 0 }, { r: 5, c: 3 }));
+    s = settle(makeMove(s, { r: 0, c: 3 }, { r: 0, c: 4 }));
+    s = settle(makeMove(s, { r: 5, c: 3 }, { r: 5, c: 4 }));
+    s = settle(makeMove(s, { r: 0, c: 4 }, { r: 0, c: 3 }));
+    assert(s.side === 'red' && s.checkStreak.red === 2, 'setup: streak 2, red to move');
+    assert(
+      !listLegalFrom(s, { r: 5, c: 4 }).some((m) => m.r === 5 && m.c === 3),
+      '3rd consecutive check filtered from listLegalFrom',
+    );
+    assert(
+      !listLegalMoves(s).some((m) => m.from.r === 5 && m.from.c === 4 && m.to.r === 5 && m.to.c === 3),
+      '3rd consecutive check filtered from listLegalMoves',
+    );
+    const hint = whyIllegalDest(s, { r: 5, c: 4 }, { r: 5, c: 3 });
+    assert(
+      hint === '不能长将' || hint === '连续将军不能到第三次',
+      `whyIllegalDest 长将提示 (got ${hint})`,
+    );
+    const before = s;
+    s = makeMove(s, { r: 5, c: 4 }, { r: 5, c: 3 });
+    assert(s === before, 'makeMove rejects 3rd consecutive check');
+  }
+
+  // 中间夹一步不将军则计数清零，之后可再将
+  {
+    let s = longCheckBoard();
+    s = settle(makeMove(s, { r: 5, c: 0 }, { r: 5, c: 3 }));
+    s = settle(makeMove(s, { r: 0, c: 3 }, { r: 0, c: 4 }));
+    s = settle(makeMove(s, { r: 5, c: 3 }, { r: 5, c: 4 }));
+    s = settle(makeMove(s, { r: 0, c: 4 }, { r: 0, c: 3 }));
+    assert(s.checkStreak.red === 2, 'setup streak 2');
+    // Quiet pawn push — not a check
+    s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
+    assert(s.checkStreak.red === 0, 'non-check clears streak');
+    s = settle(makeMove(s, { r: 3, c: 8 }, { r: 4, c: 8 }));
+    assert(listLegalFrom(s, { r: 5, c: 4 }).some((m) => m.r === 5 && m.c === 3), 'can check again after reset');
+    s = settle(makeMove(s, { r: 5, c: 4 }, { r: 5, c: 3 }));
+    assert(s.checkStreak.red === 1, 'new check streak starts at 1');
+  }
+
+  // 剔除第 3 次长将后无其他合法着 → 长将方困毙负
+  {
+    let s = base();
+    s.board = emptyBoard();
+    s.board[9][8] = P('K', 'red', 'rk');
+    s.board[0][3] = P('K', 'black', 'bk');
+    // Rook at 5,4: only empty ray square is 5,3 (checks). 鬼才 lock so blockers need not be immobile.
+    // Use dark advisors on file 4 so they do not orthogonally check black's king.
+    s.board[5][4] = P('R', 'red', 'rr');
+    for (const [r, c] of [
+      [5, 5], [5, 6], [5, 7], [5, 8],
+      [5, 2], [5, 1], [5, 0],
+      [6, 4], [7, 4], [8, 4], [9, 4],
+    ] as const) {
+      s.board[r][c] = P('P', 'red', `block-${r}-${c}`);
+    }
+    for (const [r, c] of [
+      [4, 4], [3, 4], [2, 4], [1, 4], [0, 4],
+    ] as const) {
+      s.board[r][c] = P('A', 'red', `block-${r}-${c}`, { revealed: false, coverType: 'A' });
+    }
+    s.board[3][8] = P('P', 'black', 'bp');
+    s.pending = { ...s.pending, guicaiLock: { pieceId: 'rr', untilSide: 'red' } };
+    s.checkStreak = { red: 0, black: 0 };
+    s.side = 'red';
+    s.movesLeft = 1;
+    const geo = listLegalMoves(s);
+    assert(geo.length > 0 && geo.every((m) => m.to.r === 5 && m.to.c === 3), 'setup: only geo move is the check');
+    assert(!inCheck(s.board, 'black'), 'setup: black not already in check');
+    s.checkStreak = { red: 2, black: 0 };
+    assert(listLegalMoves(s).length === 0, 'streak-2 filters the only check move');
+    s.side = 'black';
+    s.movesLeft = 1;
+    s = settle(makeMove(s, { r: 3, c: 8 }, { r: 4, c: 8 }));
+    assert(s.winner === 'black', '长将困毙：红方负');
+  }
+}
+
 console.log(`\n${passed} skill/engine checks passed`);

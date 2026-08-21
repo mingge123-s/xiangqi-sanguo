@@ -163,6 +163,11 @@ export interface GameState {
   qi: { red: number; black: number };
   /** True if the side to move has captured at least once this turn (闭月). */
   capturedThisTurn: boolean;
+  /**
+   * Consecutive checks delivered by each side. A move that checks increments;
+   * a non-checking move resets that side to 0. The 3rd consecutive check is illegal.
+   */
+  checkStreak: { red: number; black: number };
 }
 
 export type SkillPayload =
