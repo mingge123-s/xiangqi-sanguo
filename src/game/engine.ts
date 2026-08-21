@@ -772,7 +772,7 @@ function applyXiahou(
     return false;
   }
   const ganglie = findOwnedSkill(sideGens(s, victimSide), 'xiahoudun-ganglie')?.skill;
-  const cost = ganglie?.qiCost ?? 5;
+  const cost = ganglie?.qiCost ?? 8;
   if ((s.qi[victimSide] ?? 0) < cost) {
     ganglieRollOverride = undefined;
     return false;
@@ -1319,10 +1319,10 @@ export function simaYiLegalDests(s: GameState, from: Pos): Pos[] {
   });
 }
 
-/** 青囊落子：士须九宫；暗象不过河。 */
+/** 青囊/联姻落子：暗士须九宫，明仕任意空位；暗象不过河。 */
 function pieceCanTeleportSit(p: Piece, pos: Pos): boolean {
   if (p.type === 'K') return false;
-  if (p.type === 'A') return inPalace(pos.r, pos.c, p.side);
+  if (p.type === 'A') return p.revealed || inPalace(pos.r, pos.c, p.side);
   if (p.type === 'B') return p.revealed || elephantOwnSide(pos.r, p.side);
   return true;
 }
