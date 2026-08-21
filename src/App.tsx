@@ -495,7 +495,7 @@ export default function App() {
                                     setSelected(null);
                                   }}
                                 >
-                                  跳过
+                                  取消
                                 </button>
                               </div>
                             </div>
