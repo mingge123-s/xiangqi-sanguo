@@ -319,7 +319,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhouyu-fanjian',
         name: '反间',
-        desc: '主动技。走棋阶段，你可以消耗3点战气，标记对方一枚棋子。若其下回合行走该子，则改为随机落点。',
+        desc: '主动技。走棋阶段，你可以消耗5点战气，标记对方一枚棋子。若其下回合行走该子，则改为随机落点。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -328,7 +328,7 @@ export const GENERALS: GeneralDef[] = [
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 3,
+        qiCost: 5,
       },
       {
         id: 'zhouyu-huogong',
@@ -390,7 +390,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'ganning-chaiqiao',
         name: '奇袭',
-        desc: '主动技。走棋阶段，你可以消耗3点战气发动奇袭：两回合内，对方棋子不能过河，己方不受此限。已过河的对方棋子仍可在对岸活动。',
+        desc: '主动技。走棋阶段，你可以消耗5点战气发动奇袭：两回合内，对方棋子不能过河，己方不受此限。已过河的对方棋子仍可在对岸活动。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -399,7 +399,7 @@ export const GENERALS: GeneralDef[] = [
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 3,
+        qiCost: 5,
       },
       {
         id: 'ganning-jinfan',
