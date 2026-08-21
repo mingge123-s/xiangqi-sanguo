@@ -661,6 +661,41 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   __testSetFanjianDest(undefined);
 }
 
+// 反间：skillLiveState 指出标记哪一枚（施法方 / 被标方）
+{
+  let s = base();
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'zhouyu')!, false))];
+  s.qi = { red: 5, black: 10 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[0][0] = P('R', 'black', 'br');
+  assert(skillLiveState(s, 'zhouyu-fanjian', 'red') === null, '反间 liveState null before mark');
+  s = useSkill(s, 'zhouyu-fanjian', { kind: 'pos', pos: { r: 0, c: 0 } });
+  const casterLive = skillLiveState(s, 'zhouyu-fanjian', 'red');
+  assert(!!casterLive && casterLive.includes('已标记对方'), 'caster liveState: 已标记对方');
+  assert(casterLive!.includes('車') && casterLive!.includes('(0,0)'), 'caster liveState names piece + square');
+  const victimLive = skillLiveState(s, 'zhouyu-fanjian', 'black');
+  assert(!!victimLive && victimLive.includes('被反间'), 'victim liveState: 被反间');
+  assert(victimLive!.includes('走该子则随机落点'), 'victim liveState: 随机落点');
+  assert(victimLive!.includes('車') && victimLive!.includes('(0,0)'), 'victim liveState names piece + square');
+}
+
+// 反间：暗棋也可标记，liveState 仍用真实棋名+坐标
+{
+  let s = base();
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'zhouyu')!, false))];
+  s.qi = { red: 5, black: 10 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[3][0] = P('N', 'black', 'dark-n', { revealed: false, coverType: 'P' });
+  s = useSkill(s, 'zhouyu-fanjian', { kind: 'pos', pos: { r: 3, c: 0 } });
+  const live = skillLiveState(s, 'zhouyu-fanjian', 'red');
+  assert(!!live && live.includes('已标记对方'), 'dark mark: caster liveState');
+  assert(live!.includes('馬') && live!.includes('(3,0)'), 'dark mark uses true type + square');
+}
+
 // 孙尚香 联姻
 {
   const lianyin = GENERALS.find((d) => d.id === 'sunshangxiang')!.skills.find((x) => x.id === 'sunshangxiang-lianyin')!;

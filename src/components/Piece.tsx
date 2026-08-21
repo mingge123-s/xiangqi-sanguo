@@ -66,6 +66,7 @@ export function PieceView({
   peeked,
   coverHint,
   peekMark,
+  statusMark,
   locked,
   onPointer,
 }: {
@@ -76,6 +77,8 @@ export function PieceView({
   peeked?: boolean;
   coverHint?: PieceType;
   peekMark?: string;
+  /** 棋面状态印（反/离/鬼等），明棋暗棋均显示 */
+  statusMark?: string;
   locked?: boolean;
   onPointer: () => void;
 }) {
@@ -147,7 +150,7 @@ export function PieceView({
             {CHAR[piece.side][piece.type]}
           </span>
         )}
-        {showPeek && (
+        {showPeek && !statusMark && (
           <span
             className="pointer-events-none absolute"
             style={{
@@ -159,6 +162,23 @@ export function PieceView({
             }}
           >
             {peekMark ?? '观'}
+          </span>
+        )}
+        {statusMark && (
+          <span
+            className="pointer-events-none absolute font-bold"
+            style={{
+              top: size * 0.06,
+              right: size * 0.08,
+              fontSize: Math.max(8, size * 0.26),
+              color: '#2a2520',
+              lineHeight: 1,
+              textShadow: '0 0 0.5px rgba(244,234,214,0.9)',
+              fontFamily: 'serif',
+            }}
+            aria-label={`状态印：${statusMark}`}
+          >
+            {statusMark}
           </span>
         )}
         {hint && !showPeek && (

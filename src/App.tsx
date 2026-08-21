@@ -31,6 +31,7 @@ import {
 } from './game/engine';
 import { sideHasSkill } from './game/generals';
 import type { GameState, GeneralRuntime, Pos, Side, SkillPayload, SkillRuntime } from './game/types';
+import { CHAR } from './game/types';
 
 interface Targeting {
   skillId: string;
@@ -147,9 +148,37 @@ export default function App() {
   const lockHighlightId =
     state.pending.guicaiLock && state.pending.guicaiLock.untilSide === state.side
       ? state.pending.guicaiLock.pieceId
-      : state.pending.lijianMark && state.pending.lijianMark.untilSide === state.side
-        ? state.pending.lijianMark.pieceId
-        : undefined;
+      : undefined;
+  const fanjianMarkId = state.pending.fanjianMark?.pieceId;
+  const lijianMarkId = state.pending.lijianMark?.pieceId;
+  const guicaiMarkId = state.pending.guicaiLock?.pieceId;
+
+  const fanjianBanner = (() => {
+    const mark = state.pending.fanjianMark;
+    if (!mark || mark.untilSide !== state.side) return null;
+    if (selected) {
+      const sel = state.board[selected.r][selected.c];
+      if (sel && sel.id === mark.pieceId) return '反间：走此子将随机落点';
+    }
+    const hit = state.board
+      .flatMap((row, r) => row.map((p, c) => (p ? { p, r, c } : null)))
+      .find((x) => x && x.p.id === mark.pieceId);
+    if (hit?.p.revealed) {
+      const name = CHAR[hit.p.side][hit.p.type];
+      return `反间：走该${name}则随机落点`;
+    }
+    return '反间：走标记子则随机落点';
+  })();
+
+  const lijianBanner =
+    state.pending.lijianMark && state.pending.lijianMark.untilSide === state.side
+      ? '离间：走标记以外的棋会随机失去一枚非将帅'
+      : null;
+
+  const guicaiBanner =
+    state.pending.guicaiLock && state.pending.guicaiLock.untilSide === state.side
+      ? '鬼才：本回合只能行走被锁定的那枚棋'
+      : null;
 
   useEffect(() => {
     if (state.phase !== 'playing') setLogOpen(false);
@@ -355,6 +384,12 @@ export default function App() {
       if (dests.length === 0) {
         const reason = whyPieceStuck(state, pos);
         if (reason) showCenterPrompt(reason);
+      } else if (
+        state.pending.fanjianMark &&
+        state.pending.fanjianMark.untilSide === 'red' &&
+        state.pending.fanjianMark.pieceId === piece.id
+      ) {
+        showCenterPrompt('反间：走此子将随机落点');
       }
       setSelected(pos);
       return;
@@ -400,6 +435,9 @@ export default function App() {
                       : undefined
                   }
                   lockedPieceId={lockHighlightId ?? wushuangKingId}
+                  fanjianMarkId={fanjianMarkId}
+                  lijianMarkId={lijianMarkId}
+                  guicaiMarkId={guicaiMarkId}
                   selected={
                     targeting?.skillId === 'zhuge-guanxing' ||
                     targeting?.skillId === 'simayi-yingshi' ||
@@ -513,6 +551,24 @@ export default function App() {
                                 >
                                   取消
                                 </button>
+                              </div>
+                            </div>
+                          ) : fanjianBanner ? (
+                            <div key="fanjian" className="skill-slot-prompt">
+                              <div className="skill-center-mask">
+                                <span className="skill-center-text">{fanjianBanner}</span>
+                              </div>
+                            </div>
+                          ) : lijianBanner ? (
+                            <div key="lijian" className="skill-slot-prompt">
+                              <div className="skill-center-mask">
+                                <span className="skill-center-text">{lijianBanner}</span>
+                              </div>
+                            </div>
+                          ) : guicaiBanner ? (
+                            <div key="guicai" className="skill-slot-prompt">
+                              <div className="skill-center-mask">
+                                <span className="skill-center-text">{guicaiBanner}</span>
                               </div>
                             </div>
                           ) : state.pending.zhangFeiPieceId && state.movesLeft > 0 ? (
