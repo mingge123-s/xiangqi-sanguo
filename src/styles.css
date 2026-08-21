@@ -65,23 +65,10 @@ body {
   padding-bottom: 2px;
 }
 
-.play-status {
-  flex: 0 0 32px;
-  height: 32px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 17px;
-  letter-spacing: 0.16em;
-  color: #5c4e3a;
-  line-height: 1.2;
-}
-
 .play-status-check {
-  font-size: 21px;
+  font-size: 19px;
   font-weight: 700;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.12em;
   line-height: 1;
 }
 
@@ -120,12 +107,12 @@ body {
   justify-content: flex-end;
 }
 
-/* Dedicated prompt slots outside the board — hug board edge, clear of 战气 */
+/* One strip per board edge — single line, clear of 战气 */
 .skill-slot {
-  flex: 0 0 30px;
-  height: 30px;
-  min-height: 30px;
-  max-height: 30px;
+  flex: 0 0 34px;
+  height: 34px;
+  min-height: 34px;
+  max-height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -135,7 +122,7 @@ body {
   overflow: hidden;
 }
 
-/* Top slot: prompts flush to board's top edge (away from enemy 战气) */
+/* Top slot: flush to board top (away from enemy 战气 above) */
 .skill-slot-top {
   align-items: flex-end;
 }
@@ -145,7 +132,7 @@ body {
   align-items: flex-end;
 }
 
-/* Bottom slot: prompts flush to board's bottom edge (away from own 战气) */
+/* Bottom slot: flush to board bottom (away from own 战气 below) */
 .skill-slot-bottom {
   align-items: flex-start;
 }
@@ -165,17 +152,21 @@ body {
   justify-content: center;
   pointer-events: none;
   z-index: 5;
+  overflow: hidden;
 }
 
 .skill-center-mask {
   position: relative;
-  padding: 2px 14px;
+  padding: 2px 12px;
   text-align: center;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 0;
   max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .skill-center-mask-compact {
@@ -184,22 +175,22 @@ body {
 
 .skill-center-mask-inline {
   flex-direction: row;
-  gap: 10px;
-  padding: 2px 12px;
+  gap: 8px;
+  padding: 2px 10px;
 }
 
-/* Tight ink blot — no vertical spill onto 战气 or board squares */
+/* Tight ink blot — clipped by skill-slot overflow; no spill onto 战气 */
 .skill-center-mask::before {
   content: "";
   position: absolute;
-  inset: 0 -6px;
+  inset: 0 -4px;
   background: var(--ink-wash-url) center / 100% 100% no-repeat;
   pointer-events: none;
   opacity: 0.88;
 }
 
 .skill-center-mask-compact::before {
-  inset: 0 -8px;
+  inset: 0 -6px;
 }
 
 .skill-center-mask::after {
@@ -208,13 +199,32 @@ body {
 
 .skill-center-text {
   position: relative;
-  font-size: 17px;
-  letter-spacing: 0.16em;
+  font-size: 15px;
+  letter-spacing: 0.08em;
   color: #2c2418;
-  line-height: 1.25;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  max-width: 100%;
   text-shadow:
     0 0 10px rgba(244, 234, 214, 0.85),
     0 1px 0 rgba(255, 250, 235, 0.55);
+}
+
+.skill-slot-action {
+  position: relative;
+  flex: 0 0 auto;
+  pointer-events: auto;
+  border-radius: 2px;
+  border: 1px solid rgba(138, 115, 73, 0.5);
+  padding: 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: #8a7349;
+  background: transparent;
+  line-height: 1.4;
 }
 
 .play-log {
@@ -222,10 +232,10 @@ body {
 }
 
 .play-log-line {
-  font-size: 17px;
-  letter-spacing: 0.12em;
+  font-size: 15px;
+  letter-spacing: 0.06em;
   color: #2c2418;
-  max-width: 92%;
+  max-width: 100%;
 }
 
 .play-generals-me {
