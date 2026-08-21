@@ -107,7 +107,7 @@ body {
   justify-content: flex-end;
 }
 
-/* Announce strips — siblings of the wood board, flush to its edges (not screen edges) */
+/* Announce strips — near wood board with a small gap (not flush, not screen edges) */
 .skill-slot {
   flex: none;
   width: 100%;
@@ -118,14 +118,16 @@ body {
   justify-content: center;
   position: relative;
   z-index: 5;
-  padding: 2px 8px;
+  padding-left: 18px;
+  padding-right: 18px;
   overflow: visible;
   box-sizing: border-box;
 }
 
-/* Top slot: flush to wood top (away from enemy 战气 above) */
+/* Top slot: slight gap above wood (away from enemy 战气) */
 .skill-slot-top {
   align-items: flex-end;
+  padding-bottom: 9px;
 }
 
 .skill-slot-top .skill-slot-prompt,
@@ -133,9 +135,10 @@ body {
   align-items: flex-end;
 }
 
-/* Bottom slot: flush to wood bottom (away from own 战气 below) */
+/* Bottom slot: slight gap below wood (away from own 战气) */
 .skill-slot-bottom {
   align-items: flex-start;
+  padding-top: 9px;
 }
 
 .skill-slot-bottom .skill-slot-prompt,
@@ -155,10 +158,10 @@ body {
   overflow: visible;
 }
 
-/* 宣纸题签：贴木盘上下沿的窄签，非方框墨渍底 */
+/* 水墨云：文字后一团洇开的椭圆墨晕，无方框/题签线/圆角卡片 */
 .skill-center-mask {
   position: relative;
-  padding: 3px 12px;
+  padding: 8px 18px;
   text-align: center;
   display: inline-flex;
   flex-direction: row;
@@ -169,17 +172,14 @@ body {
   min-width: 0;
   width: fit-content;
   overflow: visible;
-  background: rgba(244, 234, 214, 0.78);
-  border-radius: 2px;
-  border-top: 1px solid rgba(42, 34, 24, 0.28);
-  border-bottom: 1px solid rgba(42, 34, 24, 0.28);
-  border-left: none;
-  border-right: none;
+  background: none;
+  border: none;
+  border-radius: 0;
   box-shadow: none;
 }
 
 .skill-center-mask-compact {
-  padding: 3px 12px;
+  padding: 8px 18px;
 }
 
 .skill-center-mask-inline {
@@ -188,18 +188,64 @@ body {
   justify-content: center;
   align-items: center;
   gap: 6px;
-  padding: 3px 12px;
+  padding: 8px 18px;
 }
 
-/* 不再拉伸 ink-wash 铺底 */
-.skill-center-mask::before,
-.skill-center-mask-compact::before,
+.skill-center-mask > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* 水墨云晕：比文字大一圈的椭圆，边缘虚掉；绝不 100% 100% 拉伸 SVG */
+.skill-center-mask::before {
+  content: "";
+  position: absolute;
+  inset: -10px -22px;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      ellipse 72% 58% at 48% 46%,
+      rgba(244, 234, 214, 0.82) 0%,
+      rgba(239, 228, 204, 0.48) 38%,
+      rgba(210, 190, 150, 0.14) 62%,
+      transparent 78%
+    ),
+    radial-gradient(
+      ellipse 55% 48% at 58% 54%,
+      rgba(61, 50, 36, 0.09) 0%,
+      rgba(61, 50, 36, 0.035) 42%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 40% 36% at 36% 42%,
+      rgba(42, 34, 24, 0.06) 0%,
+      transparent 65%
+    );
+  -webkit-mask-image: radial-gradient(ellipse 78% 68% at 50% 50%, #000 40%, transparent 78%);
+  mask-image: radial-gradient(ellipse 78% 68% at 50% 50%, #000 40%, transparent 78%);
+}
+
 .skill-center-mask::after {
-  content: none;
+  content: "";
+  position: absolute;
+  inset: -10px -22px;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  background-image: var(--ink-wash-url);
+  background-size: 180% 220%;
+  background-position: 42% 38%;
+  background-repeat: no-repeat;
+  opacity: 0.35;
+  -webkit-mask-image: radial-gradient(ellipse 78% 68% at 50% 50%, #000 40%, transparent 78%);
+  mask-image: radial-gradient(ellipse 78% 68% at 50% 50%, #000 40%, transparent 78%);
 }
 
 .skill-center-text {
   position: relative;
+  z-index: 1;
   font-family: var(--font-serif);
   font-size: 15px;
   letter-spacing: 0.06em;
@@ -212,16 +258,18 @@ body {
   word-break: break-word;
   min-width: 0;
   max-width: 100%;
-  text-shadow: none;
+  text-shadow: 0 0 10px rgba(244, 234, 214, 0.55), 0 0 2px rgba(244, 234, 214, 0.8);
 }
 
+/* 小墨印：细边、宣纸底、几乎无圆角 */
 .skill-slot-action {
   position: relative;
+  z-index: 1;
   flex: 0 0 auto;
   align-self: center;
   pointer-events: auto;
   border-radius: 1px;
-  border: 1px solid rgba(42, 34, 24, 0.32);
+  border: 1px solid rgba(42, 34, 24, 0.36);
   padding: 1px 5px;
   font-family: var(--font-serif);
   font-size: 11px;
