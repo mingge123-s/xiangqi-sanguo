@@ -58,7 +58,7 @@ function hintFor(id: string): string {
     case 'huatuo-qingnang':
       return '青囊：随机将己方一枚非将帅棋移至己方半场空位';
     case 'zhouyu-fanjian':
-      return '反间：点选对方一枚棋子，该子于下个回合不能移动';
+      return '反间：点选对方一子，其下回合若走该子则随机落点';
     case 'sunshangxiang-lianyin':
       return '联姻：点选己方一枚已过河的棋子';
     case 'lvbu-chitu':

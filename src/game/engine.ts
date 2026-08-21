@@ -60,7 +60,7 @@ function cloneState(s: GameState): GameState {
       awaitGuanxing: s.pending.awaitGuanxing,
       awaitKongcheng: s.pending.awaitKongcheng,
       wushengGuard: s.pending.wushengGuard ? { ...s.pending.wushengGuard } : undefined,
-      zhouYuFrozen: s.pending.zhouYuFrozen ? { ...s.pending.zhouYuFrozen } : undefined,
+      fanjianMark: s.pending.fanjianMark ? { ...s.pending.fanjianMark } : undefined,
       zhangFeiPieceId: s.pending.zhangFeiPieceId,
       kongcheng: s.pending.kongcheng ? { ...s.pending.kongcheng } : undefined,
       danjing: s.pending.danjing ? { ...s.pending.danjing } : undefined,
@@ -267,10 +267,6 @@ function protectedIds(s: GameState): string[] {
 }
 
 export function legalOptions(s: GameState, side: Side) {
-  const frozen =
-    s.pending.zhouYuFrozen && s.pending.zhouYuFrozen.untilSide === side
-      ? { r: s.pending.zhouYuFrozen.r, c: s.pending.zhouYuFrozen.c }
-      : undefined;
   const ids = protectedIds(s);
   const protectedPieceId = ids[0];
   const protectedPieceIds = ids.length > 1 ? ids : undefined;
@@ -292,7 +288,6 @@ export function legalOptions(s: GameState, side: Side) {
   const mustNotCheck =
     wu && wu.turnsLeft > 0 && wu.owner !== side ? wu.owner : undefined;
   return {
-    frozen,
     protectedPieceId,
     protectedPieceIds,
     noCapturePieceId,
@@ -344,10 +339,8 @@ export function listLegalFrom(s: GameState, from: Pos): Pos[] {
   }
   const opt = legalOptions(s, s.side);
   if (opt.onlyUnrevealed && p.revealed) return [];
-  const frozen = !!(opt.frozen && opt.frozen.r === from.r && opt.frozen.c === from.c);
   const noCapture = !!(opt.noCapturePieceId && p.id === opt.noCapturePieceId);
   return getLegalMoves(s.board, from, s.side, {
-    frozen,
     noCapture,
     protectedPieceId: opt.protectedPieceId,
     protectedPieceIds: opt.protectedPieceIds,
@@ -368,12 +361,9 @@ export function overFiveDests(s: GameState, from: Pos): Pos[] {
   const p = getPiece(s.board, from);
   if (!p || p.side !== s.side || p.type !== 'N' || !p.revealed) return [];
   const opt = legalOptions(s, s.side);
-  const frozen = !!(opt.frozen && opt.frozen.r === from.r && opt.frozen.c === from.c);
-  if (frozen) return [];
   const noCapture = !!(opt.noCapturePieceId && p.id === opt.noCapturePieceId);
   return getLegalMoves(s.board, from, s.side, {
     ignoreHorseLeg: true,
-    frozen,
     noCapture,
     protectedPieceId: opt.protectedPieceId,
     protectedPieceIds: opt.protectedPieceIds,
@@ -418,14 +408,11 @@ export function isKongchengCaptureAttempt(s: GameState, from: Pos, to: Pos): boo
   const p = getPiece(s.board, from);
   if (!p || p.side !== s.side) return false;
   const opt = legalOptions(s, s.side);
-  const frozen = !!(opt.frozen && opt.frozen.r === from.r && opt.frozen.c === from.c);
-  if (frozen) return false;
   const noCapture = !!(opt.noCapturePieceId && p.id === opt.noCapturePieceId);
   if (noCapture) return false;
   // Ignore only 空城 protection; keep 武圣 and other guards.
   const otherProtected = protectedIds(s).filter((id) => id !== s.pending.kongcheng!.pieceId);
   const dests = getLegalMoves(s.board, from, s.side, {
-    frozen,
     noCapture,
     protectedPieceIds: otherProtected.length ? otherProtected : undefined,
     blockRiverCross: opt.blockRiverCross,
@@ -444,13 +431,10 @@ export function isWushuangCaptureAttempt(s: GameState, from: Pos, to: Pos): bool
   const p = getPiece(s.board, from);
   if (!p || p.side !== s.side) return false;
   const opt = legalOptions(s, s.side);
-  const frozen = !!(opt.frozen && opt.frozen.r === from.r && opt.frozen.c === from.c);
-  if (frozen) return false;
   const noCapture = !!(opt.noCapturePieceId && p.id === opt.noCapturePieceId);
   if (noCapture) return false;
   const otherProtected = protectedIds(s).filter((id) => id !== target.id);
   const dests = getLegalMoves(s.board, from, s.side, {
-    frozen,
     noCapture,
     protectedPieceIds: otherProtected.length ? otherProtected : undefined,
     blockRiverCross: opt.blockRiverCross,
@@ -483,6 +467,22 @@ const GANGLIE_PIP: Record<number, string> = {
 let ganglieRollOverride: number | undefined;
 export function __testSetGanglieRoll(n: number | undefined): void {
   ganglieRollOverride = n;
+}
+
+/** Test-only: force next 反间 random dest. Pass undefined to clear. */
+let fanjianDestOverride: Pos | undefined;
+export function __testSetFanjianDest(pos: Pos | undefined): void {
+  fanjianDestOverride = pos ? { r: pos.r, c: pos.c } : undefined;
+}
+
+function pickFanjianDest(dests: Pos[]): Pos | undefined {
+  if (fanjianDestOverride) {
+    const forced = fanjianDestOverride;
+    fanjianDestOverride = undefined;
+    const hit = dests.find((d) => posEq(d, forced));
+    return hit ?? pickRandom(dests);
+  }
+  return pickRandom(dests);
 }
 
 function rollGanglieDie(): number {
@@ -717,8 +717,8 @@ function endTurn(s: GameState): void {
         ? { ...s.pending, bridgeDown: undefined }
         : { ...s.pending, bridgeDown: { ...s.pending.bridgeDown, enemyTurnsLeft: left } };
   }
-  if (s.pending.zhouYuFrozen && s.pending.zhouYuFrozen.untilSide === endingSide) {
-    s.pending = { ...s.pending, zhouYuFrozen: undefined };
+  if (s.pending.fanjianMark && s.pending.fanjianMark.untilSide === endingSide) {
+    s.pending = { ...s.pending, fanjianMark: undefined };
   }
   if (s.pending.danjing && s.pending.danjing.untilSide === endingSide) {
     s.pending = { ...s.pending, danjing: undefined };
@@ -1254,9 +1254,9 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
     consumeSkill(s, g, skill);
     s.pending = {
       ...s.pending,
-      zhouYuFrozen: { r: payload.pos.r, c: payload.pos.c, untilSide: opposite(side) },
+      fanjianMark: { pieceId: p.id, untilSide: opposite(side) },
     };
-    pushLog(s, `反间：${pieceLabel(p)} 下一回合无法移动`);
+    pushLog(s, `反间：标记 ${pieceLabel(p)}`);
     return s;
   }
 
@@ -1389,8 +1389,15 @@ export function makeMove(s0: GameState, from: Pos, to: Pos): GameState {
   const dests = listLegalFrom(s, from);
   if (!dests.some((d) => posEq(d, to))) return s0;
   const piece = getPiece(s.board, from)!;
+  let dest = to;
+  const mark = s.pending.fanjianMark;
+  if (mark && mark.untilSide === s.side && piece.id === mark.pieceId) {
+    const picked = pickFanjianDest(dests);
+    if (picked) dest = picked;
+    pushLog(s, '反间：随机落点');
+  }
   const prevAdjMover = countAdjacentPairs(s.board, piece.side);
-  const { board: nb, captured } = applyMove(s.board, from, to);
+  const { board: nb, captured } = applyMove(s.board, from, dest);
   s.board = nb;
   if (captured) {
     s.captured[captured.side] = [...s.captured[captured.side], asCaptured(captured)];
@@ -1399,16 +1406,16 @@ export function makeMove(s0: GameState, from: Pos, to: Pos): GameState {
   s.movedThisTurn = true;
   s.movesLeft = (s.movesLeft ?? 0) - 1;
   const fwd = piece.side === 'red' ? -1 : 1;
-  const pawnAdvance1 = piece.type === 'P' && to.r - from.r === fwd && to.c === from.c;
-  const river = maybeRiverCross(s, piece, to);
-  s.lastMove = { from: { ...from }, to: { ...to }, piece: { ...piece } };
+  const pawnAdvance1 = piece.type === 'P' && dest.r - from.r === fwd && dest.c === from.c;
+  const river = maybeRiverCross(s, piece, dest);
+  s.lastMove = { from: { ...from }, to: { ...dest }, piece: { ...piece } };
   s.moveSerial += 1;
   pushLog(
     s,
     describeMove({
       side: piece.side,
       from,
-      to,
+      to: dest,
       piece,
       flipped: !piece.revealed,
       captured,
@@ -1419,14 +1426,14 @@ export function makeMove(s0: GameState, from: Pos, to: Pos): GameState {
     captured,
     movedPiece: piece,
     from,
-    to,
+    to: dest,
     pawnAdvance1,
     riverCrossNew: river,
     prevAdjacentEnemy: prevAdjMover,
   });
 
   if (captured) {
-    applyXiahou(s, captured.side, to, { resumeTurn: s.movesLeft === 0 });
+    applyXiahou(s, captured.side, dest, { resumeTurn: s.movesLeft === 0 });
   }
 
   maybeTriggerYingshi(s, {
@@ -1435,12 +1442,6 @@ export function makeMove(s0: GameState, from: Pos, to: Pos): GameState {
   });
 
   maybeClearWushengGuard(s);
-  if (s.pending.zhouYuFrozen && posEq(s.pending.zhouYuFrozen, from)) {
-    s.pending = { ...s.pending, zhouYuFrozen: { ...s.pending.zhouYuFrozen, r: to.r, c: to.c } };
-  }
-  if (s.pending.zhouYuFrozen && captured && posEq({ r: s.pending.zhouYuFrozen.r, c: s.pending.zhouYuFrozen.c }, to)) {
-    s.pending = { ...s.pending, zhouYuFrozen: undefined };
-  }
 
   if (s.pending.ganglieDice) {
     finishIfOver(s, s.side);

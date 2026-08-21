@@ -319,7 +319,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhouyu-fanjian',
         name: '反间',
-        desc: '主动技。走棋阶段，你可以消耗3点战气，指定对方一枚棋子。该子于下个回合不能移动。',
+        desc: '主动技。走棋阶段，你可以消耗3点战气，标记对方一枚棋子。若其下回合行走该子，则改为随机落点。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
