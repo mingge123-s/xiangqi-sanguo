@@ -334,7 +334,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhouyu-huogong',
         name: '火攻',
-        desc: '被动技。己方以炮吃子时（该炮为明棋，或暗棋自炮位翻开成为明棋的那一步），战气+2。',
+        desc: '被动技。己方以明炮棋吃子时，战气+2。',
         kind: 'passive',
         engineKind: 'passive',
         nature: '被动技',
