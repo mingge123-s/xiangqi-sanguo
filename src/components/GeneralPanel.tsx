@@ -189,7 +189,7 @@ export function GeneralPanel({
     <QiMeter
       value={qi}
       compact={!mine}
-      className={mine ? '-mt-1.5 mb-2' : 'mt-1.5 mb-0'}
+      className={mine ? 'mt-1 mb-2' : 'mt-2 mb-0'}
     />
   );
 
