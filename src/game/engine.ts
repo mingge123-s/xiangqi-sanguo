@@ -15,7 +15,6 @@ import {
   inCheck,
   inPalace,
   isAdjacent,
-  isGameOver,
   kingsFace,
   onOwnHalf,
   elephantOwnSide,
@@ -30,6 +29,7 @@ import { dealGenerals, findOwnedSkill, isSkillReady, sideHasSkill } from './gene
 import type {
   GameState,
   GeneralRuntime,
+  Move,
   Piece,
   Pos,
   Side,
@@ -98,6 +98,10 @@ function cloneState(s: GameState): GameState {
     qi: { red: s.qi?.red ?? 0, black: s.qi?.black ?? 0 },
     movesLeft: s.movesLeft ?? 0,
     capturedThisTurn: !!s.capturedThisTurn,
+    checkStreak: {
+      red: s.checkStreak?.red ?? 0,
+      black: s.checkStreak?.black ?? 0,
+    },
   };
 }
 
@@ -312,8 +316,8 @@ export function listLegalMoves(s: GameState, side?: Side) {
   const sd = side ?? s.side;
   const moves = getAllLegalMoves(s.board, sd, legalOptions(s, sd));
   const zfId = s.pending.zhangFeiPieceId;
-  if (!zfId) return moves;
-  return moves.filter((m) => getPiece(s.board, m.from)?.id === zfId);
+  const scoped = zfId ? moves.filter((m) => getPiece(s.board, m.from)?.id === zfId) : moves;
+  return filterPerpetualChecks(s, sd, scoped);
 }
 
 export function listLegalFrom(s: GameState, from: Pos): Pos[] {
@@ -333,7 +337,7 @@ export function listLegalFrom(s: GameState, from: Pos): Pos[] {
   }
   const opt = legalOptions(s, s.side);
   const noCapture = !!(opt.noCapturePieceId && p.id === opt.noCapturePieceId);
-  return getLegalMoves(s.board, from, s.side, {
+  const dests = getLegalMoves(s.board, from, s.side, {
     noCapture,
     protectedPieceId: opt.protectedPieceId,
     protectedPieceIds: opt.protectedPieceIds,
@@ -341,6 +345,33 @@ export function listLegalFrom(s: GameState, from: Pos): Pos[] {
     mustNotCheck: opt.mustNotCheck,
     ignoreOwnCheck: opt.ignoreOwnCheck,
   });
+  if ((s.checkStreak?.[s.side] ?? 0) < 2) return dests;
+  return dests.filter((to) => !moveGivesCheck(s.board, from, to, s.side));
+}
+
+/** True if `from→to` leaves the opponent in check. */
+function moveGivesCheck(board: GameState['board'], from: Pos, to: Pos, side: Side): boolean {
+  const { board: nb } = applyMove(board, from, to);
+  return inCheck(nb, opposite(side));
+}
+
+/** Ban the 3rd consecutive check when this side already has streak === 2. */
+function filterPerpetualChecks(s: GameState, side: Side, moves: Move[]): Move[] {
+  if ((s.checkStreak?.[side] ?? 0) < 2) return moves;
+  return moves.filter((m) => !moveGivesCheck(s.board, m.from, m.to, side));
+}
+
+function updateCheckStreak(s: GameState, mover: Side): void {
+  const streak = {
+    red: s.checkStreak?.red ?? 0,
+    black: s.checkStreak?.black ?? 0,
+  };
+  if (inCheck(s.board, opposite(mover))) {
+    streak[mover] = streak[mover] + 1;
+  } else {
+    streak[mover] = 0;
+  }
+  s.checkStreak = streak;
 }
 
 export function skipKongcheng(s0: GameState): GameState {
@@ -589,6 +620,20 @@ export function whyIllegalDest(s: GameState, from: Pos, to: Pos): string | null 
   const noCapture = !!(opt.noCapturePieceId && p.id === opt.noCapturePieceId);
   const target = getPiece(s.board, to);
 
+  if ((s.checkStreak?.[s.side] ?? 0) >= 2) {
+    const geo = getLegalMoves(s.board, from, s.side, {
+      noCapture,
+      protectedPieceId: opt.protectedPieceId,
+      protectedPieceIds: opt.protectedPieceIds,
+      blockRiverCross: opt.blockRiverCross,
+      mustNotCheck: opt.mustNotCheck,
+      ignoreOwnCheck: opt.ignoreOwnCheck,
+    });
+    if (geo.some((d) => posEq(d, to)) && moveGivesCheck(s.board, from, to, s.side)) {
+      return '不能长将';
+    }
+  }
+
   if (noCapture && target && target.side !== s.side) {
     const withCap = getLegalMoves(s.board, from, s.side, {
       protectedPieceId: opt.protectedPieceId,
@@ -619,14 +664,40 @@ export function whyIllegalDest(s: GameState, from: Pos, to: Pos): string | null 
 }
 
 function finishIfOver(s: GameState, sideToMove: Side): void {
-  const { over, winner } = isGameOver(s.board, sideToMove, legalOptions(s, sideToMove));
-  if (over) {
+  if (!findKing(s.board, 'red')) {
+    s.winner = 'black';
+    s.phase = 'result';
+    pushLog(s, '黑方胜', 'black');
+    return;
+  }
+  if (!findKing(s.board, 'black')) {
+    s.winner = 'red';
+    s.phase = 'result';
+    pushLog(s, '红方胜', 'red');
+    return;
+  }
+  if (sideHasNoMove(s, sideToMove)) {
+    const winner = opposite(sideToMove);
     s.winner = winner;
     s.phase = 'result';
-    if (winner) {
-      pushLog(s, winner === 'red' ? '红方胜' : '黑方胜', winner);
-    }
+    pushLog(s, winner === 'red' ? '红方胜' : '黑方胜', winner);
   }
+}
+
+/** Board-legal moves for `side`, minus 长将 (3rd consecutive check) when streak >= 2. */
+function sideHasNoMove(s: GameState, side: Side): boolean {
+  if (s.side === side && (s.movesLeft ?? 0) > 0 && !pendingBlocksPlay(s)) {
+    return listLegalMoves(s, side).length === 0;
+  }
+  let moves = getAllLegalMoves(s.board, side, legalOptions(s, side));
+  const zfId = s.pending.zhangFeiPieceId;
+  if (zfId && s.side === side) {
+    moves = moves.filter((m) => getPiece(s.board, m.from)?.id === zfId);
+  }
+  if ((s.checkStreak?.[side] ?? 0) >= 2) {
+    moves = moves.filter((m) => !moveGivesCheck(s.board, m.from, m.to, side));
+  }
+  return moves.length === 0;
 }
 
 const GANGLIE_PIP: Record<number, string> = {
@@ -751,9 +822,7 @@ export function resolveGanglie(s0: GameState): GameState {
   if (s.winner || !resumeTurn) return s;
 
   const opp = opposite(s.side);
-  const oppOver = isGameOver(s.board, opp, legalOptions(s, opp));
-  const kingsGone = !findKing(s.board, 'red') || !findKing(s.board, 'black');
-  if (kingsGone || oppOver.over) {
+  if (!findKing(s.board, 'red') || !findKing(s.board, 'black') || sideHasNoMove(s, opp)) {
     endTurn(s);
     return s;
   }
@@ -1011,6 +1080,7 @@ export function createHomeState(): GameState {
     peekedIds: emptyPeeked(),
     qi: { red: QI_START, black: QI_START },
     capturedThisTurn: false,
+    checkStreak: { red: 0, black: 0 },
   };
 }
 
@@ -1416,9 +1486,7 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
     if (s.winner) return s;
     if (s.movesLeft > 0) return s;
     const opp = opposite(s.side);
-    const oppOver = isGameOver(s.board, opp, legalOptions(s, opp));
-    const kingsGone = !findKing(s.board, 'red') || !findKing(s.board, 'black');
-    if (kingsGone || oppOver.over) {
+    if (!findKing(s.board, 'red') || !findKing(s.board, 'black') || sideHasNoMove(s, opp)) {
       endTurn(s);
       return s;
     }
@@ -1689,6 +1757,8 @@ export function makeMove(s0: GameState, from: Pos, to: Pos): GameState {
     prevAdjacentEnemy: prevAdjMover,
   });
 
+  updateCheckStreak(s, piece.side);
+
   if (captured) {
     applyXiahou(s, captured.side, dest, { resumeTurn: s.movesLeft === 0 });
   }
@@ -1712,9 +1782,7 @@ export function makeMove(s0: GameState, from: Pos, to: Pos): GameState {
   }
 
   const opp = opposite(s.side);
-  const oppOver = isGameOver(s.board, opp, legalOptions(s, opp));
-  const kingsGone = !findKing(s.board, 'red') || !findKing(s.board, 'black');
-  if (kingsGone || oppOver.over) {
+  if (!findKing(s.board, 'red') || !findKing(s.board, 'black') || sideHasNoMove(s, opp)) {
     endTurn(s);
     return s;
   }
