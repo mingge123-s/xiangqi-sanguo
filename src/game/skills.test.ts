@@ -890,9 +890,21 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(!live!.includes('操控') && !live!.includes('劫持'), 'skillLiveState has no hijack wording');
 }
 
-// 夏侯惇 · 刚烈 d6
+// 夏侯惇 · 刚烈 d6（耗 5 战气抛骰；偶恢复 2）
 {
-  // First capture reveals 夏侯惇 and sets pending dice
+  const ganglie = GENERALS.find((d) => d.id === 'xiahoudun')!.skills.find((sk) => sk.id === 'xiahoudun-ganglie')!;
+  assert(
+    ganglie.desc ===
+      '被动技。每当对方以非将帅棋吃掉己方棋子时，消耗5点战气，抛一枚六面骰。奇数则该子与被吃子同归于尽；偶数则恢复2点战气。对方第一次吃掉己方棋子时，揭示此武将。',
+    '刚烈 desc exact',
+  );
+  assert(ganglie.qiCost === 5, '刚烈 qiCost 5 (wiki badge; still passive)');
+  assert(ganglie.nature === '被动技' && ganglie.phase === null, '刚烈 stays 被动技 / phase null');
+  assert(ganglie.kind === 'passive' && ganglie.engineKind === 'passive', '刚烈 not click-to-cast');
+}
+
+{
+  // First capture reveals 夏侯惇, spends 5 qi, sets pending dice
   let s = base();
   s.redGenerals = [];
   s.blackGenerals = [defToRuntime(GENERALS.find((d) => d.id === 'xiahoudun')!, true)];
@@ -902,26 +914,30 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board[7][0] = P('R', 'red', 'rr');
   s.board[0][0] = P('A', 'black', 'ba', { revealed: false });
   s.board[5][4] = P('P', 'red', 'block');
+  const qiStart = s.qi.black;
   __testSetGanglieRoll(3);
   s = makeMove(s, { r: 7, c: 0 }, { r: 0, c: 0 });
   assert(s.blackGenerals[0] && !s.blackGenerals[0].hidden, 'First capture still reveals 夏侯惇');
   assert(!!s.pending.ganglieDice, 'non-king capture sets pending.ganglieDice');
   assert(s.pending.ganglieDice!.roll === 3, 'injected roll is stored');
+  assert(s.qi.black === qiStart - 5, 'spend 5 战气 when arming dice');
   assert(s.skillBroadcast?.skill === '刚烈', '刚烈 broadcasts when dice is thrown');
   assert(!!s.board[0][0], 'capturer stays until resolve');
   assert(s.side === 'red', 'turn does not end while dice pending');
 
-  // Odd roll destroys capturer
+  // Odd roll destroys capturer; does not restore the 5 (resolve may grant turn-start +1)
+  const qiAfterSpend = s.qi.black;
   s = resolveGanglie(s);
   assert(!s.pending.ganglieDice, 'resolve clears ganglieDice');
   assert(!s.board[0][0], 'odd roll destroys capturer');
   assert(s.captured.red.some((p) => p.id === 'rr'), 'capturer goes to captured');
   assert(s.log.some((l) => l.text.includes('同归于尽')), 'odd log 同归于尽');
+  assert(s.qi.black === qiAfterSpend + 1, 'odd does not restore qi (only turn-start +1)');
   assert(s.side === 'black', 'resolve ends turn after makeMove-style capture');
 }
 
 {
-  // Even roll leaves capturer
+  // Even roll leaves capturer and restores 2 战气 (net start−5+2)
   let s = base();
   s.redGenerals = [];
   s.blackGenerals = [defToRuntime(GENERALS.find((d) => d.id === 'xiahoudun')!, false)];
@@ -931,12 +947,40 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board[7][0] = P('R', 'red', 'rr');
   s.board[0][0] = P('A', 'black', 'ba');
   s.board[5][4] = P('P', 'red', 'block');
+  const qiStart = s.qi.black;
   __testSetGanglieRoll(4);
   s = makeMove(s, { r: 7, c: 0 }, { r: 0, c: 0 });
   assert(s.pending.ganglieDice?.roll === 4, 'even roll pending');
+  assert(s.qi.black === qiStart - 5, 'even path also spends 5 before resolve');
   s = resolveGanglie(s);
   assert(s.board[0][0]?.id === 'rr', 'even roll leaves capturer');
-  assert(s.log.some((l) => l.text.includes('四点') && l.text.includes('未触发')), 'even log includes pip');
+  // resolve ends turn → victim turn-start +1 on top of even restore +2
+  assert(s.qi.black === qiStart - 5 + 2 + 1, 'even restores 2 (qi = start−5+2, then turn-start +1)');
+  assert(s.log.some((l) => l.text.includes('四点') && l.text.includes('恢复2点战气')), 'even log 恢复2点战气');
+  assert(!s.log.some((l) => l.text.includes('未触发')), 'even log no longer says 未触发');
+}
+
+{
+  // qi < 5: reveal still, no spend, no dice, no broadcast
+  let s = base();
+  s.redGenerals = [];
+  s.blackGenerals = [defToRuntime(GENERALS.find((d) => d.id === 'xiahoudun')!, true)];
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[7][0] = P('R', 'red', 'rr');
+  s.board[0][0] = P('A', 'black', 'ba');
+  s.board[5][4] = P('P', 'red', 'block');
+  s.qi = { ...s.qi, black: 4 };
+  s.skillBroadcast = null;
+  __testSetGanglieRoll(1);
+  s = makeMove(s, { r: 7, c: 0 }, { r: 0, c: 0 });
+  assert(!s.blackGenerals[0].hidden, 'qi<5 still reveals 夏侯惇 on first capture');
+  assert(!s.pending.ganglieDice, 'qi<5 skips dice');
+  // no dice → turn ends immediately; black turn-start +1 (4→5), never spent 5
+  assert(s.qi.black === 5, 'qi<5 does not spend (only turn-start +1)');
+  assert(s.skillBroadcast?.skill !== '刚烈', 'qi<5 no 刚烈 broadcast');
+  assert(s.board[0][0]?.id === 'rr', 'capturer survives when no dice');
 }
 
 {
@@ -948,10 +992,12 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board[9][4] = P('K', 'red', 'rk');
   s.board[0][3] = P('K', 'black', 'bk');
   s.board[8][4] = P('A', 'black', 'victim');
+  const qiStart = s.qi.black;
   __testSetGanglieRoll(1);
   s = makeMove(s, { r: 9, c: 4 }, { r: 8, c: 4 });
   assert(!s.blackGenerals[0].hidden, 'king capture still reveals 夏侯惇');
   assert(!s.pending.ganglieDice, 'king capturer does not roll');
+  assert(s.qi.black === qiStart, 'king capturer does not spend qi');
   assert(s.board[8][4]?.id === 'rk', 'king capturer not destroyed');
   assert(!s.captured.red.some((p) => p.id === 'rk'), 'king not in captured');
 }
