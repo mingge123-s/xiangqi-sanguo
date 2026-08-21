@@ -100,6 +100,8 @@ export interface PendingEffects {
   wushengGuard?: { pieceId: string; owner: Side };
   /** 周瑜反间：标记对方一子，其下回合若行走该子则随机落点。 */
   fanjianMark?: { pieceId: string; untilSide: Side };
+  /** 华佗青囊：本回合刚被随机挪动的己方子；untilSide=施法方，其回合结束时清除。 */
+  qingnangMark?: { pieceId: string; untilSide: Side };
   /** 咆哮：锁定本回合可连走的棋子；步数预算见 GameState.movesLeft。 */
   zhangFeiPieceId?: string;
   kongcheng?: { pieceId: string; untilSide: Side };
