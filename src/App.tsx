@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { BattleLogPanel } from './components/BattleLogPanel';
 import { Board } from './components/Board';
 import { CapturedRail } from './components/CapturedRail';
 import { GeneralDetail } from './components/GeneralDetail';
@@ -88,6 +89,7 @@ export default function App() {
   const turnSeen = useRef<{ phase: string; side: string } | null>(null);
   const [centerPrompt, setCenterPrompt] = useState<string | null>(null);
   const promptTimer = useRef<number | null>(null);
+  const [logOpen, setLogOpen] = useState(false);
 
   const showCenterPrompt = useCallback((text: string) => {
     if (promptTimer.current != null) window.clearTimeout(promptTimer.current);
@@ -145,6 +147,10 @@ export default function App() {
       : state.pending.lijianMark && state.pending.lijianMark.untilSide === state.side
         ? state.pending.lijianMark.pieceId
         : undefined;
+
+  useEffect(() => {
+    if (state.phase !== 'playing') setLogOpen(false);
+  }, [state.phase]);
 
   useEffect(() => {
     if (state.phase !== 'playing') {
@@ -439,6 +445,12 @@ export default function App() {
               </div>
               <CapturedRail pieces={state.captured.black} align="bottom" />
             </div>
+            <BattleLogPanel
+              open={logOpen}
+              onToggle={() => setLogOpen((v) => !v)}
+              onClose={() => setLogOpen(false)}
+              log={state.log}
+            />
           </div>
 
           {/* Player status + red prompts — one strip at board bottom (priority: 将军>思考>过五关>观星/鹰视/空城>targeting>咆哮>回合; lastLine waits for windows) */}
