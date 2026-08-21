@@ -1459,6 +1459,77 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
   assert(!s.skillBroadcast || s.skillBroadcast.skill !== '破军', 'no 破军 splash');
 }
 
+// 火攻: desc exact; 明炮吃子 +2; 暗棋自炮位翻开吃子不加; 被动技 / phase null
+{
+  const huogong = GENERALS.find((d) => d.id === 'zhouyu')!.skills.find((x) => x.id === 'zhouyu-huogong')!;
+  assert(huogong.desc === '被动技。己方以明炮棋吃子时，战气+2。', '火攻 desc exact');
+  assert(huogong.nature === '被动技', '火攻 labeled 被动技');
+  assert(skillPhaseOf(huogong) === null, '火攻 phase null');
+  assert(skillTypeLabel(huogong) === '被动技', '火攻 skillTypeLabel 被动技');
+}
+
+{
+  let s = base();
+  s.qi = { red: 0, black: 0 };
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'zhouyu')!, false))];
+  s.blackGenerals = [];
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[7][0] = P('C', 'red', 'rc');
+  s.board[5][0] = P('P', 'red', 'screen');
+  s.board[0][0] = P('A', 'black', 'ba');
+  s = settle(makeMove(s, { r: 7, c: 0 }, { r: 0, c: 0 }));
+  assert(s.qi.red === 2, '明炮吃子 火攻 +2');
+}
+
+{
+  let s = base();
+  s.qi = { red: 0, black: 0 };
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'zhouyu')!, false))];
+  s.blackGenerals = [];
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  // Dark piece on 炮 seat (coverType C): capture flips this step — no 火攻
+  s.board[7][0] = P('C', 'red', 'dark-c', { revealed: false, coverType: 'C' });
+  s.board[5][0] = P('P', 'red', 'screen');
+  s.board[0][0] = P('A', 'black', 'ba');
+  s = settle(makeMove(s, { r: 7, c: 0 }, { r: 0, c: 0 }));
+  assert(s.qi.red === 0, '暗棋自炮位翻开吃子 火攻不加');
+  assert(getPiece(s.board, { r: 0, c: 0 })?.revealed === true, '暗棋翻开成为明棋');
+}
+
+{
+  let s = base();
+  s.qi = { red: 0, black: 0 };
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'zhouyu')!, false))];
+  s.blackGenerals = [];
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  // True 炮 still hidden, walking by non-cannon cover — no 火攻
+  s.board[6][0] = P('C', 'red', 'hidden-c', { revealed: false, coverType: 'P' });
+  s.board[5][0] = P('A', 'black', 'ba');
+  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
+  assert(s.qi.red === 0, '暗炮以盖面走法吃子 火攻不加');
+}
+
+{
+  let s = base();
+  s.qi = { red: 0, black: 0 };
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'zhouyu')!, false))];
+  s.blackGenerals = [];
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[7][0] = P('R', 'red', 'rr');
+  s.board[0][0] = P('A', 'black', 'ba');
+  s.board[5][4] = P('P', 'red', 'block');
+  s = settle(makeMove(s, { r: 7, c: 0 }, { r: 0, c: 0 }));
+  assert(s.qi.red === 0, '非炮吃子无火攻');
+}
+
 // Nature + phase axes
 {
   const expect: Record<string, { nature: string; phase: string | null }> = {

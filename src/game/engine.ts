@@ -208,11 +208,11 @@ function applyCapturePassives(
   if (sideHasSkill(sideGens(s, mover), 'zhangfei-pojun')) {
     addQi(s, mover, 1);
   }
-  const cannonHit =
-    !!moverPiece &&
-    ((moverPiece.revealed && moverPiece.type === 'C') ||
-      (!moverPiece.revealed && moverPiece.coverType === 'C'));
-  if (cannonHit && sideHasSkill(sideGens(s, mover), 'zhouyu-huogong')) {
+  // moverPiece is the pre-move snapshot from makeMove (before applyMove reveals).
+  // 火攻: +2 only for an already-revealed 炮 (明炮棋); dark-on-cannon-seat flip captures do not count.
+  const mingPao =
+    !!moverPiece && moverPiece.revealed && moverPiece.type === 'C';
+  if (mingPao && sideHasSkill(sideGens(s, mover), 'zhouyu-huogong')) {
     addQi(s, mover, 2);
   }
   if (
