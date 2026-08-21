@@ -426,7 +426,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'lvbu-chitu',
         name: '赤兔',
-        desc: '主动技。走棋阶段，你可以消耗6点战气，指定己方一枚明棋兵或卒，令其在原地变为马（同方、仍为明棋）。发动后揭示吕布。',
+        desc: '主动技。走棋阶段，你可以消耗6点战气，指定己方一枚明棋兵卒棋，令其在所在位置变为马。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -440,7 +440,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'lvbu-wushuang',
         name: '无双',
-        desc: '限定技。走棋阶段，你可以发动无双：在此后的3个己方回合内（发动当回合计1），己方将帅棋无法被吃，且无法被将军。',
+        desc: '限定技。走棋阶段，你可以发动无双：在你之后的3个敌方回合内，己方将帅棋无法被吃，且无法被将军。',
         kind: 'active',
         engineKind: 'limited',
         nature: '限定技',

@@ -726,7 +726,7 @@ function endTurn(s: GameState): void {
   if (s.pending.guicaiLock && s.pending.guicaiLock.untilSide === endingSide) {
     s.pending = { ...s.pending, guicaiLock: undefined };
   }
-  if (s.pending.wushuang && s.pending.wushuang.owner === endingSide) {
+  if (s.pending.wushuang && s.pending.wushuang.owner !== endingSide) {
     const left = s.pending.wushuang.turnsLeft - 1;
     s.pending =
       left <= 0
@@ -1313,7 +1313,7 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
   if (skillId === 'lvbu-wushuang') {
     consumeSkill(s, g, skill);
     s.pending = { ...s.pending, wushuang: { owner: side, turnsLeft: 3 } };
-    pushLog(s, '无双：将帅三回合内不可被吃、不可被将军');
+    pushLog(s, '无双：之后3个敌方回合内将帅不可被吃、不可被将军');
     return s;
   }
 
@@ -1548,7 +1548,7 @@ export function skillLiveState(s: GameState, skillId: string, viewer: Side = 're
     if (!owned) return null;
     const wu = s.pending.wushuang;
     if (wu && wu.owner === viewer && wu.turnsLeft > 0) {
-      return `无双剩余 ${wu.turnsLeft} 回合`;
+      return `无双剩余 ${wu.turnsLeft} 敌方回合`;
     }
     if (owned.skill.uses >= owned.skill.maxUses) return '本局已发动';
     return '尚未发动';
