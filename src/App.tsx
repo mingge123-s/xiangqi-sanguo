@@ -60,7 +60,7 @@ function hintFor(id: string): string {
     case 'zhouyu-fanjian':
       return '反间：点选对方一子，其下回合若走该子则随机落点';
     case 'sunshangxiang-lianyin':
-      return '联姻：点选己方一枚已过河的棋子';
+      return '联姻：点选己方一枚非将帅明棋，移至对方半场随机空位';
     case 'lvbu-chitu':
       return '赤兔：点选己方明棋兵或卒，令其化为马';
     case 'lvbu-wushuang':

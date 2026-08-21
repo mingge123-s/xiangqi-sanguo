@@ -620,13 +620,64 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
 
 // 孙尚香 联姻
 {
+  const lianyin = GENERALS.find((d) => d.id === 'sunshangxiang')!.skills.find((x) => x.id === 'sunshangxiang-lianyin')!;
+  assert(lianyin.desc === '主动技。走棋阶段，你可以消耗5点战气，指定己方一枚非将帅明棋，将其移至对方半场的随机空位。', '联姻 desc exact');
+  assert(lianyin.qiCost === 5, '联姻 qiCost 5');
   let s = base();
-  s.board[4][1] = P('N', 'red', 'crossed-n');
-  s = useSkill(s, 'sunshangxiang-lianyin', { kind: 'pos', pos: { r: 4, c: 1 } });
-  const stillThere = getPiece(s.board, { r: 4, c: 1 });
-  const onOwn = s.board.flatMap((row, r) => row.map((p, c) => ({ p, r, c }))).find((x) => x.p?.id === 'crossed-n');
-  assert(onOwn && onOwn.r >= 5, '孙尚香 recalled piece to red half');
-  assert(!stillThere || stillThere.id !== 'crossed-n' || onOwn.r === 4, 'moved off far side');
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[6][1] = P('N', 'red', 'rn');
+  s.board[7][3] = P('A', 'red', 'ra');
+  s.board[6][2] = P('R', 'red', 'dark-r', { revealed: false, coverType: 'P' });
+  s.board[4][0] = P('P', 'red', 'already-far');
+  const qiBefore = s.qi.red;
+  const movesBefore = s.movesLeft;
+  const t = validSkillTargets(s, 'sunshangxiang-lianyin');
+  assert(t.positions.some((p) => p.r === 6 && p.c === 1), '联姻 can target own-half 明棋');
+  assert(t.positions.some((p) => p.r === 4 && p.c === 0), '联姻 no longer requires 已过河');
+  assert(t.positions.some((p) => p.r === 7 && p.c === 3), '联姻 can designate 士');
+  assert(!t.positions.some((p) => p.r === 9 && p.c === 4), '联姻 cannot target 将帅');
+  assert(!t.positions.some((p) => p.r === 6 && p.c === 2), '联姻 cannot target 暗棋');
+  s = useSkill(s, 'sunshangxiang-lianyin', { kind: 'pos', pos: { r: 6, c: 1 } });
+  const hit = s.board.flatMap((row, r) => row.map((p, c) => ({ p, r, c }))).find((x) => x.p?.id === 'rn');
+  assert(!!hit && hit.r <= 4, '联姻 lands on enemy half');
+  assert(!getPiece(s.board, { r: 6, c: 1 }), '联姻 leaves origin');
+  assert(s.qi.red === qiBefore - 5, '联姻 costs 5 战气');
+  assert(s.movesLeft === movesBefore, '联姻 leaves movesLeft unchanged');
+  assert(s.side === 'red', '联姻 does not end turn');
+  assert(s.log.every((x) => !x.text.includes('落空')), '联姻 has no 落空 filler');
+  assert(s.log.some((x) => x.text.includes('移至')), '联姻 logs 移至');
+}
+
+// 孙尚香 联姻：暗棋 / 将帅 / 士无落点 均不发动
+{
+  let s = base();
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[6][2] = P('R', 'red', 'dark-r', { revealed: false, coverType: 'P' });
+  s.board[7][3] = P('A', 'red', 'ra');
+  const qiBefore = s.qi.red;
+  let after = useSkill(s, 'sunshangxiang-lianyin', { kind: 'pos', pos: { r: 6, c: 2 } });
+  assert(getPiece(after.board, { r: 6, c: 2 })?.id === 'dark-r', '联姻 rejects 暗棋');
+  assert(after.qi.red === qiBefore, '暗棋 reject keeps qi');
+  after = useSkill(s, 'sunshangxiang-lianyin', { kind: 'pos', pos: { r: 9, c: 4 } });
+  assert(getPiece(after.board, { r: 9, c: 4 })?.id === 'rk', '联姻 rejects 将帅');
+  assert(after.qi.red === qiBefore, '将帅 reject keeps qi');
+  after = useSkill(s, 'sunshangxiang-lianyin', { kind: 'pos', pos: { r: 7, c: 3 } });
+  assert(getPiece(after.board, { r: 7, c: 3 })?.id === 'ra', '士 stays: no enemy-half palace');
+  assert(after.qi.red === qiBefore, '士 no-dest keeps qi');
+  assert(sk(after, 'sunshangxiang-lianyin').uses === 0, '士 no-dest does not consume uses');
+}
+
+// 孙尚香 联姻：无合法目标则不可发动
+{
+  let s = base();
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  assert(canUseSkill(s, 'sunshangxiang-lianyin') === false, '联姻 blocked with no 非将帅明棋');
 }
 
 // 甘宁 奇袭
