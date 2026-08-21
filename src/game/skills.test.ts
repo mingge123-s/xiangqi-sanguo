@@ -564,7 +564,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
 // 周瑜 反间：标记后行走该子则随机落点
 {
   const fanjian = GENERALS.find((d) => d.id === 'zhouyu')!.skills.find((x) => x.id === 'zhouyu-fanjian')!;
-  assert(fanjian.desc === '主动技。走棋阶段，你可以消耗3点战气，标记对方一枚棋子。若其下回合行走该子，则改为随机落点。', '反间 desc exact');
+  assert(fanjian.desc === '主动技。走棋阶段，你可以消耗5点战气，标记对方一枚棋子。若其下回合行走该子，则改为随机落点。', '反间 desc exact');
   let s = base();
   s.board = emptyBoard();
   s.board[9][4] = P('K', 'red', 'rk');
@@ -580,7 +580,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s = useSkill(s, 'zhouyu-fanjian', { kind: 'pos', pos: { r: 0, c: 0 } });
   assert(s.pending.fanjianMark?.pieceId === 'br', '反间 marks black rook by id');
   assert(s.pending.fanjianMark?.untilSide === 'black', '反间 until victim turn');
-  assert(s.qi.red === qiBefore - 3, '反间 costs 3');
+  assert(s.qi.red === qiBefore - 5, '反间 costs 5');
   assert(s.side === 'red', '反间 does not end turn');
   assert(s.movesLeft === movesBefore, '反间 does not spend movesLeft');
   s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
@@ -636,7 +636,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s = useSkill(s, 'ganning-chaiqiao', { kind: 'none' });
   assert(s.pending.bridgeDown?.owner === 'red' && s.pending.bridgeDown?.enemyTurnsLeft === 2, '奇袭 armed for 2 enemy turns');
   assert(!g(s, 'ganning').hidden, '甘宁 revealed');
-  assert(s.qi.red === qiBefore - 3, '奇袭 costs 3 战气');
+  assert(s.qi.red === qiBefore - 5, '奇袭 costs 5 战气');
   assert(s.skillBroadcast?.skill === '奇袭', 'broadcast 奇袭');
   assert(canUseSkill(s, 'ganning-chaiqiao') === false, '奇袭 not reusable same turn after cast');
   assert(listLegalFrom(s, { r: 6, c: 4 }).some((m) => m.r === 5 && m.c === 4), 'red pawn 6->5 is not a cross');
