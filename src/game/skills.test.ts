@@ -2163,4 +2163,64 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
   }
 }
 
+// 啖睛：skillLiveState 指出哪枚；暗棋写「暗棋」+坐标，禁止真身
+{
+  let s = base();
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'xiahoudun')!, false))];
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[0][0] = P('R', 'black', 'br');
+  s.qi = { ...s.qi, red: 10 };
+  assert(skillLiveState(s, 'xiahoudun-danjing', 'red') === null, '啖睛 liveState null before cast');
+  s = useSkill(s, 'xiahoudun-danjing', { kind: 'pos', pos: { r: 0, c: 0 } });
+  const live = skillLiveState(s, 'xiahoudun-danjing', 'red');
+  assert(!!live && live.includes('車') && live.includes('(0,0)'), '啖睛 liveState names revealed piece + coord');
+  s.board[0][0] = P('R', 'black', 'br', { revealed: false, coverType: 'P' });
+  const darkLive = skillLiveState(s, 'xiahoudun-danjing', 'red');
+  assert(!!darkLive && darkLive.includes('暗棋') && darkLive.includes('(0,0)'), '啖睛暗棋 liveState uses 暗棋+coord');
+  assert(!/[馬車炮仕相兵士象卒将帅]/.test(darkLive!), '啖睛暗棋 liveState hides true type');
+}
+
+// 奇袭：skillLiveState 含剩余回合；未发动则 null
+{
+  let s = base();
+  assert(skillLiveState(s, 'ganning-chaiqiao', 'red') === null, '奇袭 liveState null before cast');
+  s = useSkill(s, 'ganning-chaiqiao', { kind: 'none' });
+  const live = skillLiveState(s, 'ganning-chaiqiao', 'red');
+  assert(!!live && live.includes('奇袭中') && live.includes('2'), '奇袭 liveState shows remaining turns');
+  s.pending = { ...s.pending, bridgeDown: { owner: 'red', enemyTurnsLeft: 1 } };
+  const live1 = skillLiveState(s, 'ganning-chaiqiao', 'red');
+  assert(!!live1 && live1.includes('1'), '奇袭 liveState updates remaining turns');
+}
+
+// 空城：liveState 暗棋不露真身
+{
+  let s = base();
+  s.qi = { ...s.qi, red: Math.max(s.qi.red, 3) };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[2][0] = P('N', 'red', 'victim', { revealed: false, coverType: 'P' });
+  s.board[6][0] = P('P', 'red', 'rp');
+  s = makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 });
+  s = useSkill(s, 'zhuge-kongcheng', { kind: 'pos', pos: { r: 2, c: 0 } });
+  const live = skillLiveState(s, 'zhuge-kongcheng', 'red');
+  assert(!!live && live.includes('庇护中') && live.includes('暗棋') && live.includes('(2,0)'), '空城暗棋 liveState uses 暗棋');
+  assert(!live!.includes('馬') && !live!.includes('兵'), '空城暗棋 liveState hides true/cover type chars');
+}
+
+// 武圣：liveState 暗棋不露真身（目标通常为明棋；直接注入 pending 做防御性校验）
+{
+  const s = base();
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[9][0] = P('R', 'red', 'rr', { revealed: false, coverType: 'P' });
+  s.pending = { ...s.pending, wushengGuard: { pieceId: 'rr', owner: 'red' } };
+  const live = skillLiveState(s, 'guanyu-wusheng', 'red');
+  assert(!!live && live.includes('受护中') && live.includes('暗棋') && live.includes('(9,0)'), '武圣暗棋 liveState uses 暗棋');
+  assert(!live!.includes('車') && !live!.includes('兵'), '武圣暗棋 liveState hides true type');
+}
+
 console.log(`\n${passed} skill/engine checks passed`);
