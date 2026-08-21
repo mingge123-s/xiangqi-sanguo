@@ -227,15 +227,142 @@ body {
   line-height: 1.4;
 }
 
-.play-log {
-  display: none;
-}
-
 .play-log-line {
   font-size: 15px;
   letter-spacing: 0.06em;
   color: #2c2418;
   max-width: 100%;
+}
+
+/* 战斗记录：棋盘右缘小签，展开为宣纸战报 */
+.battle-log {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.battle-log-tab {
+  pointer-events: auto;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: 0.28em;
+  font-family: var(--font-serif);
+  font-size: 13px;
+  line-height: 1.2;
+  padding: 10px 5px;
+  color: #5a4630;
+  background:
+    linear-gradient(165deg, rgba(250, 244, 228, 0.96) 0%, rgba(236, 224, 196, 0.94) 100%);
+  border: 1px solid rgba(138, 115, 73, 0.45);
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  box-shadow:
+    -1px 1px 3px rgba(42, 34, 24, 0.12),
+    inset 0 1px 0 rgba(255, 250, 235, 0.65);
+  cursor: pointer;
+}
+
+.battle-log-open .battle-log-tab {
+  visibility: hidden;
+}
+
+.battle-log-backdrop {
+  pointer-events: auto;
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: rgba(42, 34, 24, 0.22);
+  cursor: pointer;
+}
+
+.battle-log-panel {
+  pointer-events: auto;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: min(248px, calc(100% - 36px));
+  height: 48%;
+  max-height: 55%;
+  min-height: 40%;
+  display: flex;
+  flex-direction: column;
+  background:
+    linear-gradient(160deg, #faf4e4 0%, #f0e6d0 48%, #e8dcc4 100%);
+  border: 1px solid rgba(138, 115, 73, 0.5);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  box-shadow:
+    -4px 2px 18px rgba(42, 34, 24, 0.18),
+    inset 0 1px 0 rgba(255, 250, 235, 0.7);
+  overflow: hidden;
+}
+
+.battle-log-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  color: #3d3224;
+}
+
+.battle-log-title {
+  font-size: 15px;
+  letter-spacing: 0.28em;
+}
+
+.battle-log-close {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: #8a7349;
+}
+
+.battle-log-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 12px 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.battle-log-empty {
+  padding: 18px 4px;
+  text-align: center;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  color: #8a7349;
+}
+
+.battle-log-entry {
+  font-size: 12px;
+  line-height: 1.55;
+  letter-spacing: 0.04em;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(138, 115, 73, 0.14);
+}
+
+.battle-log-entry-red {
+  color: #9a3a30;
+}
+
+.battle-log-entry-black {
+  color: #2a2520;
 }
 
 .play-generals-me {
