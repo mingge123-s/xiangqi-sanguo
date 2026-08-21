@@ -354,7 +354,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'sunshangxiang-lianyin',
         name: '联姻',
-        desc: '主动技。走棋阶段，你可以消耗2点战气，指定己方一枚已过河的棋子，将其移至己方半场的随机空位。',
+        desc: '主动技。走棋阶段，你可以消耗5点战气，指定己方一枚非将帅明棋，将其移至对方半场的随机空位。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -363,7 +363,7 @@ export const GENERALS: GeneralDef[] = [
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 2,
+        qiCost: 5,
       },
       {
         id: 'sunshangxiang-xiaoji',

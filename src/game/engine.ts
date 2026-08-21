@@ -940,6 +940,7 @@ export function canUseSkill(s: GameState, skillId: string): boolean {
   if (s.skillUsedThisTurn) return false;
   if (skillId === 'zhaoyun-longhun' && (s.movedThisTurn || (s.movesLeft ?? 0) <= 0)) return false;
   if (skillId === 'caocao-guixin' && enemiesInOwnPalace(s, s.side).length === 0) return false;
+  if (skillId === 'sunshangxiang-lianyin' && lianyinTargets(s, s.side).length === 0) return false;
   const owned = findOwnedSkill(sideGens(s, s.side), skillId);
   if (!owned) return false;
   return isSkillReady(owned.skill, s.qi[s.side] ?? 0);
@@ -1008,10 +1009,7 @@ export function validSkillTargets(s: GameState, skillId: string): {
     return { mode: 'enemy', positions: allPieces(s.board, opposite(side)).map((x) => x.pos) };
   }
   if (skillId === 'sunshangxiang-lianyin') {
-    const positions = allPieces(s.board, side)
-      .filter((x) => crossedRiver(x.pos.r, side))
-      .map((x) => x.pos);
-    return { mode: 'crossed', positions };
+    return { mode: 'ownPiece', positions: lianyinTargets(s, side) };
   }
   if (skillId === 'zhuge-guanxing') {
     const positions = allPieces(s.board)
@@ -1040,6 +1038,12 @@ function pieceCanTeleportSit(p: Piece, pos: Pos): boolean {
   if (p.type === 'A') return inPalace(pos.r, pos.c, p.side);
   if (p.type === 'B') return p.revealed || elephantOwnSide(pos.r, p.side);
   return true;
+}
+
+function lianyinTargets(s: GameState, side: Side): Pos[] {
+  return allPieces(s.board, side)
+    .filter((x) => x.piece.revealed && x.piece.type !== 'K')
+    .map((x) => x.pos);
 }
 
 function qingnangPairs(s: GameState, side: Side): { from: Pos; to: Pos; piece: Piece }[] {
@@ -1263,20 +1267,20 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
   if (skillId === 'sunshangxiang-lianyin') {
     if (payload.kind !== 'pos') return s0;
     const p = getPiece(s.board, payload.pos);
-    if (!p || p.side !== side || !crossedRiver(payload.pos.r, side)) return s0;
+    if (!p || p.side !== side || !p.revealed || p.type === 'K') return s0;
+    const spots = emptySquares(
+      s.board,
+      (r, c) => !onOwnHalf(r, p.side) && pieceCanTeleportSit(p, { r, c }),
+    );
+    if (spots.length === 0) return s0;
     consumeSkill(s, g, skill);
-    const spots = emptySquares(s.board, (r) => onOwnHalf(r, side));
-    if (spots.length === 0) {
-      pushLog(s, '联姻：己方半场无空位，落空');
-      return s;
-    }
     const dest = pickRandom(spots)!;
     const prevAdj = countAdjacentPairs(s.board, p.side);
     const nb = cloneBoard(s.board);
     nb[dest.r][dest.c] = p;
     nb[payload.pos.r][payload.pos.c] = null;
     s.board = nb;
-    pushLog(s, `联姻：${pieceLabel(p)} 回撤至 ${squareName(dest)}`);
+    pushLog(s, `联姻：${pieceLabel(p)} 移至 ${squareName(dest)}`);
     afterBoardMutation(s, side, {
       movedPiece: p,
       from: payload.pos,
