@@ -62,6 +62,7 @@ function cloneState(s: GameState): GameState {
       awaitKongcheng: s.pending.awaitKongcheng,
       wushengGuard: s.pending.wushengGuard ? { ...s.pending.wushengGuard } : undefined,
       fanjianMark: s.pending.fanjianMark ? { ...s.pending.fanjianMark } : undefined,
+      qingnangMark: s.pending.qingnangMark ? { ...s.pending.qingnangMark } : undefined,
       zhangFeiPieceId: s.pending.zhangFeiPieceId,
       kongcheng: s.pending.kongcheng ? { ...s.pending.kongcheng } : undefined,
       danjing: s.pending.danjing ? { ...s.pending.danjing } : undefined,
@@ -1015,6 +1016,9 @@ function endTurn(s: GameState): void {
   if (s.pending.fanjianMark && s.pending.fanjianMark.untilSide === endingSide) {
     s.pending = { ...s.pending, fanjianMark: undefined };
   }
+  if (s.pending.qingnangMark && s.pending.qingnangMark.untilSide === endingSide) {
+    s.pending = { ...s.pending, qingnangMark: undefined };
+  }
   if (s.pending.danjing && s.pending.danjing.untilSide === endingSide) {
     s.pending = { ...s.pending, danjing: undefined };
   }
@@ -1556,6 +1560,10 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
     nb[pick.to.r][pick.to.c] = pick.piece;
     nb[pick.from.r][pick.from.c] = null;
     s.board = nb;
+    s.pending = {
+      ...s.pending,
+      qingnangMark: { pieceId: pick.piece.id, untilSide: side },
+    };
     pushLog(s, `青囊：${pieceLabel(pick.piece)} 移至 ${squareName(pick.to)}`);
     afterBoardMutation(s, side, {
       movedPiece: pick.piece,
@@ -1888,6 +1896,15 @@ export function skillLiveState(s: GameState, skillId: string, viewer: Side = 're
       return `己方${fmt(hit.piece, hit.pos)}被反间，本回合走该子则随机落点`;
     }
     return null;
+  }
+  if (skillId === 'huatuo-qingnang') {
+    const mark = s.pending.qingnangMark;
+    if (!mark) return null;
+    const hit = allPieces(s.board).find((x) => x.piece.id === mark.pieceId);
+    if (!hit) return '标记之子已不在棋盘';
+    const coord = squareName(hit.pos);
+    if (!hit.piece.revealed) return `已将暗棋移至 ${coord}`;
+    return `已将${trueLabel(hit.piece)}移至 ${coord}`;
   }
   if (skillId === 'diaochan-lijian') {
     const mark = s.pending.lijianMark;

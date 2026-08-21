@@ -581,6 +581,31 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(!(hit!.r === beforePos.r && hit!.c === beforePos.c) || true, '青囊 may stay if only one spot — piece exists');
   assert(s.qi.red === 0, '青囊 costs 6');
   assert(s.side === 'red', '青囊 does not end turn');
+  assert(s.pending.qingnangMark?.pieceId === beforeId, '青囊 marks moved piece by id');
+  assert(s.pending.qingnangMark?.untilSide === 'red', '青囊 untilSide = caster');
+  const live = skillLiveState(s, 'huatuo-qingnang', 'red');
+  assert(!!live && live.includes('移至'), '青囊 liveState includes 移至');
+  assert(live!.includes('車'), '青囊 liveState names revealed piece');
+}
+
+// 华佗 青囊：暗棋 liveState 不露真身；回合结束清标记
+{
+  let s = base();
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'huatuo')!, false))];
+  s.qi = { red: 6, black: 10 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[6][0] = P('N', 'red', 'dark-n', { revealed: false, coverType: 'P' });
+  assert(skillLiveState(s, 'huatuo-qingnang', 'red') === null, '青囊 liveState null before cast');
+  s = useSkill(s, 'huatuo-qingnang', { kind: 'none' });
+  assert(s.pending.qingnangMark?.pieceId === 'dark-n', '青囊 marks dark piece');
+  const live = skillLiveState(s, 'huatuo-qingnang', 'red');
+  assert(!!live && live.includes('移至'), '暗棋 liveState includes 移至');
+  assert(live!.includes('暗棋'), '暗棋 liveState says 暗棋');
+  assert(!/[馬車炮仕相兵]/.test(live!), '暗棋 liveState hides true type chars');
+  s = __testEndTurn(s);
+  assert(!s.pending.qingnangMark, '青囊 mark cleared after caster turn ends');
 }
 
 // 华佗 青囊：无可传送则落空不耗气

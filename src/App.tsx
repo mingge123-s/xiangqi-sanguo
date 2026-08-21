@@ -152,6 +152,7 @@ export default function App() {
   const fanjianMarkId = state.pending.fanjianMark?.pieceId;
   const lijianMarkId = state.pending.lijianMark?.pieceId;
   const guicaiMarkId = state.pending.guicaiLock?.pieceId;
+  const qingnangMarkId = state.pending.qingnangMark?.pieceId;
 
   const fanjianBanner = (() => {
     const mark = state.pending.fanjianMark;
@@ -179,6 +180,24 @@ export default function App() {
     state.pending.guicaiLock && state.pending.guicaiLock.untilSide === state.side
       ? '鬼才：本回合只能行走被锁定的那枚棋'
       : null;
+
+  const qingnangBanner = (() => {
+    const mark = state.pending.qingnangMark;
+    if (!mark || mark.untilSide !== state.side) return null;
+    if (selected) {
+      const sel = state.board[selected.r][selected.c];
+      if (sel && sel.id === mark.pieceId) return '青囊：此子刚被随机挪到此处';
+    }
+    const hit = state.board
+      .flatMap((row, r) => row.map((p, c) => (p ? { p, r, c } : null)))
+      .find((x) => x && x.p.id === mark.pieceId);
+    if (!hit) return null;
+    if (hit.p.revealed) {
+      const name = CHAR[hit.p.side][hit.p.type];
+      return `青囊：该${name}已被随机挪到此处`;
+    }
+    return '青囊：这枚暗棋已被随机挪到此处';
+  })();
 
   useEffect(() => {
     if (state.phase !== 'playing') setLogOpen(false);
@@ -438,6 +457,7 @@ export default function App() {
                   fanjianMarkId={fanjianMarkId}
                   lijianMarkId={lijianMarkId}
                   guicaiMarkId={guicaiMarkId}
+                  qingnangMarkId={qingnangMarkId}
                   selected={
                     targeting?.skillId === 'zhuge-guanxing' ||
                     targeting?.skillId === 'simayi-yingshi' ||
@@ -569,6 +589,12 @@ export default function App() {
                             <div key="guicai" className="skill-slot-prompt">
                               <div className="skill-center-mask">
                                 <span className="skill-center-text">{guicaiBanner}</span>
+                              </div>
+                            </div>
+                          ) : qingnangBanner ? (
+                            <div key="qingnang" className="skill-slot-prompt">
+                              <div className="skill-center-mask">
+                                <span className="skill-center-text">{qingnangBanner}</span>
                               </div>
                             </div>
                           ) : state.pending.zhangFeiPieceId && state.movesLeft > 0 ? (
