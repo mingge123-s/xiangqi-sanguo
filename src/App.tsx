@@ -72,7 +72,7 @@ function hintFor(id: string): string {
     case 'zhuge-kongcheng':
       return '空城：点选己方一枚棋子，直至下个回合开始无法被吃';
     case 'xiahoudun-danjing':
-      return '啖睛：点选对方一枚棋子，该子于下个回合不能吃子';
+      return '啖睛：点选对方一枚棋子，该子于其下个回合不能吃子';
     default:
       return '选择目标';
   }
