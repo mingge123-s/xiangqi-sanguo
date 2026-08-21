@@ -127,6 +127,9 @@ export function Board({
   lijianMarkId,
   guicaiMarkId,
   qingnangMarkId,
+  danjingMarkId,
+  kongchengMarkId,
+  wushengMarkId,
   ganglieDice,
   onGanglieSettled,
   topSlot,
@@ -152,6 +155,12 @@ export function Board({
   guicaiMarkId?: string;
   /** 青囊刚挪动子 id → 棋面「青」印 */
   qingnangMarkId?: string;
+  /** 啖睛标记子 id → 棋面「啖」印 */
+  danjingMarkId?: string;
+  /** 空城受护子 id → 棋面「空」印 */
+  kongchengMarkId?: string;
+  /** 武圣受护子 id → 棋面「武」印 */
+  wushengMarkId?: string;
   ganglieDice?: { roll: number; capturerPos: Pos } | null;
   onGanglieSettled?: () => void;
   /** Announce strip flush to the wood board's top edge. */
@@ -321,7 +330,13 @@ export function Board({
                                   ? '离'
                                   : qingnangMarkId === piece.id
                                     ? '青'
-                                    : undefined
+                                    : danjingMarkId === piece.id
+                                      ? '啖'
+                                      : kongchengMarkId === piece.id
+                                        ? '空'
+                                        : wushengMarkId === piece.id
+                                          ? '武'
+                                          : undefined
                           }
                           locked={lockedPieceId === piece.id}
                           coverHint={

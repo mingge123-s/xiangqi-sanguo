@@ -1830,6 +1830,9 @@ export function capturedOf(s: GameState, side: Side): Piece[] {
 export function skillLiveState(s: GameState, skillId: string, viewer: Side = 'red'): string | null {
   const trueLabel = (p: Piece) => CHAR[p.side][p.type];
   const fmt = (p: Piece, pos: Pos) => `${trueLabel(p)} ${squareName(pos)}`;
+  /** 未揭示子用「暗棋」+坐标，避免 liveState 露真身（啖睛/空城/武圣等）。 */
+  const fmtHiddenSafe = (p: Piece, pos: Pos) =>
+    `${p.revealed ? trueLabel(p) : '暗棋'} ${squareName(pos)}`;
 
   if (skillId === 'zhuge-guanxing') {
     const ids = peekedOf(s, viewer);
@@ -1853,7 +1856,7 @@ export function skillLiveState(s: GameState, skillId: string, viewer: Side = 're
     if (!kc) return '当前无庇护';
     const hit = allPieces(s.board).find((x) => x.piece.id === kc.pieceId);
     if (!hit) return '庇护之子已不在棋盘';
-    return `庇护中：${fmt(hit.piece, hit.pos)}`;
+    return `庇护中：${fmtHiddenSafe(hit.piece, hit.pos)}`;
   }
   if (skillId === 'simayi-guicai') {
     const lock = s.pending.guicaiLock;
@@ -1872,7 +1875,19 @@ export function skillLiveState(s: GameState, skillId: string, viewer: Side = 're
     if (!g || g.owner !== viewer) return '尚未发动';
     const hit = allPieces(s.board).find((x) => x.piece.id === g.pieceId);
     if (!hit) return '受护之子已不在棋盘';
-    return `受护中：${fmt(hit.piece, hit.pos)}`;
+    return `受护中：${fmtHiddenSafe(hit.piece, hit.pos)}`;
+  }
+  if (skillId === 'xiahoudun-danjing') {
+    const d = s.pending.danjing;
+    if (!d) return null;
+    const hit = allPieces(s.board).find((x) => x.piece.id === d.pieceId);
+    if (!hit) return '标记之子已不在棋盘';
+    return `已标记${fmtHiddenSafe(hit.piece, hit.pos)}`;
+  }
+  if (skillId === 'ganning-chaiqiao') {
+    const bd = s.pending.bridgeDown;
+    if (!bd || bd.owner !== viewer || bd.enemyTurnsLeft <= 0) return null;
+    return `奇袭中：对方还剩 ${bd.enemyTurnsLeft} 个回合不能过河`;
   }
   if (skillId === 'lvbu-wushuang') {
     const owned = findOwnedSkill(sideGens(s, viewer), 'lvbu-wushuang');

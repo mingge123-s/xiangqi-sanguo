@@ -77,7 +77,7 @@ export function PieceView({
   peeked?: boolean;
   coverHint?: PieceType;
   peekMark?: string;
-  /** 棋面状态印（反/离/鬼等），明棋暗棋均显示 */
+  /** 棋面状态印（鬼/反/离/青/啖/空/武等），明棋暗棋均显示 */
   statusMark?: string;
   locked?: boolean;
   onPointer: () => void;

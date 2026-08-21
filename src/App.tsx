@@ -153,6 +153,9 @@ export default function App() {
   const lijianMarkId = state.pending.lijianMark?.pieceId;
   const guicaiMarkId = state.pending.guicaiLock?.pieceId;
   const qingnangMarkId = state.pending.qingnangMark?.pieceId;
+  const danjingMarkId = state.pending.danjing?.pieceId;
+  const kongchengMarkId = state.pending.kongcheng?.pieceId;
+  const wushengMarkId = state.pending.wushengGuard?.pieceId;
 
   const fanjianBanner = (() => {
     const mark = state.pending.fanjianMark;
@@ -197,6 +200,22 @@ export default function App() {
       return `青囊：该${name}已被随机挪到此处`;
     }
     return '青囊：这枚暗棋已被随机挪到此处';
+  })();
+
+  const danjingBanner = (() => {
+    const mark = state.pending.danjing;
+    if (!mark || mark.untilSide !== state.side) return null;
+    if (selected) {
+      const sel = state.board[selected.r][selected.c];
+      if (sel && sel.id === mark.pieceId) return '啖睛：此子本回合不能吃子';
+    }
+    return '啖睛：该子本回合不能吃子';
+  })();
+
+  const qixiBanner = (() => {
+    const bd = state.pending.bridgeDown;
+    if (!bd || bd.owner === state.side || bd.enemyTurnsLeft <= 0) return null;
+    return `奇袭：还剩 ${bd.enemyTurnsLeft} 个回合不能过河`;
   })();
 
   useEffect(() => {
@@ -409,6 +428,12 @@ export default function App() {
         state.pending.fanjianMark.pieceId === piece.id
       ) {
         showCenterPrompt('反间：走此子将随机落点');
+      } else if (
+        state.pending.danjing &&
+        state.pending.danjing.untilSide === 'red' &&
+        state.pending.danjing.pieceId === piece.id
+      ) {
+        showCenterPrompt('啖睛：此子本回合不能吃子');
       }
       setSelected(pos);
       return;
@@ -458,6 +483,9 @@ export default function App() {
                   lijianMarkId={lijianMarkId}
                   guicaiMarkId={guicaiMarkId}
                   qingnangMarkId={qingnangMarkId}
+                  danjingMarkId={danjingMarkId}
+                  kongchengMarkId={kongchengMarkId}
+                  wushengMarkId={wushengMarkId}
                   selected={
                     targeting?.skillId === 'zhuge-guanxing' ||
                     targeting?.skillId === 'simayi-yingshi' ||
@@ -595,6 +623,18 @@ export default function App() {
                             <div key="qingnang" className="skill-slot-prompt">
                               <div className="skill-center-mask">
                                 <span className="skill-center-text">{qingnangBanner}</span>
+                              </div>
+                            </div>
+                          ) : danjingBanner ? (
+                            <div key="danjing" className="skill-slot-prompt">
+                              <div className="skill-center-mask">
+                                <span className="skill-center-text">{danjingBanner}</span>
+                              </div>
+                            </div>
+                          ) : qixiBanner ? (
+                            <div key="qixi" className="skill-slot-prompt">
+                              <div className="skill-center-mask">
+                                <span className="skill-center-text">{qixiBanner}</span>
                               </div>
                             </div>
                           ) : state.pending.zhangFeiPieceId && state.movesLeft > 0 ? (
