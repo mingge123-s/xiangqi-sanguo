@@ -7,6 +7,7 @@ import {
   crossedRiver,
   describeMove,
   emptySquares,
+  generatePseudoMoves,
   getAllLegalMoves,
   getLegalMoves,
   findKing,
@@ -15,6 +16,7 @@ import {
   inPalace,
   isAdjacent,
   isGameOver,
+  kingsFace,
   onOwnHalf,
   elephantOwnSide,
   opposite,
@@ -283,6 +285,7 @@ export function legalOptions(s: GameState, side: Side) {
   const wu = s.pending.wushuang;
   const mustNotCheck =
     wu && wu.turnsLeft > 0 && wu.owner !== side ? wu.owner : undefined;
+  const ignoreOwnCheck = !!(wu && wu.turnsLeft > 0 && wu.owner === side);
   return {
     protectedPieceId,
     protectedPieceIds,
@@ -290,6 +293,7 @@ export function legalOptions(s: GameState, side: Side) {
     blockRiverCross,
     onlyPieceId,
     mustNotCheck,
+    ignoreOwnCheck,
   };
 }
 
@@ -335,6 +339,7 @@ export function listLegalFrom(s: GameState, from: Pos): Pos[] {
     protectedPieceIds: opt.protectedPieceIds,
     blockRiverCross: opt.blockRiverCross,
     mustNotCheck: opt.mustNotCheck,
+    ignoreOwnCheck: opt.ignoreOwnCheck,
   });
 }
 
@@ -376,6 +381,30 @@ export function isKongchengCaptureAttempt(s: GameState, from: Pos, to: Pos): boo
     protectedPieceIds: otherProtected.length ? otherProtected : undefined,
     blockRiverCross: opt.blockRiverCross,
     mustNotCheck: opt.mustNotCheck,
+    ignoreOwnCheck: opt.ignoreOwnCheck,
+  });
+  return dests.some((d) => posEq(d, to));
+}
+
+/** True if `to` is 武圣-guarded and `from` could otherwise capture it. */
+export function isWushengCaptureAttempt(s: GameState, from: Pos, to: Pos): boolean {
+  const guardId = wushengProtectedId(s);
+  if (!guardId) return false;
+  const target = getPiece(s.board, to);
+  if (!target || target.id !== guardId) return false;
+  if (target.side === s.side) return false;
+  const p = getPiece(s.board, from);
+  if (!p || p.side !== s.side) return false;
+  const opt = legalOptions(s, s.side);
+  const noCapture = !!(opt.noCapturePieceId && p.id === opt.noCapturePieceId);
+  if (noCapture) return false;
+  const otherProtected = protectedIds(s).filter((id) => id !== guardId);
+  const dests = getLegalMoves(s.board, from, s.side, {
+    noCapture,
+    protectedPieceIds: otherProtected.length ? otherProtected : undefined,
+    blockRiverCross: opt.blockRiverCross,
+    mustNotCheck: opt.mustNotCheck,
+    ignoreOwnCheck: opt.ignoreOwnCheck,
   });
   return dests.some((d) => posEq(d, to));
 }
@@ -397,9 +426,196 @@ export function isWushuangCaptureAttempt(s: GameState, from: Pos, to: Pos): bool
     noCapture,
     protectedPieceIds: otherProtected.length ? otherProtected : undefined,
     blockRiverCross: opt.blockRiverCross,
+    ignoreOwnCheck: opt.ignoreOwnCheck,
     // Ignore 无双 check-ban so we can detect the capture attempt itself.
   });
   return dests.some((d) => posEq(d, to));
+}
+
+/** True if moving `from→to` would 将军 the 无双 owner (banned while active). */
+export function isWushuangCheckAttempt(s: GameState, from: Pos, to: Pos): boolean {
+  const wu = s.pending.wushuang;
+  if (!wu || wu.turnsLeft <= 0 || wu.owner === s.side) return false;
+  const p = getPiece(s.board, from);
+  if (!p || p.side !== s.side) return false;
+  const target = getPiece(s.board, to);
+  if (target && target.side === s.side) return false;
+  // Capture of the king is handled separately.
+  if (target && target.type === 'K' && target.side === wu.owner) return false;
+  const opt = legalOptions(s, s.side);
+  const noCapture = !!(opt.noCapturePieceId && p.id === opt.noCapturePieceId);
+  const withoutMust = getLegalMoves(s.board, from, s.side, {
+    noCapture,
+    protectedPieceId: opt.protectedPieceId,
+    protectedPieceIds: opt.protectedPieceIds,
+    blockRiverCross: opt.blockRiverCross,
+    ignoreOwnCheck: opt.ignoreOwnCheck,
+  });
+  if (!withoutMust.some((d) => posEq(d, to))) return false;
+  const withMust = getLegalMoves(s.board, from, s.side, {
+    noCapture,
+    protectedPieceId: opt.protectedPieceId,
+    protectedPieceIds: opt.protectedPieceIds,
+    blockRiverCross: opt.blockRiverCross,
+    mustNotCheck: opt.mustNotCheck,
+    ignoreOwnCheck: opt.ignoreOwnCheck,
+  });
+  return !withMust.some((d) => posEq(d, to));
+}
+
+/**
+ * Why a selected own piece has zero legal destinations.
+ * Returns a short Chinese prompt, or null if the piece can move / is not own.
+ */
+export function whyPieceStuck(s: GameState, pos: Pos): string | null {
+  const p = getPiece(s.board, pos);
+  if (!p || p.side !== s.side) return null;
+  if (listLegalFrom(s, pos).length > 0) return null;
+  if (pendingBlocksPlay(s)) return null;
+  if ((s.movesLeft ?? 0) <= 0) return '本回合走棋次数已用尽';
+
+  if (s.pending.zhangFeiPieceId && p.id !== s.pending.zhangFeiPieceId) {
+    return '咆哮：须继续行走该子';
+  }
+  if (
+    s.pending.guicaiLock &&
+    s.pending.guicaiLock.untilSide === s.side &&
+    p.id !== s.pending.guicaiLock.pieceId
+  ) {
+    return '鬼才：本回合只能行走被锁定的那枚棋';
+  }
+
+  const opt = legalOptions(s, s.side);
+  const noCapture = !!(opt.noCapturePieceId && p.id === opt.noCapturePieceId);
+
+  // 啖睛: only captures were possible
+  if (noCapture) {
+    const withCap = getLegalMoves(s.board, pos, s.side, {
+      protectedPieceId: opt.protectedPieceId,
+      protectedPieceIds: opt.protectedPieceIds,
+      blockRiverCross: opt.blockRiverCross,
+      mustNotCheck: opt.mustNotCheck,
+      ignoreOwnCheck: opt.ignoreOwnCheck,
+    });
+    if (withCap.length > 0) return '啖睛：该子本回合不能吃子';
+  }
+
+  // 奇袭: only river-crossing dests were possible
+  if (opt.blockRiverCross) {
+    const openRiver = getLegalMoves(s.board, pos, s.side, {
+      noCapture,
+      protectedPieceId: opt.protectedPieceId,
+      protectedPieceIds: opt.protectedPieceIds,
+      mustNotCheck: opt.mustNotCheck,
+      ignoreOwnCheck: opt.ignoreOwnCheck,
+    });
+    if (openRiver.length > 0) return '奇袭：对方棋不能过河';
+  }
+
+  const wu = s.pending.wushuang;
+  const wushuangOwner = !!(wu && wu.turnsLeft > 0 && wu.owner === s.side);
+
+  // Geometry ignoring own-check (and without noCapture / river block already handled)
+  const ignoringCheck = getLegalMoves(s.board, pos, s.side, {
+    noCapture,
+    protectedPieceId: opt.protectedPieceId,
+    protectedPieceIds: opt.protectedPieceIds,
+    blockRiverCross: opt.blockRiverCross,
+    mustNotCheck: opt.mustNotCheck,
+    ignoreOwnCheck: true,
+  });
+
+  if (!wushuangOwner && inCheck(s.board, s.side) && ignoringCheck.length > 0) {
+    return '将军中，须应将';
+  }
+
+  // Flying general: dests only fail because kings would face
+  const raw = generatePseudoMoves(s.board, pos);
+  if (raw.length > 0) {
+    let onlyFacing = true;
+    let anyFacing = false;
+    let considered = 0;
+    for (const to of raw) {
+      if (opt.blockRiverCross && !crossedRiver(pos.r, s.side) && crossedRiver(to.r, s.side)) {
+        onlyFacing = false;
+        continue;
+      }
+      const target = s.board[to.r][to.c];
+      if (noCapture && target && target.side !== s.side) continue;
+      if (target && opt.protectedPieceIds?.includes(target.id)) continue;
+      if (target && opt.protectedPieceId && target.id === opt.protectedPieceId) continue;
+      considered += 1;
+      const { board: nb } = applyMove(s.board, pos, to);
+      if (opt.mustNotCheck && inCheck(nb, opt.mustNotCheck)) {
+        onlyFacing = false;
+        continue;
+      }
+      if (!inCheck(nb, s.side)) {
+        onlyFacing = false;
+        break;
+      }
+      if (kingsFace(nb)) {
+        anyFacing = true;
+      } else {
+        onlyFacing = false;
+      }
+    }
+    if (considered > 0 && anyFacing && onlyFacing) return '将面对面';
+  }
+
+  if (!p.revealed && raw.length === 0) return '暗棋无路';
+  if (raw.length === 0) return '无子可去';
+  if (!wushuangOwner && ignoringCheck.length === 0 && inCheck(s.board, s.side)) {
+    return '将军中，须应将';
+  }
+  return '无子可去';
+}
+
+/**
+ * Why clicking `to` with `from` selected is illegal (skill / rule block).
+ * Returns a short prompt, or null if not a known block / already legal.
+ */
+export function whyIllegalDest(s: GameState, from: Pos, to: Pos): string | null {
+  if (listLegalFrom(s, from).some((d) => posEq(d, to))) return null;
+  const p = getPiece(s.board, from);
+  if (!p || p.side !== s.side) return null;
+
+  if (isKongchengCaptureAttempt(s, from, to)) return '此子已发动空城的技能';
+  if (isWushengCaptureAttempt(s, from, to)) return '此子已发动武圣的技能';
+  if (isWushuangCaptureAttempt(s, from, to)) return '此子已发动无双的技能';
+  if (isWushuangCheckAttempt(s, from, to)) return '无双：无法被将军';
+
+  const opt = legalOptions(s, s.side);
+  const noCapture = !!(opt.noCapturePieceId && p.id === opt.noCapturePieceId);
+  const target = getPiece(s.board, to);
+
+  if (noCapture && target && target.side !== s.side) {
+    const withCap = getLegalMoves(s.board, from, s.side, {
+      protectedPieceId: opt.protectedPieceId,
+      protectedPieceIds: opt.protectedPieceIds,
+      blockRiverCross: opt.blockRiverCross,
+      mustNotCheck: opt.mustNotCheck,
+      ignoreOwnCheck: opt.ignoreOwnCheck,
+    });
+    if (withCap.some((d) => posEq(d, to))) return '啖睛：该子本回合不能吃子';
+  }
+
+  if (
+    opt.blockRiverCross &&
+    !crossedRiver(from.r, s.side) &&
+    crossedRiver(to.r, s.side)
+  ) {
+    const openRiver = getLegalMoves(s.board, from, s.side, {
+      noCapture,
+      protectedPieceId: opt.protectedPieceId,
+      protectedPieceIds: opt.protectedPieceIds,
+      mustNotCheck: opt.mustNotCheck,
+      ignoreOwnCheck: opt.ignoreOwnCheck,
+    });
+    if (openRiver.some((d) => posEq(d, to))) return '奇袭：对方棋不能过河';
+  }
+
+  return null;
 }
 
 function finishIfOver(s: GameState, sideToMove: Side): void {
@@ -1519,6 +1735,8 @@ export function clearBroadcast(s0: GameState): GameState {
 }
 
 export function sideInCheck(s: GameState): boolean {
+  const wu = s.pending.wushuang;
+  if (wu && wu.turnsLeft > 0 && wu.owner === s.side) return false;
   return inCheck(s.board, s.side);
 }
 

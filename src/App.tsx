@@ -15,8 +15,6 @@ import {
   canUseSkill,
   clearBroadcast,
   createHomeState,
-  isKongchengCaptureAttempt,
-  isWushuangCaptureAttempt,
   listLegalFrom,
   makeMove,
   peekDark,
@@ -28,6 +26,8 @@ import {
   startMatch,
   useSkill,
   validSkillTargets,
+  whyIllegalDest,
+  whyPieceStuck,
 } from './game/engine';
 import { sideHasSkill } from './game/generals';
 import type { GameState, GeneralRuntime, Pos, Side, SkillPayload, SkillRuntime } from './game/types';
@@ -344,16 +344,18 @@ export default function App() {
         setSelected(null);
         return;
       }
-      if (isKongchengCaptureAttempt(state, selected, pos)) {
-        showCenterPrompt('此子已发动空城的技能');
-        return;
-      }
-      if (isWushuangCaptureAttempt(state, selected, pos)) {
-        showCenterPrompt('此子已发动无双的技能');
+      const blocked = whyIllegalDest(state, selected, pos);
+      if (blocked) {
+        showCenterPrompt(blocked);
         return;
       }
     }
     if (piece && piece.side === 'red' && state.side === 'red') {
+      const dests = listLegalFrom(state, pos);
+      if (dests.length === 0) {
+        const reason = whyPieceStuck(state, pos);
+        if (reason) showCenterPrompt(reason);
+      }
       setSelected(pos);
       return;
     }
