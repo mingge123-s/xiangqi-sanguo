@@ -395,6 +395,8 @@ export interface LegalMoveOptions {
   blockRiverCross?: boolean;
   /** After the move, this side must not be in check (无双). */
   mustNotCheck?: Side;
+  /** Skip own-king check filter (无双 owner may walk while in check). */
+  ignoreOwnCheck?: boolean;
 }
 
 export interface AllLegalOptions {
@@ -407,6 +409,7 @@ export interface AllLegalOptions {
   /** Only generate moves for unrevealed pieces. */
   onlyUnrevealed?: boolean;
   mustNotCheck?: Side;
+  ignoreOwnCheck?: boolean;
 }
 
 export function getLegalMoves(
@@ -427,7 +430,9 @@ export function getLegalMoves(
     if (target && options?.protectedPieceId && target.id === options.protectedPieceId) continue;
     if (target && options?.protectedPieceIds?.includes(target.id)) continue;
     const { board: nb } = applyMove(board, from, to);
-    if (!inCheck(nb, side) && !(options?.mustNotCheck && inCheck(nb, options.mustNotCheck))) {
+    const ownOk = !!options?.ignoreOwnCheck || !inCheck(nb, side);
+    const otherOk = !(options?.mustNotCheck && inCheck(nb, options.mustNotCheck));
+    if (ownOk && otherOk) {
       legal.push(to);
     }
   }
@@ -455,6 +460,7 @@ export function getAllLegalMoves(
         protectedPieceIds: options?.protectedPieceIds,
         blockRiverCross: options?.blockRiverCross,
         mustNotCheck: options?.mustNotCheck,
+        ignoreOwnCheck: options?.ignoreOwnCheck,
       });
       for (const to of dests) moves.push({ from: { r, c }, to });
     }

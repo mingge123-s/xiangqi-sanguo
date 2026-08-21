@@ -1,5 +1,5 @@
 import { applyMove, createInitialBoard, createStandardBoard, emptyBoard, evaluateBoard, getPiece, inCheck, knownIdsOn, revealAll } from './core';
-import { canUseSkill, createHomeState, isKongchengCaptureAttempt, isWushuangCaptureAttempt, listLegalFrom, listLegalMoves, makeMove, peekDark, peekedOf, resolveGanglie, skipKongcheng, skillLiveState, startMatch, useSkill, validSkillTargets, __testEndTurn, __testSetFanjianDest, __testSetGanglieRoll, __testSetLijianLoss } from './engine';
+import { canUseSkill, createHomeState, isKongchengCaptureAttempt, isWushengCaptureAttempt, isWushuangCaptureAttempt, isWushuangCheckAttempt, listLegalFrom, listLegalMoves, makeMove, peekDark, peekedOf, resolveGanglie, sideInCheck, skipKongcheng, skillLiveState, startMatch, useSkill, validSkillTargets, whyIllegalDest, whyPieceStuck, __testEndTurn, __testSetFanjianDest, __testSetGanglieRoll, __testSetLijianLoss } from './engine';
 import { defToRuntime, GENERALS, skillPhaseOf, skillTypeLabel } from './generals';
 import type { GameState, GeneralRuntime, Piece, PieceType, Side, SkillDef, SkillRuntime } from './types';
 
@@ -802,6 +802,181 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   // Enemy turn end decrements
   s = settle(makeMove(s, { r: 0, c: 4 }, { r: 0, c: 5 }));
   assert(s.pending.wushuang?.turnsLeft === 2, 'decrement at enemy turn end');
+}
+
+// 无双：owner 被将军时仍可自由行走（ignoreOwnCheck）；对方仍不可吃/将军；到期后恢复应将
+{
+  let s = base();
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'lvbu')!, true))];
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  // Clear file-4 rook check; red pawn off-file has a walk that does not resolve it
+  s.board[0][4] = P('R', 'black', 'br');
+  s.board[6][0] = P('P', 'red', 'rp');
+  assert(inCheck(s.board, 'red'), 'setup: red is in check');
+  s = useSkill(s, 'lvbu-wushuang', { kind: 'none' });
+  assert(s.pending.wushuang?.turnsLeft === 3, '无双 armed');
+  const pawnWalks = listLegalFrom(s, { r: 6, c: 0 });
+  assert(pawnWalks.some((m) => m.r === 5 && m.c === 0), 'owner pawn can walk while in check under 无双');
+  assert(!sideInCheck(s), 'sideInCheck banner suppressed for 无双 owner');
+  assert(listLegalMoves(s).length > 0, 'not 困毙 solely because walks leave king in check');
+  // Opponent still cannot check or capture king
+  s.side = 'black';
+  s.movesLeft = 1;
+  assert(!listLegalFrom(s, { r: 0, c: 4 }).some((m) => m.r === 9 && m.c === 4), 'opponent cannot capture 无双 king');
+  // Rook on rank 2 sliding onto file 4 would 将军 — banned
+  s.board[2][0] = P('R', 'black', 'br2');
+  assert(!listLegalFrom(s, { r: 2, c: 0 }).some((m) => m.r === 2 && m.c === 4), 'opponent cannot 将军 under 无双');
+  assert(isWushuangCheckAttempt(s, { r: 2, c: 0 }, { r: 2, c: 4 }), 'check attempt detected');
+  // After expiry, check filter returns for owner
+  s.side = 'red';
+  s.movesLeft = 1;
+  s.pending = { ...s.pending, wushuang: { owner: 'red', turnsLeft: 0 } };
+  assert(listLegalFrom(s, { r: 6, c: 0 }).length === 0, 'after expiry, non-resolving walk filtered');
+  assert(sideInCheck({ ...s, pending: { ...s.pending, wushuang: undefined } }), 'without 无双, banner shows check');
+}
+
+// whyPieceStuck / whyIllegalDest：点无路子时给出具体原因
+{
+  // 将军中，须应将
+  {
+    let s = base();
+    s.board = emptyBoard();
+    s.board[9][4] = P('K', 'red', 'rk');
+    s.board[0][3] = P('K', 'black', 'bk');
+    s.board[0][4] = P('R', 'black', 'br');
+    s.board[6][0] = P('P', 'red', 'rp');
+    assert(inCheck(s.board, 'red'), 'setup check');
+    assert(whyPieceStuck(s, { r: 6, c: 0 }) === '将军中，须应将', 'stuck reason: must resolve check');
+  }
+  // 鬼才
+  {
+    let s = base();
+    s.board = emptyBoard();
+    s.board[9][4] = P('K', 'red', 'rk');
+    s.board[0][4] = P('K', 'black', 'bk');
+    s.board[6][0] = P('P', 'red', 'rp');
+    s.board[6][2] = P('P', 'red', 'rp2');
+    s.pending = { ...s.pending, guicaiLock: { pieceId: 'rp', untilSide: 'red' } };
+    assert(whyPieceStuck(s, { r: 6, c: 2 }) === '鬼才：本回合只能行走被锁定的那枚棋', 'stuck reason: 鬼才');
+  }
+  // 咆哮
+  {
+    let s = base();
+    s.board = emptyBoard();
+    s.board[9][4] = P('K', 'red', 'rk');
+    s.board[0][4] = P('K', 'black', 'bk');
+    s.board[6][0] = P('P', 'red', 'rp');
+    s.board[6][2] = P('P', 'red', 'rp2');
+    s.pending = { ...s.pending, zhangFeiPieceId: 'rp' };
+    s.movesLeft = 1;
+    assert(whyPieceStuck(s, { r: 6, c: 2 }) === '咆哮：须继续行走该子', 'stuck reason: 咆哮');
+  }
+  // 暗棋无路
+  {
+    let s = base();
+    s.board = emptyBoard();
+    s.board[9][4] = P('K', 'red', 'rk');
+    s.board[0][4] = P('K', 'black', 'bk');
+    // Dark advisor on edge with no palace dest
+    s.board[5][0] = P('A', 'red', 'ra', { revealed: false, coverType: 'A' });
+    assert(whyPieceStuck(s, { r: 5, c: 0 }) === '暗棋无路', 'stuck reason: dark no path');
+  }
+  // 普通无子可去
+  {
+    let s = base();
+    s.board = emptyBoard();
+    s.board[9][4] = P('K', 'red', 'rk');
+    s.board[0][4] = P('K', 'black', 'bk');
+    s.board[6][0] = P('P', 'red', 'rp');
+    s.board[5][0] = P('P', 'red', 'block'); // blocks pawn forward
+    assert(whyPieceStuck(s, { r: 6, c: 0 }) === '无子可去', 'stuck reason: nowhere to go');
+  }
+  // 离间不锁步：其他子可走，whyPieceStuck 不为「不能走」
+  {
+    let s = base();
+    s.board = emptyBoard();
+    s.board[9][4] = P('K', 'red', 'rk');
+    s.board[0][4] = P('K', 'black', 'bk');
+    s.board[6][0] = P('P', 'red', 'rp');
+    s.board[3][0] = P('P', 'black', 'dark-p', { revealed: false, coverType: 'P' });
+    s.side = 'black';
+    s.pending = { ...s.pending, lijianMark: { pieceId: 'dark-p', untilSide: 'black' } };
+    assert(whyPieceStuck(s, { r: 0, c: 4 }) === null || whyPieceStuck(s, { r: 0, c: 4 }) !== '离间', '离间 does not lock other pieces');
+    assert(listLegalFrom(s, { r: 0, c: 4 }).length > 0, 'king still movable under 离间 mark');
+  }
+  // 啖睛：点吃子落点
+  {
+    let s = base();
+    s.board = emptyBoard();
+    s.board[9][4] = P('K', 'red', 'rk');
+    s.board[0][3] = P('K', 'black', 'bk');
+    s.board[6][0] = P('R', 'red', 'rr');
+    s.board[3][0] = P('P', 'black', 'bp');
+    s.pending = { ...s.pending, danjing: { pieceId: 'rr', untilSide: 'red' } };
+    assert(whyIllegalDest(s, { r: 6, c: 0 }, { r: 3, c: 0 }) === '啖睛：该子本回合不能吃子', 'illegal: 啖睛 capture');
+  }
+  // 奇袭：过河
+  {
+    let s = base();
+    s.board = emptyBoard();
+    s.board[9][4] = P('K', 'red', 'rk');
+    s.board[0][4] = P('K', 'black', 'bk');
+    s.board[4][4] = P('P', 'black', 'bp');
+    s.side = 'black';
+    s.pending = { ...s.pending, bridgeDown: { owner: 'red', enemyTurnsLeft: 2 } };
+    assert(whyIllegalDest(s, { r: 4, c: 4 }, { r: 5, c: 4 }) === '奇袭：对方棋不能过河', 'illegal: 奇袭 cross');
+  }
+  // 武圣 capture attempt
+  {
+    let s = base();
+    s.board = emptyBoard();
+    s.board[9][4] = P('K', 'red', 'rk');
+    s.board[0][3] = P('K', 'black', 'bk');
+    s.board[9][0] = P('R', 'red', 'rr');
+    s.board[0][0] = P('R', 'black', 'br');
+    s.pending = { ...s.pending, wushengGuard: { pieceId: 'rr', owner: 'red' } };
+    s.side = 'black';
+    assert(isWushengCaptureAttempt(s, { r: 0, c: 0 }, { r: 9, c: 0 }), 'wusheng capture attempt');
+    assert(whyIllegalDest(s, { r: 0, c: 0 }, { r: 9, c: 0 }) === '此子已发动武圣的技能', 'illegal: 武圣');
+  }
+  // 空城 / 无双 capture keep existing wording
+  {
+    let s = base();
+    s.board = emptyBoard();
+    s.board[9][4] = P('K', 'red', 'rk');
+    s.board[0][3] = P('K', 'black', 'bk');
+    s.board[2][0] = P('P', 'red', 'rp');
+    s.board[0][0] = P('R', 'black', 'br');
+    s.pending = { ...s.pending, kongcheng: { pieceId: 'rp', owner: 'red' } };
+    s.side = 'black';
+    assert(whyIllegalDest(s, { r: 0, c: 0 }, { r: 2, c: 0 }) === '此子已发动空城的技能', 'illegal: 空城');
+  }
+  {
+    let s = base();
+    s.board = emptyBoard();
+    s.board[9][4] = P('K', 'red', 'rk');
+    s.board[0][3] = P('K', 'black', 'bk');
+    s.board[0][4] = P('R', 'black', 'br');
+    s.pending = { ...s.pending, wushuang: { owner: 'red', turnsLeft: 3 } };
+    s.side = 'black';
+    assert(whyIllegalDest(s, { r: 0, c: 4 }, { r: 9, c: 4 }) === '此子已发动无双的技能', 'illegal: 无双 capture');
+    s.board[2][0] = P('R', 'black', 'br2');
+    assert(whyIllegalDest(s, { r: 2, c: 0 }, { r: 2, c: 4 }) === '无双：无法被将军', 'illegal: 无双 check');
+  }
+  // 将面对面
+  {
+    let s = base();
+    s.board = emptyBoard();
+    s.board[9][4] = P('K', 'red', 'rk');
+    s.board[0][3] = P('K', 'black', 'bk');
+    s.board[8][4] = P('P', 'red', 'fwd');
+    s.board[9][5] = P('A', 'red', 'ra');
+    // Only open palace cell is 9,3 — but that faces black king on file 3 with empty between
+    assert(listLegalFrom(s, { r: 9, c: 4 }).length === 0, 'king has no legal dest (facing)');
+    assert(whyPieceStuck(s, { r: 9, c: 4 }) === '将面对面', 'stuck reason: flying general');
+  }
 }
 
 // 吕布 赤兔：明兵化马
