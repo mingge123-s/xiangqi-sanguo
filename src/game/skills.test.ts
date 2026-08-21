@@ -1,5 +1,5 @@
 import { applyMove, createInitialBoard, createStandardBoard, emptyBoard, evaluateBoard, getPiece, inCheck, knownIdsOn, revealAll } from './core';
-import { canUseSkill, createHomeState, isKongchengCaptureAttempt, isWushuangCaptureAttempt, listLegalFrom, listLegalMoves, makeMove, overFiveDests, peekDark, peekedOf, resolveGanglie, skipKongcheng, skipOverFive, skillLiveState, startMatch, useSkill, validSkillTargets, __testSetFanjianDest, __testSetGanglieRoll, __testSetLijianLoss } from './engine';
+import { canUseSkill, createHomeState, isKongchengCaptureAttempt, isWushuangCaptureAttempt, listLegalFrom, listLegalMoves, makeMove, overFiveDests, peekDark, peekedOf, resolveGanglie, skipKongcheng, skipOverFive, skillLiveState, startMatch, useSkill, validSkillTargets, __testEndTurn, __testSetFanjianDest, __testSetGanglieRoll, __testSetLijianLoss } from './engine';
 import { defToRuntime, GENERALS, skillPhaseOf, skillTypeLabel } from './generals';
 import type { GameState, GeneralRuntime, Piece, PieceType, Side, SkillDef, SkillRuntime } from './types';
 
@@ -784,15 +784,19 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(s.side === 'red', '赤兔 does not end turn');
 }
 
-// 貂蝉 离间：desc / qiCost / mark lock（非劫持）
+// 貂蝉 离间：desc / qiCost / mark（非锁步、非劫持）
 {
   const lijian = GENERALS.find((d) => d.id === 'diaochan')!.skills.find((x) => x.id === 'diaochan-lijian')!;
   assert(
     lijian.desc ===
-      '主动技。走棋阶段，你可以消耗5点战气，令对方的下个回合只能使用你选定的暗棋，否则随机失去一枚非将帅棋。',
+      '主动技。走棋阶段，你可以消耗5点战气，指定对方一枚暗棋。若其下回合行走其他棋子，则随机失去一枚非将帅棋。',
     '离间 desc exact',
   );
   assert(lijian.qiCost === 5, '离间 qiCost 5');
+  assert(!lijian.desc.includes('只能'), '离间 desc has no lock wording');
+  assert(!lijian.desc.includes('不消耗走棋次数'), '离间 desc has no free-move wording');
+  assert(lijian.desc.includes('走棋阶段'), '离间 phase is 走棋阶段');
+  assert(!lijian.desc.includes('出牌阶段'), '离间 not 出牌阶段');
 
   let s = base();
   s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'diaochan')!, false))];
@@ -817,12 +821,20 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
   assert(s.side === 'black', 'black still plays own turn');
   assert(s.pending.lijianMark?.pieceId === 'dark-p', 'mark still active on black turn');
-  const moves = listLegalMoves(s);
-  assert(moves.length > 0, 'marked dark pawn has moves');
-  assert(moves.every((m) => getPiece(s.board, m.from)?.id === 'dark-p'), 'only marked 暗棋 movable');
-  assert(listLegalFrom(s, { r: 0, c: 0 }).length === 0, 'revealed rook not selectable under 离间');
+  // Victim plays normally — marked piece is not an onlyPieceId lock
+  assert(listLegalFrom(s, { r: 0, c: 0 }).length > 0, 'victim can legally move a non-marked piece');
+  assert(
+    listLegalMoves(s).some((m) => getPiece(s.board, m.from)?.id === 'open-r'),
+    'listLegalMoves includes non-marked piece',
+  );
+  assert(
+    listLegalMoves(s).some((m) => getPiece(s.board, m.from)?.id === 'dark-p'),
+    'listLegalMoves still includes marked 暗棋',
+  );
   const beforeCount = s.board.flat().filter((p) => p && p.side === 'black').length;
-  s = settle(makeMove(s, moves[0].from, moves[0].to));
+  const markMoves = listLegalFrom(s, { r: 3, c: 0 });
+  assert(markMoves.length > 0, 'marked dark pawn has moves');
+  s = settle(makeMove(s, { r: 3, c: 0 }, markMoves[0]));
   assert(!s.pending.lijianMark, 'mark clears after victim walks it');
   assert(s.side === 'red', 'returns to red after black walked marked piece');
   assert(
@@ -849,7 +861,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(!after.pending.lijianMark, 'no-op leaves no mark');
 }
 
-// 离间：对方未走标记子则随机失去一枚非将帅棋
+// 离间：行走其他棋子 → 随机失去一枚非将帅棋
 {
   let s = base();
   s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'diaochan')!, false))];
@@ -857,25 +869,68 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board = emptyBoard();
   s.board[9][4] = P('K', 'red', 'rk');
   s.board[0][3] = P('K', 'black', 'bk');
-  // Dark pawn boxed in (cannot advance); spare revealed rook as penalty target
+  s.board[3][0] = P('P', 'black', 'dark-p', { revealed: false, coverType: 'P' });
+  s.board[0][0] = P('R', 'black', 'open-r');
+  s.board[0][1] = P('N', 'black', 'spare-n');
+  s.board[6][0] = P('P', 'red', 'rp');
+  s = useSkill(s, 'diaochan-lijian', { kind: 'pos', pos: { r: 3, c: 0 } });
+  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
+  assert(s.side === 'black', 'black plays after mark');
+  assert(s.pending.lijianMark?.pieceId === 'dark-p', 'mark armed');
+  const blackBefore = s.board.flat().filter((p) => p && p.side === 'black').length;
+  __testSetLijianLoss('spare-n');
+  const rookTo = listLegalFrom(s, { r: 0, c: 0 })[0];
+  assert(!!rookTo, 'non-marked rook has a legal move');
+  s = settle(makeMove(s, { r: 0, c: 0 }, rookTo));
+  assert(s.side === 'red', 'returns to red after other-piece walk');
+  assert(!s.pending.lijianMark, 'mark cleared after other-piece walk');
+  assert(
+    s.board.flat().filter((p) => p && p.side === 'black').length === blackBefore - 1,
+    'exactly one non-king lost to 离间 penalty',
+  );
+  assert(!getPiece(s.board, { r: 0, c: 1 }), 'penalty removed forced non-king piece');
+  assert(!!getPiece(s.board, { r: 0, c: 3 }), '将帅棋 not removed by 离间 penalty');
+  assert(s.log.some((x) => x.text.includes('离间：随机失去')), 'logs 离间 random loss');
+  assert(!(s.pending as { lijianHijack?: unknown }).lijianHijack, 'no hijack field after penalty');
+}
+
+// 离间：标记子卡住时仍可走其他棋；空过不罚、不自动跳过
+{
+  let s = base();
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'diaochan')!, false))];
+  s.qi = { red: 5, black: 0 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  // Dark pawn boxed in (cannot advance); spare revealed rook is still playable
   s.board[3][0] = P('P', 'black', 'dark-p', { revealed: false, coverType: 'P' });
   s.board[4][0] = P('P', 'black', 'blocker');
   s.board[0][0] = P('R', 'black', 'open-r');
   s.board[6][0] = P('P', 'red', 'rp');
   s = useSkill(s, 'diaochan-lijian', { kind: 'pos', pos: { r: 3, c: 0 } });
   assert(s.pending.lijianMark?.pieceId === 'dark-p', 'mark armed on stuck dark pawn');
-  __testSetLijianLoss('open-r');
   s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
-  // Stuck mark → empty locked turn skipped → penalty at end of that victim turn
-  assert(s.side === 'red', 'stuck 离间 turn skipped back to red');
-  assert(!s.pending.lijianMark, 'mark cleared after penalty skip');
-  assert(!getPiece(s.board, { r: 0, c: 0 }), 'penalty removed forced non-king piece');
-  assert(!!getPiece(s.board, { r: 0, c: 3 }), '将帅棋 not removed by 离间 penalty');
-  assert(s.log.some((x) => x.text.includes('离间：随机失去')), 'logs 离间 random loss');
-  assert(!(s.pending as { lijianHijack?: unknown }).lijianHijack, 'no hijack field after penalty');
+  // No auto-skip: black still to play even though marked piece has no moves
+  assert(s.side === 'black', 'stuck mark does not auto-skip victim turn');
+  assert(s.pending.lijianMark?.pieceId === 'dark-p', 'mark still active — no auto penalty');
+  assert(listLegalFrom(s, { r: 3, c: 0 }).length === 0, 'marked dark pawn has no legal moves');
+  assert(listLegalFrom(s, { r: 0, c: 0 }).length > 0, 'other pieces remain playable');
+  assert(
+    listLegalMoves(s).some((m) => getPiece(s.board, m.from)?.id === 'open-r'),
+    'turn playable via non-marked pieces',
+  );
+  const blackBefore = s.board.flat().filter((p) => p && p.side === 'black').length;
+  s = __testEndTurn(s);
+  assert(s.side === 'red', 'pass ends turn normally');
+  assert(!s.pending.lijianMark, 'mark cleared on no-move pass');
+  assert(
+    s.board.flat().filter((p) => p && p.side === 'black').length === blackBefore,
+    'no move → no 离间 penalty',
+  );
+  assert(s.log.every((x) => !x.text.includes('离间：随机失去')), 'no penalty log on empty pass');
 }
 
-// 离间：skillLiveState 谈标记而非劫持
+// 离间：skillLiveState 谈标记而非劫持 / 只能走
 {
   let s = base();
   s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'diaochan')!, false))];
@@ -888,6 +943,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   const live = skillLiveState(s, 'diaochan-lijian', 'red');
   assert(!!live && live.includes('离间已发动'), 'skillLiveState after cast');
   assert(!live!.includes('操控') && !live!.includes('劫持'), 'skillLiveState has no hijack wording');
+  assert(!live!.includes('只能走'), 'skillLiveState has no only-move lock wording');
 }
 
 // 夏侯惇 · 刚烈 d6（耗 5 战气抛骰；偶恢复 2）

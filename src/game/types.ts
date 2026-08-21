@@ -112,7 +112,7 @@ export interface PendingEffects {
   guicaiLock?: { pieceId: string; untilSide: Side };
   /** 吕布无双：剩余敌方回合数（发动后立即生效；敌方回合结束时递减，己方回合结束不减）。 */
   wushuang?: { owner: Side; turnsLeft: number };
-  /** 貂蝉离间：标记对方一枚暗棋，其下回合只能行走该子，否则随机失去一枚非将帅棋。 */
+  /** 貂蝉离间：标记对方一枚暗棋；其下回合若行走其他棋子，则随机失去一枚非将帅棋。 */
   lijianMark?: { pieceId: string; untilSide: Side };
   /**
    * 夏侯惇刚烈：吃子落地后抛 d6，动画结束前阻塞行棋。
