@@ -3,12 +3,10 @@ import type { Side } from '../game/types';
 
 export function BattleLogPanel({
   open,
-  onToggle,
   onClose,
   log,
 }: {
   open: boolean;
-  onToggle: () => void;
   onClose: () => void;
   log: { text: string; side: Side }[];
 }) {
@@ -19,18 +17,17 @@ export function BattleLogPanel({
     endRef.current?.scrollIntoView({ block: 'end' });
   }, [open, log.length]);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose, open]);
+
   return (
     <div className={`battle-log${open ? ' battle-log-open' : ''}`}>
-      <button
-        type="button"
-        className="battle-log-tab"
-        aria-expanded={open}
-        aria-controls="battle-log-panel"
-        onClick={onToggle}
-      >
-        记录
-      </button>
-
       {open && (
         <>
           <button
@@ -45,12 +42,12 @@ export function BattleLogPanel({
             role="dialog"
             aria-label="战斗记录"
           >
-            <button type="button" className="battle-log-header" onClick={onClose}>
+            <div className="battle-log-header">
               <span className="battle-log-title">战报</span>
-              <span className="battle-log-close" aria-hidden>
+              <button type="button" className="battle-log-close" onClick={onClose} autoFocus>
                 收起
-              </span>
-            </button>
+              </button>
+            </div>
             <div className="battle-log-list">
               {log.length === 0 ? (
                 <div className="battle-log-empty">暂无记录</div>

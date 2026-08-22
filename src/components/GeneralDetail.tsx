@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { FACTION_COLOR } from '../game/types';
 import type { GeneralRuntime } from '../game/types';
 import { skillPhaseOf, skillTypeLabel } from '../game/generals';
@@ -20,37 +21,45 @@ export function GeneralDetail({
   liveState?: (skillId: string) => string | null;
 }) {
   const color = FACTION_COLOR[general.faction];
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center px-4" onClick={onClose}>
-      <div className="pointer-events-none absolute inset-0 bg-[#3d3224]/25" />
+    <div className="general-detail-layer" onClick={onClose}>
+      <div className="general-detail-backdrop" />
       <div
-        className="relative max-h-[88dvh] w-full max-w-[340px] overflow-y-auto rounded-sm border border-aged/40 px-4 py-3 shadow-[0_12px_36px_rgba(61,50,36,0.18)]"
-        style={{
-          background:
-            'radial-gradient(circle at 22% 0%, rgba(255,250,235,0.65), transparent 46%), linear-gradient(180deg, #f7f0de 0%, #efe4cc 100%)',
-        }}
+        className="general-detail-sheet"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="general-detail-title"
       >
-        <div className="flex items-center gap-3">
+        <div className="general-detail-header">
           <div
-            className="h-14 w-14 overflow-hidden rounded-full border"
+            className="general-detail-portrait"
             style={{ borderColor: color, backgroundColor: color }}
           >
             <img
               src={portraitSrc(general.id)}
               alt={general.name}
-              className="h-full w-full rounded-full object-cover"
+              className="general-detail-portrait-image"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
               }}
             />
           </div>
-          <div className="min-w-0">
-            <div className="text-xl tracking-[0.28em] text-ink">{general.name}</div>
-            <div className="mt-0.5 text-[12px] tracking-[0.2em] text-aged">{general.title}</div>
+          <div className="general-detail-heading">
+            <div id="general-detail-title" className="general-detail-name">{general.name}</div>
+            <div className="general-detail-title">{general.title}</div>
           </div>
+          <button type="button" onClick={onClose} className="general-detail-close" autoFocus>关闭</button>
         </div>
-        <div className="mt-3 space-y-2.5">
+        <div className="general-detail-skills">
           {general.skills.map((sk) => {
             const nature = skillTypeLabel(sk);
             const phase = skillPhaseOf(sk);
@@ -58,11 +67,11 @@ export function GeneralDetail({
             const natureColor =
               nature === '限定技' ? '#a67c2a' : nature === '主动技' ? '#2a2218' : '#8a7349';
             return (
-              <div key={sk.id}>
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <article key={sk.id} className="general-detail-skill">
+                <div className="general-detail-skill-head">
                   {nature && (
                     <span
-                      className="shrink-0 whitespace-nowrap text-[10px] tracking-wide"
+                      className="skill-badge"
                       style={{ color: natureColor }}
                     >
                       {nature}
@@ -70,41 +79,34 @@ export function GeneralDetail({
                   )}
                   {phase && (
                     <span
-                      className="shrink-0 whitespace-nowrap text-[10px] tracking-wide"
+                      className="skill-badge skill-badge-phase"
                       style={{ color: '#2c4a7c' }}
                     >
                       {phase}
                     </span>
                   )}
-                  <span className="text-[15px] text-ink">{sk.name}</span>
+                  <h3>{sk.name}</h3>
                 </div>
                 {sk.qiCost != null && sk.qiCost > 0 && (
-                  <div className="text-[10px] tracking-widest text-aged">消耗 {sk.qiCost} 战气</div>
+                  <div className="general-detail-cost">消耗 {sk.qiCost} 战气</div>
                 )}
-                <p className="mt-0.5 text-[12px] leading-5 text-ink-soft/85">{sk.desc}</p>
+                <p className="general-detail-desc">{sk.desc}</p>
                 {live && (
-                  <p className="mt-1 text-[11px] leading-4 tracking-wider text-[#6b5a3e]">{live}</p>
+                  <p className="general-detail-live">{live}</p>
                 )}
                 {canCast?.(sk.id) && (
                   <button
                     type="button"
                     onClick={() => onCast?.(sk.id)}
-                    className="mt-1 border border-aged/50 px-2.5 py-0.5 text-[12px] tracking-[0.35em] text-ink"
+                    className="general-detail-cast"
                   >
                     发动
                   </button>
                 )}
-              </div>
+              </article>
             );
           })}
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-3 w-full border border-aged/40 py-1.5 text-[13px] tracking-[0.4em] text-aged"
-        >
-          关闭
-        </button>
       </div>
     </div>
   );

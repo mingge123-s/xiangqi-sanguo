@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BattleLogPanel } from './components/BattleLogPanel';
+import { BattleStatus } from './components/BattleStatus';
 import { Board } from './components/Board';
-import { CapturedRail } from './components/CapturedRail';
 import { GeneralDetail } from './components/GeneralDetail';
 import { GeneralPanel } from './components/GeneralPanel';
 import { Home } from './components/Home';
@@ -453,12 +453,15 @@ export default function App() {
 
       {state.phase === 'playing' && (
         <div className="play-screen">
+          <BattleStatus
+            side={state.side}
+            qi={state.qi?.red ?? 0}
+            onOpenLog={() => setLogOpen(true)}
+          />
           <div className="play-generals">
             <GeneralPanel
               generals={state.blackGenerals}
               mine={false}
-              qi={state.qi?.black ?? 0}
-              showFactionFog={false}
               onPortrait={(g) => onPortrait(g, false)}
               onInspectSkill={(g, sk) => onInspectSkill(g, sk, false)}
             />
@@ -466,10 +469,11 @@ export default function App() {
 
           <div className="play-board">
             <div className="play-board-row">
-              <CapturedRail pieces={state.captured.red} align="top" />
-              <div className="relative min-h-0 min-w-0 flex-1">
+              <div className="board-host">
                 <Board
                   board={state.board}
+                  capturedRed={state.captured.red}
+                  capturedBlack={state.captured.black}
                   peekedIds={myPeeks}
                   showPeek={showPeek}
                   showCoverHint={showCoverFog}
@@ -507,26 +511,12 @@ export default function App() {
                       : null
                   }
                   onGanglieSettled={onGanglieSettled}
-                  topSlot={
-                    <div className="skill-slot skill-slot-top" aria-live="polite">
-                      {turnSplash === 'black' && (
-                        <TurnBroadcast side="black" onDone={() => setTurnSplash(null)} />
-                      )}
-                      {turnSplash !== 'black' && lastLine?.side === 'black' && lastLine.text && (
-                        <div className="skill-slot-prompt">
-                          <div className="skill-center-mask">
-                            <span className="skill-center-text play-log-line">{lastLine.text}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  }
                   bottomSlot={
                     <div className="skill-slot skill-slot-bottom" aria-live="polite">
-                      {turnSplash === 'red' && (
-                        <TurnBroadcast side="red" onDone={() => setTurnSplash(null)} />
+                      {turnSplash && (
+                        <TurnBroadcast side={turnSplash} onDone={() => setTurnSplash(null)} />
                       )}
-                      {turnSplash !== 'red' && (
+                      {!turnSplash && (
                         <AnimatePresence mode="wait">
                           {checked ? (
                             <motion.div
@@ -649,8 +639,8 @@ export default function App() {
                                 <span className="skill-center-text">{centerPrompt}</span>
                               </div>
                             </div>
-                          ) : lastLine?.side === 'red' && lastLine.text ? (
-                            <div key="last-red" className="skill-slot-prompt">
+                          ) : lastLine?.text ? (
+                            <div key={`last-${lastLine.side}`} className="skill-slot-prompt">
                               <div className="skill-center-mask">
                                 <span className="skill-center-text play-log-line">{lastLine.text}</span>
                               </div>
@@ -672,21 +662,13 @@ export default function App() {
                   }
                 />
               </div>
-              <CapturedRail pieces={state.captured.black} align="bottom" />
             </div>
-            <BattleLogPanel
-              open={logOpen}
-              onToggle={() => setLogOpen((v) => !v)}
-              onClose={() => setLogOpen(false)}
-              log={state.log}
-            />
           </div>
 
           <div className="play-generals-me">
             <GeneralPanel
               generals={state.redGenerals}
               mine={true}
-              qi={state.qi?.red ?? 0}
               selectedSkillId={targeting?.skillId}
               onPortrait={(g) => onPortrait(g, true)}
               onInspectSkill={(g, sk) => onInspectSkill(g, sk, true)}
@@ -694,6 +676,12 @@ export default function App() {
               canCastSkill={(id) => !inputLocked && canUseSkill(state, id)}
             />
           </div>
+
+          <BattleLogPanel
+            open={logOpen}
+            onClose={() => setLogOpen(false)}
+            log={state.log}
+          />
         </div>
       )}
 

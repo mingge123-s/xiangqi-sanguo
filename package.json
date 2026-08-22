@@ -10,6 +10,7 @@
     "test": "tsx src/game/core.test.ts && tsx src/game/jieqi.test.ts && tsx src/game/skills.test.ts && tsx src/layout/skillSlot.test.ts"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "framer-motion": "^12.23.12",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"

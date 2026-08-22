@@ -1,5 +1,6 @@
-import { useRef } from 'react';
-import { FACTION_COLOR, QI_MAX } from '../game/types';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { CaretDown } from '@phosphor-icons/react';
+import { FACTION_COLOR } from '../game/types';
 import type { GeneralRuntime, Piece, SkillRuntime } from '../game/types';
 import { CHAR } from '../game/types';
 
@@ -7,73 +8,31 @@ function portraitSrc(id: string): string {
   return `${import.meta.env.BASE_URL}generals/${id}.webp`;
 }
 
-const LONG_PRESS_MS = 400;
+const LONG_PRESS_MS = 420;
 
-function QiMeter({
-  value,
-  compact,
-  className,
-}: {
-  value: number;
-  compact?: boolean;
-  className?: string;
-}) {
-  const n = Math.min(QI_MAX, Math.max(0, value));
-  return (
-    <div className={`flex items-center justify-center gap-1.5 ${className ?? (compact ? 'mb-0.5' : 'mb-1')}`}>
-      <span className={`${compact ? 'text-[10px]' : 'text-[11px]'} tracking-widest text-aged`}>
-        战气 {n}
-      </span>
-      <div className="flex items-center gap-px" aria-hidden>
-        {Array.from({ length: QI_MAX }, (_, i) => (
-          <span
-            key={i}
-            className={`inline-block rounded-full ${compact ? 'h-[4px] w-[4px]' : 'h-[5px] w-[5px]'} ${
-              i < n ? 'bg-aged/80' : 'bg-aged/20'
-            }`}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function SkillName({
+function SkillAction({
+  general,
   skill,
   ready,
   selected,
   onCast,
   onInspect,
 }: {
+  general: GeneralRuntime;
   skill: SkillRuntime;
   ready: boolean;
   selected: boolean;
   onCast?: () => void;
   onInspect?: () => void;
 }) {
-  const passive = skill.kind === 'passive' || skill.engineKind === 'start' || skill.engineKind === 'passive';
   const timer = useRef<number | null>(null);
   const longPressed = useRef(false);
-
-  let color = 'text-ink/40';
-  let border = 'border-aged/55 bg-paper/35';
-  if (passive) {
-    color = 'text-[#6a6358]';
-    border = 'border-[#9a8f7c] bg-paper/25';
-  } else if (ready) {
-    color = 'text-ink';
-    border = 'border-[#c9a227] bg-[#f7f0de]/85';
-  } else {
-    color = 'text-ink/45';
-    border = 'border-aged/55 bg-paper/35';
-  }
-  if (selected) border = 'border-[#c9a227] bg-[#efe4cc]';
+  const passive = skill.kind === 'passive' || skill.engineKind === 'passive';
 
   const clearTimer = () => {
-    if (timer.current != null) {
-      window.clearTimeout(timer.current);
-      timer.current = null;
-    }
+    if (timer.current == null) return;
+    window.clearTimeout(timer.current);
+    timer.current = null;
   };
 
   const startPress = () => {
@@ -87,74 +46,90 @@ function SkillName({
 
   const endPress = (fireClick: boolean) => {
     clearTimer();
-    if (fireClick && !longPressed.current) {
-      if (ready && onCast) onCast();
-    }
+    if (fireClick && !longPressed.current && ready) onCast?.();
   };
+
+  const stateText = passive
+    ? '被动'
+    : ready
+      ? (skill.qiCost ? `${skill.qiCost} 气` : '可发动')
+      : skill.engineKind === 'start'
+        ? '开局技'
+        : '蓄势中';
 
   return (
     <button
       type="button"
-      className={`block w-full truncate rounded-sm border-2 px-1 py-0.5 text-center text-[11px] leading-[13px] select-none ${color} ${border} ${
-        ready ? 'cursor-pointer' : 'cursor-default'
-      }`}
-      style={{ touchAction: 'manipulation' }}
-      onPointerDown={(e) => {
-        if (e.button !== 0) return;
+      className={`command-skill${ready ? ' command-skill-ready' : ''}${selected ? ' command-skill-selected' : ''}`}
+      aria-disabled={!ready}
+      aria-label={`${general.name}技能${skill.name}，${stateText}。长按查看详情`}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
         startPress();
       }}
       onPointerUp={() => endPress(true)}
       onPointerLeave={() => endPress(false)}
       onPointerCancel={() => endPress(false)}
-      onContextMenu={(e) => {
-        e.preventDefault();
+      onContextMenu={(event) => {
+        event.preventDefault();
         clearTimer();
         longPressed.current = true;
         onInspect?.();
       }}
     >
-      {skill.name}
+      <span className="command-skill-seal" aria-hidden>
+        {skill.name.slice(0, 1)}
+      </span>
+      <span className="command-skill-copy">
+        <strong>{skill.name}</strong>
+        <small>{stateText}</small>
+      </span>
     </button>
   );
 }
 
-function Seal({
-  g,
+function GeneralPortrait({
+  general,
   mine,
-  showFactionFog,
-  onPortrait,
+  focused,
+  ready,
+  onClick,
 }: {
-  g: GeneralRuntime;
+  general: GeneralRuntime;
   mine: boolean;
-  showFactionFog?: boolean;
-  onPortrait?: () => void;
+  focused: boolean;
+  ready: boolean;
+  onClick: () => void;
 }) {
-  const color = FACTION_COLOR[g.faction];
-  const showFace = true;
-  const fogBorder = false;
+  const color = FACTION_COLOR[general.faction];
   return (
-    <button
-      type="button"
-      onClick={onPortrait}
-      className="relative h-[46px] w-[46px] shrink-0 overflow-hidden rounded-full border"
-      style={{
-        borderColor: showFace || fogBorder ? color : '#8a7349',
-        backgroundColor: showFace ? color : '#d8c7a4',
-      }}
-    >
-      {showFace ? (
+    <div className={`general-portrait-wrap${focused ? ' general-portrait-focused' : ''}`}>
+      {focused && mine && <CaretDown className="general-focus-caret" size={22} weight="fill" aria-hidden />}
+      <button
+        type="button"
+        className="general-portrait"
+        style={{ '--faction-color': color } as CSSProperties}
+        onClick={onClick}
+        aria-label={
+          mine
+            ? `${general.name}${focused ? '，再次点击查看详情' : '，选择将星'}`
+            : `查看${general.name}详情`
+        }
+      >
         <img
-          src={portraitSrc(g.id)}
-          alt={g.name}
-          className="h-full w-full rounded-full object-cover"
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
+          src={portraitSrc(general.id)}
+          alt=""
+          className="general-portrait-image"
+          onError={(event) => {
+            event.currentTarget.style.display = 'none';
           }}
         />
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center text-lg text-ink">？</div>
-      )}
-    </button>
+        <span className={`general-state general-state-${mine && ready ? 'ready' : 'rest'}`} aria-hidden>
+          {mine && ready ? '可' : mine ? '休' : '敌'}
+        </span>
+      </button>
+      <span className="general-name">{general.name}</span>
+    </div>
   );
 }
 
@@ -169,8 +144,6 @@ export function GeneralPanel({
   captured,
   showCaptured,
   onPickCaptured,
-  showFactionFog,
-  qi = 0,
 }: {
   generals: GeneralRuntime[];
   mine: boolean;
@@ -185,66 +158,81 @@ export function GeneralPanel({
   showFactionFog?: boolean;
   qi?: number;
 }) {
-  const qiMeter = (
-    <QiMeter
-      value={qi}
-      compact={!mine}
-      className={mine ? 'mt-1 mb-2' : 'mt-2 mb-0'}
-    />
-  );
+  const [focusedId, setFocusedId] = useState(() => generals[Math.floor(generals.length / 2)]?.id ?? '');
+
+  useEffect(() => {
+    const owner = selectedSkillId
+      ? generals.find((general) => general.skills.some((skill) => skill.id === selectedSkillId))
+      : null;
+    if (owner) {
+      setFocusedId(owner.id);
+      return;
+    }
+    if (!generals.some((general) => general.id === focusedId)) {
+      setFocusedId(generals[Math.floor(generals.length / 2)]?.id ?? '');
+    }
+  }, [focusedId, generals, selectedSkillId]);
+
+  const focused = generals.find((general) => general.id === focusedId) ?? generals[0];
 
   return (
-    <div className="px-1">
-      {mine && qiMeter}
-      <div className="flex items-start justify-center gap-1">
-        {generals.map((g) => {
-          const showFace = true;
+    <section className={mine ? 'general-command-panel' : 'enemy-command-panel'} aria-label={mine ? '我方将星' : '敌方将星'}>
+      {mine && focused && (
+        <div className="command-skills" aria-label={`${focused.name}技能`}>
+          {focused.skills.map((skill) => (
+            <SkillAction
+              key={skill.id}
+              general={focused}
+              skill={skill}
+              ready={!!canCastSkill?.(skill.id)}
+              selected={selectedSkillId === skill.id}
+              onCast={onCastSkill ? () => onCastSkill(focused, skill) : undefined}
+              onInspect={onInspectSkill ? () => onInspectSkill(focused, skill) : undefined}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="general-ribbon">
+        {generals.map((general) => {
+          const isFocused = mine && general.id === focused?.id;
+          const ready = general.skills.some((skill) => !!canCastSkill?.(skill.id));
           return (
-            <div key={g.id} className="flex w-[120px] items-center gap-1.5">
-              <Seal
-                g={g}
-                mine={mine}
-                showFactionFog={showFactionFog}
-                onPortrait={onPortrait ? () => onPortrait(g) : undefined}
-              />
-              <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
-                {(
-                  g.skills.map((sk) => {
-                    const ready = !!mine && !!canCastSkill?.(sk.id);
-                    return (
-                      <SkillName
-                        key={sk.id}
-                        skill={sk}
-                        ready={ready}
-                        selected={selectedSkillId === sk.id}
-                        onCast={onCastSkill ? () => onCastSkill(g, sk) : undefined}
-                        onInspect={onInspectSkill ? () => onInspectSkill(g, sk) : undefined}
-                      />
-                    );
-                  })
-                )}
-              </div>
-            </div>
+            <GeneralPortrait
+              key={general.id}
+              general={general}
+              mine={mine}
+              focused={isFocused}
+              ready={ready}
+              onClick={() => {
+                if (!mine) {
+                  onPortrait?.(general);
+                  return;
+                }
+                if (isFocused) onPortrait?.(general);
+                else setFocusedId(general.id);
+              }}
+            />
           );
         })}
       </div>
-      {!mine && qiMeter}
+
       {showCaptured && captured && (
-        <div className="mt-1 flex flex-wrap justify-center gap-1.5">
-          {captured.length === 0 && <div className="text-[11px] text-aged">无被吃子可复活</div>}
-          {captured.map((p) => (
+        <div className="revive-list">
+          {captured.length === 0 && <div className="revive-empty">无被吃子可复活</div>}
+          {captured.map((piece) => (
             <button
-              key={p.id}
+              key={piece.id}
               type="button"
-              onClick={() => onPickCaptured?.(p.id)}
-              className="wood-token flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold"
-              style={{ color: p.side === 'red' ? '#b8332a' : '#2a2520' }}
+              onClick={() => onPickCaptured?.(piece.id)}
+              className="wood-token revive-piece"
+              style={{ color: piece.side === 'red' ? '#a7332b' : '#27231f' }}
             >
-              {CHAR[p.side][p.type]}
+              {CHAR[piece.side][piece.type]}
             </button>
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }

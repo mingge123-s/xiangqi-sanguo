@@ -17,7 +17,6 @@ export function TurnBroadcast({
   }, [side, onDone]);
 
   const label = side === 'red' ? '红方回合' : '黑方回合';
-  const accent = side === 'red' ? '#9b1c1c' : '#1a1410';
 
   return (
     <AnimatePresence>
@@ -35,8 +34,8 @@ export function TurnBroadcast({
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 1.02, opacity: 0 }}
-              className="skill-center-text"
-              style={{ color: accent, fontSize: 18, letterSpacing: '0.28em', fontWeight: 700 }}
+              className={`skill-center-text turn-splash-text turn-splash-${side}`}
+              style={{ fontSize: 18, letterSpacing: '0.28em', fontWeight: 700 }}
             >
               {label}
             </motion.div>

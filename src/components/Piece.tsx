@@ -149,16 +149,16 @@ export function PieceView({
       }}
       whileTap={{ scale: 0.94 }}
       transition={{ type: 'spring', stiffness: 420, damping: 28 }}
-      className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center bg-transparent p-0"
+      className="piece-button absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-transparent p-0"
       style={{ width: hit, height: hit, zIndex: selected ? 5 : 2 }}
     >
       <span
-        className="wood-token relative flex items-center justify-center rounded-full"
+        className={`wood-token piece-token relative flex items-center justify-center rounded-full${selected ? ' piece-token-selected' : ''}`}
         style={{
           width: size,
           height: size,
           boxShadow: selected
-            ? `${thickness}, 0 0 0 2px #c9a227`
+            ? `${thickness}, 0 0 0 2px #bc7c24, 0 0 0 5px rgba(224, 174, 67, 0.56), 0 0 14px rgba(208, 126, 31, 0.68)`
             : locked
               ? `${thickness}, 0 0 0 2.5px #6b8f71, 0 0 10px rgba(90,130,95,0.45)`
               : undefined,

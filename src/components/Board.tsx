@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { PieceView } from './Piece';
 import { GanglieDice } from './GanglieDice';
+import { CapturedRail } from './CapturedRail';
 import type { Piece, PieceType, Pos } from '../game/types';
 import { posEq } from '../game/core';
 
@@ -16,19 +17,23 @@ function BoardArt({
   w,
   h,
   pad,
-  cell,
+  cellX,
+  cellY,
+  rail,
 }: {
   w: number;
   h: number;
   pad: number;
-  cell: number;
+  cellX: number;
+  cellY: number;
+  rail: number;
 }) {
-  const x = (c: number) => pad + c * cell;
-  const y = (r: number) => pad + r * cell;
+  const x = (c: number) => rail + pad + c * cellX;
+  const y = (r: number) => pad + r * cellY;
   const ink = '#3a2e20';
-  const gridW = Math.max(0.7, cell * 0.032);
-  const palaceW = Math.max(0.9, cell * 0.04);
-  const font = Math.min(cell * 0.34, 15);
+  const gridW = Math.max(0.7, cellX * 0.032);
+  const palaceW = Math.max(0.9, cellX * 0.04);
+  const font = Math.min(cellX * 0.34, 15);
 
   const ranks: string[] = [];
   for (let r = 0; r < ROWS; r++) ranks.push(`M ${x(0)} ${y(r)} L ${x(8)} ${y(r)}`);
@@ -72,7 +77,11 @@ function BoardArt({
       </defs>
       <rect width={w} height={h} fill="url(#woodFill)" />
       <rect width={w} height={h} filter="url(#woodGrain)" />
-      <rect x={x(0)} y={y(4)} width={x(8) - x(0)} height={cell} fill="url(#riverFill)" />
+      <rect x="0" y="0" width={rail} height={h} fill="#6c4c2f" opacity="0.9" />
+      <rect x={w - rail} y="0" width={rail} height={h} fill="#6c4c2f" opacity="0.9" />
+      <rect x={rail} y="0" width="2" height={h} fill="#2b1b10" opacity="0.48" />
+      <rect x={w - rail - 2} y="0" width="2" height={h} fill="#2b1b10" opacity="0.48" />
+      <rect x={x(0)} y={y(4)} width={x(8) - x(0)} height={cellY} fill="url(#riverFill)" />
       <rect x="1.4" y="1.4" width={w - 2.8} height={h - 2.8} fill="none" stroke="#2a1c10" strokeWidth="2.2" />
       <rect x="4.2" y="4.2" width={w - 8.4} height={h - 8.4} fill="none" stroke="#5a4530" strokeWidth="1" />
       {ranks.map((d, i) => (
@@ -116,6 +125,8 @@ export function Board({
   legal,
   lastMove,
   highlights,
+  capturedRed,
+  capturedBlack,
   disabled,
   onCell,
   peekedIds,
@@ -140,6 +151,8 @@ export function Board({
   legal: Pos[];
   lastMove: { from: Pos; to: Pos } | null;
   highlights: Pos[];
+  capturedRed?: Piece[];
+  capturedBlack?: Piece[];
   disabled: boolean;
   onCell: (pos: Pos) => void;
   peekedIds?: string[];
@@ -187,27 +200,29 @@ export function Board({
     return () => ro.disconnect();
   }, []);
 
-  const availW = Math.max(0, box.w - 12);
+  const availW = Math.max(0, box.w - 6);
   const slotPad =
     (hasTopSlot ? SLOT_RESERVE : 0) + (hasBottomSlot ? SLOT_RESERVE : 0);
   const availH = Math.max(0, box.h - slotPad);
-  // pad = pieceR + 2 = 0.41*cell + 2  →  W = 8.82*cell + 4,  H = 9.82*cell + 4
+  // Side prisoner rails add one cell in total. Board and grid remain centered and stable.
   const cell = Math.max(
     8,
     Math.min(
-      availW > 4 ? (availW - 4) / 8.82 : 24,
-      availH > 4 ? (availH - 4) / 9.82 : 24,
+      availW > 4 ? (availW - 4) / 9.82 : 24,
+      availH > 4 ? (availH - 4) / 10.18 : 24,
     ),
   );
+  const cellY = cell * 1.04;
   const pieceSize = PIECE_RATIO * cell;
   const pad = pieceSize / 2 + EDGE_SLACK;
-  const boardW = pad * 2 + 8 * cell;
-  const boardH = pad * 2 + 9 * cell;
+  const rail = Math.max(14, cell * 0.5);
+  const boardW = rail * 2 + pad * 2 + 8 * cell;
+  const boardH = pad * 2 + 9 * cellY;
   const ready = box.w > 0 && box.h > 0;
   const hit = Math.min(cell * 0.94, pieceSize + 10);
   const lastTint = pieceSize * 1.06;
   const bloomSize = pieceSize * 1.7;
-  const legalDot = Math.max(4, cell * 0.16);
+  const legalTarget = Math.max(19, pieceSize * 0.74);
   const dieSize = Math.max(22, Math.min(pieceSize * 0.92, 36));
   const lastKey = lastMove
     ? `${lastMove.from.r},${lastMove.from.c}->${lastMove.to.r},${lastMove.to.c}`
@@ -234,7 +249,7 @@ export function Board({
     <div ref={hostRef} className="absolute inset-0">
       {ready && (
         <div
-          className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
+          className="board-stack"
           style={{ width: boardW }}
         >
           {hasTopSlot && topSlot}
@@ -242,7 +257,15 @@ export function Board({
             className={`relative shrink-0 ${disabled ? 'pointer-events-none opacity-90' : ''}`}
             style={{ width: boardW, height: boardH }}
           >
-            <BoardArt w={boardW} h={boardH} pad={pad} cell={cell} />
+            <BoardArt w={boardW} h={boardH} pad={pad} cellX={cell} cellY={cellY} rail={rail} />
+            <div className="board-captured board-captured-left" style={{ width: rail }}>
+              <span className="board-captured-label" aria-hidden>我方俘子</span>
+              <CapturedRail pieces={capturedRed ?? []} align="top" />
+            </div>
+            <div className="board-captured board-captured-right" style={{ width: rail }}>
+              <span className="board-captured-label" aria-hidden>敌方俘子</span>
+              <CapturedRail pieces={capturedBlack ?? []} align="bottom" />
+            </div>
             <div className="absolute inset-0">
               {Array.from({ length: ROWS }, (_, r) =>
                 Array.from({ length: COLS }, (_, c) => {
@@ -261,15 +284,15 @@ export function Board({
                       key={`${r}-${c}`}
                       className="absolute"
                       style={{
-                        top: pad + r * cell,
-                        left: pad + c * cell,
+                        top: pad + r * cellY,
+                        left: rail + pad + c * cell,
                         width: 0,
                         height: 0,
                       }}
                     >
                       <button
                         type="button"
-                        aria-label={`${r},${c}`}
+                        aria-label={piece ? `${piece.revealed ? '明棋' : '暗棋'}，第${r + 1}行第${c + 1}列` : `第${r + 1}行第${c + 1}列`}
                         className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
                         style={{ width: hit, height: hit }}
                         onClick={() => onCell(pos)}
@@ -292,7 +315,7 @@ export function Board({
                       )}
                       {isHi && (
                         <div
-                          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-amber-300/85"
+                          className="skill-target-ring pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
                           style={{ width: pieceSize + 6, height: pieceSize + 6, zIndex: 1 }}
                         />
                       )}
@@ -303,14 +326,17 @@ export function Board({
                         />
                       )}
                       {isLegal && !piece && (
-                        <div
-                          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#3d2a14]/70"
-                          style={{ width: legalDot, height: legalDot, zIndex: 1 }}
-                        />
+                        <span
+                          className="legal-target pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                          style={{ width: legalTarget, height: legalTarget, zIndex: 1 }}
+                          aria-hidden
+                        >
+                          <span />
+                        </span>
                       )}
                       {isLegal && piece && (
                         <div
-                          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-red-800/70"
+                          className="capture-target-ring pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
                           style={{ width: pieceSize + 4, height: pieceSize + 4, zIndex: 1 }}
                         />
                       )}
@@ -356,8 +382,8 @@ export function Board({
               <GanglieDice
                 key={diceKey}
                 roll={ganglieDice.roll}
-                landLeft={pad + ganglieDice.capturerPos.c * cell}
-                landTop={pad + ganglieDice.capturerPos.r * cell}
+                landLeft={rail + pad + ganglieDice.capturerPos.c * cell}
+                landTop={pad + ganglieDice.capturerPos.r * cellY}
                 size={dieSize}
                 onSettled={handleGanglieSettled}
               />
