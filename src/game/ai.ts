@@ -30,6 +30,28 @@ import type { GameState, Move, Pos, Side, SkillPayload } from './types';
 
 const TIME_BUDGET_MS = 620;
 
+/** When 离间 marks this side and the marked piece has legal moves, only those moves. */
+function lijianForcedMoves(s: GameState): Move[] | null {
+  const mark = s.pending.lijianMark;
+  if (!mark || mark.untilSide !== s.side) return null;
+  const hit = allPieces(s.board, s.side).find((x) => x.piece.id === mark.pieceId);
+  if (!hit) return null;
+  const dests = listLegalFrom(s, hit.pos);
+  if (dests.length === 0) return null;
+  return dests.map((to) => ({ from: { ...hit.pos }, to }));
+}
+
+/** Expected material loss if walking a non-marked piece under 离间. */
+function lijianOtherMovePenalty(s: GameState, knownIds?: string[]): number {
+  const mark = s.pending.lijianMark;
+  if (!mark || mark.untilSide !== s.side) return 0;
+  const candidates = allPieces(s.board, s.side).filter((x) => x.piece.type !== 'K');
+  if (candidates.length === 0) return 0;
+  let sum = 0;
+  for (const c of candidates) sum += pieceValueAt(c.piece, c.pos.r, knownIds);
+  return sum / candidates.length;
+}
+
 function searchEval(
   board: GameState['board'],
   side: Side,
@@ -93,8 +115,13 @@ function moveDesire(s: GameState, m: Move): number {
 function searchBestMove(s: GameState, depth: number, deadline: number): { move: Move; score: number } | null {
   const side = s.side;
   const knownIds = knownIdsOn(s.board, peekedOf(s, side));
-  const moves = listLegalMoves(s, side);
+  const forced = lijianForcedMoves(s);
+  const moves = forced ?? listLegalMoves(s, side);
   if (moves.length === 0) return null;
+
+  const mark = s.pending.lijianMark;
+  const underLijianOther = !!mark && mark.untilSide === side && !forced;
+  const otherPenalty = underLijianOther ? lijianOtherMovePenalty(s, knownIds) : 0;
 
   moves.sort((a, b) => moveDesire(s, b) - moveDesire(s, a));
 
@@ -106,7 +133,8 @@ function searchBestMove(s: GameState, depth: number, deadline: number): { move: 
   for (const m of moves) {
     if (Date.now() > deadline) break;
     const { board: nb } = applyMove(s.board, m.from, m.to);
-    const score = searchEval(nb, opposite(side), depth - 1, alpha, beta, side, deadline, undefined, knownIds);
+    let score = searchEval(nb, opposite(side), depth - 1, alpha, beta, side, deadline, undefined, knownIds);
+    if (otherPenalty > 0) score -= otherPenalty;
     if (score > bestScore) {
       bestScore = score;
       best = m;
@@ -131,7 +159,8 @@ function pickBoardMove(s: GameState): Move | null {
     if (d3 && Date.now() <= deadline) chosen = d3.move;
   }
   if (chosen) return chosen;
-  const fallback = listLegalMoves(s);
+  const forced = lijianForcedMoves(s);
+  const fallback = forced ?? listLegalMoves(s);
   return fallback[0] ?? null;
 }
 

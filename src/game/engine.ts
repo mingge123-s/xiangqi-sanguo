@@ -73,6 +73,7 @@ function cloneState(s: GameState): GameState {
       guicaiLock: s.pending.guicaiLock ? { ...s.pending.guicaiLock } : undefined,
       wushuang: s.pending.wushuang ? { ...s.pending.wushuang } : undefined,
       lijianMark: s.pending.lijianMark ? { ...s.pending.lijianMark } : undefined,
+      lijianWalkedId: s.pending.lijianWalkedId,
       ganglieDice: s.pending.ganglieDice
         ? {
             ...s.pending.ganglieDice,
@@ -981,14 +982,13 @@ function applyLijianPenalty(s: GameState, victim: Side): void {
 function settleLijianMark(s: GameState, endingSide: Side): void {
   const mark = s.pending.lijianMark;
   if (!mark || mark.untilSide !== endingSide) return;
-  // Penalty only if victim moved a *different* piece. Walking the mark or
-  // ending the turn without moving is fine.
-  const movedOther =
-    s.movedThisTurn && !!s.lastMove && s.lastMove.piece.id !== mark.pieceId;
-  if (movedOther) {
+  // Only a real makeMove walk counts. Skills (龙魂/青囊/联姻) and empty pass do not.
+  // Use lijianWalkedId written in makeMove — never stale lastMove + movedThisTurn.
+  const walkedId = s.pending.lijianWalkedId;
+  if (walkedId && walkedId !== mark.pieceId) {
     applyLijianPenalty(s, endingSide);
   }
-  s.pending = { ...s.pending, lijianMark: undefined };
+  s.pending = { ...s.pending, lijianMark: undefined, lijianWalkedId: undefined };
 }
 
 /** Test-only: force end of the current turn (e.g. pass without moving). */
@@ -1742,6 +1742,9 @@ export function makeMove(s0: GameState, from: Pos, to: Pos): GameState {
   const pawnAdvance1 = piece.type === 'P' && dest.r - from.r === fwd && dest.c === from.c;
   const river = maybeRiverCross(s, piece, dest);
   s.lastMove = { from: { ...from }, to: { ...dest }, piece: { ...piece } };
+  if (s.pending.lijianMark?.untilSide === s.side) {
+    s.pending = { ...s.pending, lijianWalkedId: piece.id };
+  }
   s.moveSerial += 1;
   pushLog(
     s,
