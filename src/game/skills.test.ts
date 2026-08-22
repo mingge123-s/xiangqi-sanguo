@@ -1267,7 +1267,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(s.side === 'black', 'user-report: black to move after skipKongcheng');
   assert(!s.pending.awaitKongcheng, 'user-report: awaitKongcheng cleared for black');
   assert(s.pending.lijianMark?.pieceId === 'dark-p', 'user-report: mark still waiting on black');
-  assert(listLegalMoves(s).length > 0, 'user-report: black has legal moves');
+  assert(listLegalFrom(s, { r: 3, c: 0 }).length > 0, 'user-report: marked piece has legal moves');
   const blackBefore = s.board.flat().filter((p) => p && p.side === 'black').length;
   const boardBefore = JSON.stringify(s.board);
   s = applyAITurn(s);
@@ -1275,18 +1275,131 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   if (!s.winner) {
     assert(s.lastMove?.piece.side === 'black', 'user-report: applyAITurn made a black board move');
     assert(JSON.stringify(s.board) !== boardBefore, 'user-report: black board changed');
-    if (s.lastMove && s.lastMove.piece.id !== 'dark-p') {
-      assert(
-        s.board.flat().filter((p) => p && p.side === 'black').length === blackBefore - 1,
-        'user-report: walking non-mark triggers 离间 loss',
-      );
-    } else {
-      assert(
-        s.board.flat().filter((p) => p && p.side === 'black').length === blackBefore,
-        'user-report: walking mark does not penalize',
-      );
-    }
+    assert(s.lastMove?.piece.id === 'dark-p', 'user-report: AI walks marked piece when it has legal moves');
+    assert(
+      s.board.flat().filter((p) => p && p.side === 'black').length === blackBefore,
+      'user-report: walking mark does not penalize',
+    );
+    assert(s.log.every((x) => !x.text.includes('离间：随机失去')), 'user-report: no 离间 loss log');
   }
+}
+
+// 离间：标记子有合法步时 AI 只走该子
+{
+  let s = base();
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'diaochan')!, false))];
+  s.blackGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'caocao')!, true))];
+  s.qi = { red: 8, black: 10 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[3][0] = P('P', 'black', 'dark-p', { revealed: false, coverType: 'P' });
+  s.board[0][0] = P('R', 'black', 'open-r');
+  s.board[6][0] = P('P', 'red', 'rp');
+  s = useSkill(s, 'diaochan-lijian', { kind: 'pos', pos: { r: 3, c: 0 } });
+  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
+  assert(s.side === 'black' && s.pending.lijianMark?.pieceId === 'dark-p', 'AI-mark: black under mark');
+  assert(listLegalFrom(s, { r: 3, c: 0 }).length > 0, 'AI-mark: marked piece movable');
+  assert(listLegalFrom(s, { r: 0, c: 0 }).length > 0, 'AI-mark: other pieces also movable');
+  s = applyAITurn(s);
+  assert(s.lastMove?.piece.id === 'dark-p', 'AI-mark: applyAITurn walks marked piece');
+  assert(s.log.every((x) => !x.text.includes('离间：随机失去')), 'AI-mark: no random-loss log');
+}
+
+// 离间：标记子卡死、另有可走子 → AI 可走其他子并接受惩罚
+{
+  let s = base();
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'diaochan')!, false))];
+  s.blackGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'caocao')!, true))];
+  s.qi = { red: 8, black: 0 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[3][0] = P('P', 'black', 'dark-p', { revealed: false, coverType: 'P' });
+  s.board[4][0] = P('P', 'black', 'blocker');
+  s.board[0][0] = P('R', 'black', 'open-r');
+  s.board[0][1] = P('N', 'black', 'spare-n');
+  s.board[6][0] = P('P', 'red', 'rp');
+  s = useSkill(s, 'diaochan-lijian', { kind: 'pos', pos: { r: 3, c: 0 } });
+  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
+  assert(listLegalFrom(s, { r: 3, c: 0 }).length === 0, 'AI-stuck: marked piece stuck');
+  assert(listLegalMoves(s).some((m) => getPiece(s.board, m.from)?.id === 'open-r'), 'AI-stuck: other moves exist');
+  const blackBefore = s.board.flat().filter((p) => p && p.side === 'black').length;
+  __testSetLijianLoss('spare-n');
+  s = applyAITurn(s);
+  assert(s.lastMove?.piece.id !== 'dark-p', 'AI-stuck: walks a non-marked piece');
+  assert(
+    s.board.flat().filter((p) => p && p.side === 'black').length === blackBefore - 1,
+    'AI-stuck: 离间 penalty applied',
+  );
+  assert(s.log.some((x) => x.text.includes('离间：随机失去')), 'AI-stuck: logs random loss');
+}
+
+// 离间：龙魂换位结束回合不罚（技能不算行走其他棋；不误用陈旧 lastMove）
+{
+  let s = base();
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'diaochan')!, false))];
+  s.blackGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'zhaoyun')!, true))];
+  s.qi = { red: 8, black: 20 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[3][0] = P('P', 'black', 'dark-p', { revealed: false, coverType: 'P' });
+  s.board[0][0] = P('R', 'black', 'br');
+  s.board[0][8] = P('N', 'black', 'bn');
+  s.board[6][0] = P('P', 'red', 'rp');
+  s = useSkill(s, 'diaochan-lijian', { kind: 'pos', pos: { r: 3, c: 0 } });
+  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
+  assert(s.side === 'black' && s.pending.lijianMark?.pieceId === 'dark-p', 'longhun-lijian: mark on black');
+  // Stale lastMove from red's walk + 龙魂 sets movedThisTurn without writing lastMove
+  assert(s.lastMove?.piece.side === 'red', 'longhun-lijian: lastMove still red');
+  const blackBefore = s.board.flat().filter((p) => p && p.side === 'black').length;
+  s = useSkill(s, 'zhaoyun-longhun', { kind: 'twoPos', a: { r: 0, c: 0 }, b: { r: 0, c: 8 } });
+  assert(s.side === 'red', 'longhun-lijian: 龙魂 ends black turn');
+  assert(!s.pending.lijianMark, 'longhun-lijian: mark cleared');
+  assert(
+    s.board.flat().filter((p) => p && p.side === 'black').length === blackBefore,
+    'longhun-lijian: no piece lost',
+  );
+  assert(s.log.every((x) => !x.text.includes('离间：随机失去')), 'longhun-lijian: no penalty log');
+}
+
+// 离间：陈旧己方 lastMove + 龙魂 movedThisTurn 不得误罚
+{
+  let s = base();
+  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'diaochan')!, false))];
+  s.blackGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'zhaoyun')!, true))];
+  s.qi = { red: 8, black: 20 };
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][3] = P('K', 'black', 'bk');
+  s.board[3][0] = P('P', 'black', 'dark-p', { revealed: false, coverType: 'P' });
+  s.board[0][0] = P('R', 'black', 'br');
+  s.board[0][8] = P('N', 'black', 'bn');
+  s.board[6][0] = P('P', 'red', 'rp');
+  s = useSkill(s, 'diaochan-lijian', { kind: 'pos', pos: { r: 3, c: 0 } });
+  s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
+  assert(s.side === 'black' && s.pending.lijianMark?.pieceId === 'dark-p', 'stale-own: black under mark');
+  // Plant a stale same-side lastMove as if black had walked in a prior turn
+  // (龙魂 sets movedThisTurn but does not rewrite lastMove).
+  s = {
+    ...s,
+    lastMove: {
+      from: { r: 0, c: 0 },
+      to: { r: 1, c: 0 },
+      piece: { ...getPiece(s.board, { r: 0, c: 0 })! },
+    },
+  };
+  assert(s.lastMove?.piece.id === 'br', 'stale-own: lastMove is prior black walk');
+  const blackBefore = s.board.flat().filter((p) => p && p.side === 'black').length;
+  s = useSkill(s, 'zhaoyun-longhun', { kind: 'twoPos', a: { r: 0, c: 0 }, b: { r: 0, c: 8 } });
+  assert(s.side === 'red', 'stale-own: black 龙魂 ends turn');
+  assert(!s.pending.lijianMark, 'stale-own: mark cleared');
+  assert(
+    s.board.flat().filter((p) => p && p.side === 'black').length === blackBefore,
+    'stale-own: no false 离间 penalty from stale lastMove',
+  );
+  assert(s.log.every((x) => !x.text.includes('离间：随机失去')), 'stale-own: no penalty log');
 }
 
 // 空城泄漏：endTurn 不得把 awaitKongcheng 留给下一方；黑无空城时 AI 不得 skip 秒过

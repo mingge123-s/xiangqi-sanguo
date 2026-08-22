@@ -116,6 +116,11 @@ export interface PendingEffects {
   /** 貂蝉离间：标记对方一枚暗棋；其下回合若行走其他棋子，则随机失去一枚非将帅棋。 */
   lijianMark?: { pieceId: string; untilSide: Side };
   /**
+   * 离间受害方本回合经 makeMove 真正行走的棋子 id。
+   * 技能换位/传送不写入；用于避免陈旧 lastMove + movedThisTurn 误罚。
+   */
+  lijianWalkedId?: string;
+  /**
    * 夏侯惇刚烈：吃子落地后抛 d6，动画结束前阻塞行棋。
    * resumeTurn：resolve 后是否继续 makeMove 的结束回合流程。
    */
