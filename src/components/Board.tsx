@@ -9,7 +9,7 @@ const COLS = 9;
 /** Visible disc ≤ this fraction of the smaller cell so neighbors never overlap. */
 const PIECE_RATIO = 0.82;
 const EDGE_SLACK = 2;
-/** Vertical reserve per announce slot (min ~34px, up to ~2 wrapped lines). */
+/** Vertical reserve per announce slot — must match .skill-slot height in styles.css. */
 const SLOT_RESERVE = 44;
 
 function BoardArt({
