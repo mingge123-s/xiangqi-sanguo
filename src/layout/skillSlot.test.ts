@@ -1,7 +1,8 @@
 /**
  * Contract: announce slots must stay a fixed height matching Board SLOT_RESERVE.
  * If height is auto / min-height-only, wrapped broadcast text grows the flex column
- * and the centered wood board jumps vertically after a move.
+ * and the centered wood board jumps vertically after a move. Overflow stays visible
+ * so the fixed slot does not crop two-line text or the surrounding ink wash.
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -37,8 +38,16 @@ assert.equal(
 
 assert.match(
   slotBlock,
-  /overflow\s*:\s*(hidden|auto|scroll)\b/,
-  '.skill-slot overflow must clip or scroll so wrapped text cannot push the wood board',
+  /overflow\s*:\s*visible\b/,
+  '.skill-slot overflow must stay visible so wrapped text and ink wash are not cropped',
+);
+
+const promptBlockMatch = css.match(/\.skill-slot-prompt,\s*\n\.skill-slot-splash\s*\{[^}]*\}/);
+assert.ok(promptBlockMatch, '.skill-slot-prompt/.skill-slot-splash rule must exist in styles.css');
+assert.match(
+  promptBlockMatch[0],
+  /overflow\s*:\s*visible\b/,
+  '.skill-slot-prompt/.skill-slot-splash overflow must stay visible so two-line text is not cropped',
 );
 
 console.log('skillSlot layout ok');

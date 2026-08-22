@@ -107,7 +107,8 @@ body {
   justify-content: flex-end;
 }
 
-/* Announce strips — fixed height (= Board SLOT_RESERVE) so wrap never shifts the wood board */
+/* Announce strips — fixed height (= Board SLOT_RESERVE) so wrap never shifts the wood board.
+   Ink and wrapped text may paint outside the reserved box without affecting layout. */
 .skill-slot {
   flex: none;
   flex-shrink: 0;
@@ -122,7 +123,7 @@ body {
   z-index: 5;
   padding-left: 18px;
   padding-right: 18px;
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
 }
 
@@ -159,7 +160,7 @@ body {
   justify-content: center;
   pointer-events: none;
   z-index: 5;
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* 水墨云：文字后一团洇开的椭圆墨晕，无方框/题签线/圆角卡片 */
