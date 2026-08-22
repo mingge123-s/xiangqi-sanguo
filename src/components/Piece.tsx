@@ -58,6 +58,44 @@ function SoftInkRing({
   );
 }
 
+/** 棋子右上角圆形状态/窥视印（宣纸底 + 细墨圈）。 */
+function CornerSeal({
+  pieceSize,
+  mark,
+  label,
+}: {
+  pieceSize: number;
+  mark: string;
+  label?: string;
+}) {
+  const diam = Math.max(12, Math.round(pieceSize * 0.35));
+  const fontSize = Math.max(8, diam * 0.68);
+  const border = Math.max(1, Math.round(diam * 0.06));
+
+  return (
+    <span
+      className="pointer-events-none absolute flex items-center justify-center rounded-full font-bold"
+      style={{
+        width: diam,
+        height: diam,
+        top: pieceSize * -0.02,
+        right: pieceSize * -0.02,
+        background: '#f4ead6',
+        border: `${border}px solid #2a2520`,
+        color: '#2a2520',
+        fontSize,
+        lineHeight: 1,
+        fontFamily: 'var(--font-serif), serif',
+        boxSizing: 'border-box',
+        zIndex: 2,
+      }}
+      aria-label={label ?? `状态印：${mark}`}
+    >
+      {mark}
+    </span>
+  );
+}
+
 export function PieceView({
   piece,
   selected,
@@ -151,36 +189,9 @@ export function PieceView({
           </span>
         )}
         {showPeek && !statusMark && (
-          <span
-            className="pointer-events-none absolute"
-            style={{
-              top: size * 0.08,
-              right: size * 0.1,
-              fontSize: Math.max(7, size * 0.22),
-              color: '#6b4c8a',
-              lineHeight: 1,
-            }}
-          >
-            {peekMark ?? '观'}
-          </span>
+          <CornerSeal pieceSize={size} mark={peekMark ?? '观'} label={`窥视印：${peekMark ?? '观'}`} />
         )}
-        {statusMark && (
-          <span
-            className="pointer-events-none absolute font-bold"
-            style={{
-              top: size * 0.06,
-              right: size * 0.08,
-              fontSize: Math.max(8, size * 0.26),
-              color: '#2a2520',
-              lineHeight: 1,
-              textShadow: '0 0 0.5px rgba(244,234,214,0.9)',
-              fontFamily: 'serif',
-            }}
-            aria-label={`状态印：${statusMark}`}
-          >
-            {statusMark}
-          </span>
-        )}
+        {statusMark && <CornerSeal pieceSize={size} mark={statusMark} />}
         {hint && !showPeek && (
           <span
             className="pointer-events-none absolute"
