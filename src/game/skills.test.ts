@@ -1493,7 +1493,14 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
 }
 
 {
-  // 啖睛 unchanged: still arms no-capture on enemy piece
+  // 啖睛：desc / qiCost 5；仍标记对方子不可吃子
+  const danjing = GENERALS.find((d) => d.id === 'xiahoudun')!.skills.find((sk) => sk.id === 'xiahoudun-danjing')!;
+  assert(
+    danjing.desc ===
+      '主动技。走棋阶段，你可以消耗5点战气，指定对方一枚棋子。该子于其下个回合不能吃子。',
+    '啖睛 desc exact',
+  );
+  assert(danjing.qiCost === 5, '啖睛 qiCost 5');
   let s = base();
   s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'xiahoudun')!, false))];
   s.board = emptyBoard();
@@ -1502,9 +1509,12 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board[0][0] = P('R', 'black', 'br');
   s.board[5][0] = P('P', 'red', 'rp');
   s.qi = { ...s.qi, red: 10 };
+  const qiBefore = s.qi.red;
+  const cost = danjing.qiCost!;
   assert(canUseSkill(s, 'xiahoudun-danjing'), '啖睛 usable');
   s = useSkill(s, 'xiahoudun-danjing', { kind: 'pos', pos: { r: 0, c: 0 } });
   assert(s.pending.danjing?.pieceId === 'br', '啖睛 arms on target');
+  assert(s.qi.red === qiBefore - cost, '啖睛 spends qiCost');
   s.side = 'black';
   s.skillUsedThisTurn = false;
   const after = listLegalFrom(s, { r: 0, c: 0 });

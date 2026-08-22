@@ -263,7 +263,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'xiahoudun-danjing',
         name: '啖睛',
-        desc: '主动技。走棋阶段，你可以消耗3点战气，指定对方一枚棋子。该子于其下个回合不能吃子。',
+        desc: '主动技。走棋阶段，你可以消耗5点战气，指定对方一枚棋子。该子于其下个回合不能吃子。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -272,7 +272,7 @@ export const GENERALS: GeneralDef[] = [
         maxUses: 999,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 3,
+        qiCost: 5,
       },
     ],
   },
