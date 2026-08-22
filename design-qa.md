@@ -72,3 +72,18 @@ The source mock uses illustrative roster/qi values (关羽、赵云、吕布 and
 - P3 only: a later art pass could produce a flatter, less scenic command brush if an even stricter literal match is desired.
 
 final result: passed
+
+## Round 2 — tall-screen art and wiki polish
+
+- User reference: `C:/Users/CHENKA~1/AppData/Local/Temp/codex-clipboard-19092c44-8b97-4d48-968f-e280b8184ab6.png`.
+- Combined gameplay comparison: `design-audit/round-2/after/compare-user-gameplay.png`.
+- Combined wiki comparison: `design-audit/round-2/after/compare-wiki.png`.
+- Accepted tall gameplay: `design-audit/round-2/after/gameplay-430x906.png`.
+- Accepted small gameplay: `design-audit/round-2/after/gameplay-360x720.png`.
+- Accepted wiki landing/card/search: `design-audit/round-2/after/wiki-top-430x906-final.png`, `wiki-shu-430x906-final.png`, and `wiki-search-430x906.png`.
+- Tall-screen command cards move down 14–24 px; the 720 px breakpoint preserves the previous compact rhythm.
+- New transparent mountain art was inspected in the home, roster bands, command area, drawer, modal, and wiki without obscuring primary text.
+- Wiki search returned exactly one card for `观星`, announced the result count, and cleared correctly.
+- Production build, TypeScript, engine tests, and layout tests passed.
+
+final result: passed

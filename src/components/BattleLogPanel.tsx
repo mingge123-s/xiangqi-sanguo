@@ -43,7 +43,13 @@ export function BattleLogPanel({
             aria-label="战斗记录"
           >
             <div className="battle-log-header">
-              <span className="battle-log-title">战报</span>
+              <div className="battle-log-heading">
+                <span className="battle-log-kicker">行军纪要</span>
+                <span className="battle-log-title">战报</span>
+              </div>
+              <span className="battle-log-count" aria-label={`共 ${log.length} 条记录`}>
+                {String(log.length).padStart(2, '0')}
+              </span>
               <button type="button" className="battle-log-close" onClick={onClose} autoFocus>
                 收起
               </button>
@@ -57,7 +63,11 @@ export function BattleLogPanel({
                     key={`${i}-${line.side}-${line.text}`}
                     className={`battle-log-entry battle-log-entry-${line.side}`}
                   >
-                    {line.text}
+                    <span className="battle-log-index" aria-hidden>{String(i + 1).padStart(2, '0')}</span>
+                    <span className="battle-log-entry-copy">
+                      <span className="battle-log-side">{line.side === 'red' ? '我方' : '敌方'}</span>
+                      <span>{line.text}</span>
+                    </span>
                   </div>
                 ))
               )}

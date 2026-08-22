@@ -713,8 +713,8 @@ a:focus-visible {
   flex: 0 0 96px;
   padding: 6px 13px 4px;
   background:
-    linear-gradient(180deg, rgba(245, 236, 216, 0.42), rgba(245, 236, 216, 0.08)),
-    var(--ink-wash-url) center 74% / 135% 115% no-repeat;
+    var(--mountain-art-url) center 88% / 138% auto no-repeat,
+    linear-gradient(180deg, rgba(245, 236, 216, 0.5), rgba(245, 236, 216, 0.08));
 }
 
 .enemy-command-panel,
@@ -751,7 +751,8 @@ a:focus-visible {
   background: #d8c4a3;
   box-shadow:
     0 2px 5px rgba(46, 31, 18, 0.2),
-    0 0 0 3px rgba(249, 241, 222, 0.68);
+    0 0 0 3px rgba(249, 241, 222, 0.76),
+    0 0 0 4px color-mix(in srgb, var(--faction-color) 20%, transparent);
   cursor: pointer;
 }
 
@@ -974,8 +975,8 @@ a:focus-visible {
   min-height: 0;
   padding: 0 18px max(8px, env(safe-area-inset-bottom));
   background:
-    var(--ink-wash-url) center 110% / 165% 90% no-repeat,
-    linear-gradient(180deg, rgba(247, 239, 220, 0.06), rgba(240, 225, 195, 0.45));
+    var(--mountain-art-url) center 116% / 184% auto no-repeat,
+    linear-gradient(180deg, rgba(247, 239, 220, 0.04), rgba(240, 225, 195, 0.42));
 }
 
 .general-command-panel {
@@ -1003,7 +1004,7 @@ a:focus-visible {
   padding: 6px 13px;
   border: 1px solid rgba(94, 67, 39, 0.42);
   border-radius: 2px;
-  color: rgba(72, 59, 44, 0.58);
+  color: rgba(72, 59, 44, 0.68);
   background:
     linear-gradient(100deg, rgba(255, 250, 236, 0.66), rgba(232, 216, 185, 0.66)),
     var(--rice-paper-bg-url) center / cover;
@@ -1018,6 +1019,9 @@ a:focus-visible {
   color: var(--ink-rich);
   border-color: rgba(103, 69, 33, 0.66);
   cursor: pointer;
+  box-shadow:
+    0 3px 8px rgba(53, 34, 17, 0.16),
+    inset 0 0 0 3px rgba(255, 249, 232, 0.44);
 }
 
 .command-skill-selected {
@@ -1047,6 +1051,10 @@ a:focus-visible {
   color: #8f3028;
   filter: none;
   opacity: 1;
+}
+
+.command-skill:not(.command-skill-ready) .command-skill-copy small {
+  color: rgba(118, 77, 43, 0.78);
 }
 
 .command-skill-copy {
@@ -1164,20 +1172,50 @@ a:focus-visible {
   transform: none;
   border-radius: 8px 0 0 8px;
   background:
+    var(--mountain-art-url) center 104% / 190% auto no-repeat,
     linear-gradient(160deg, rgba(250, 243, 225, 0.98), rgba(232, 216, 187, 0.98)),
     var(--rice-paper-bg-url) center / cover;
 }
 
 .battle-log-header {
   min-height: 58px;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
   padding: 12px 18px;
   border-bottom: 1px solid rgba(101, 73, 43, 0.25);
+}
+
+.battle-log-heading {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.battle-log-kicker {
+  color: var(--cinnabar);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.26em;
 }
 
 .battle-log-title {
   font-family: var(--font-display);
   font-size: 22px;
   letter-spacing: 0.22em;
+}
+
+.battle-log-count {
+  min-width: 34px;
+  padding: 3px 6px;
+  border-top: 1px solid rgba(133, 45, 36, 0.5);
+  border-bottom: 1px solid rgba(133, 45, 36, 0.5);
+  color: var(--cinnabar);
+  font-size: 12px;
+  text-align: center;
+  letter-spacing: 0.08em;
 }
 
 .battle-log-close {
@@ -1191,13 +1229,42 @@ a:focus-visible {
 }
 
 .battle-log-list {
-  padding: 8px 18px 24px;
+  position: relative;
+  padding: 12px 18px 28px;
 }
 
 .battle-log-entry {
-  padding: 9px 0;
+  display: grid;
+  grid-template-columns: 31px 1fr;
+  gap: 9px;
+  padding: 11px 0;
+  border-bottom: 1px solid rgba(111, 83, 51, 0.15);
   font-size: 14px;
   line-height: 1.55;
+}
+
+.battle-log-index {
+  color: rgba(115, 86, 54, 0.55);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.battle-log-entry-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.battle-log-side {
+  color: var(--ink-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.battle-log-entry-red .battle-log-side,
+.battle-log-entry-red .battle-log-index {
+  color: var(--cinnabar);
 }
 
 /* General details */
@@ -1228,6 +1295,7 @@ a:focus-visible {
   border: 1px solid rgba(101, 73, 43, 0.5);
   border-radius: 6px;
   background:
+    var(--mountain-art-url) center 112% / 175% auto no-repeat,
     linear-gradient(155deg, rgba(252, 246, 231, 0.98), rgba(232, 215, 184, 0.98)),
     var(--rice-paper-bg-url) center / cover;
   box-shadow: 0 16px 42px rgba(45, 28, 15, 0.25), inset 0 0 0 4px rgba(255, 249, 233, 0.38);
@@ -1280,9 +1348,9 @@ a:focus-visible {
 .general-detail-close {
   min-width: 48px;
   min-height: 44px;
-  border: 0;
+  border: 1px solid rgba(74, 128, 87, 0.64);
   color: var(--ink-muted);
-  background: transparent;
+  background: rgba(251, 246, 232, 0.42);
   font-size: 13px;
   letter-spacing: 0.12em;
 }
@@ -1374,12 +1442,12 @@ a:focus-visible {
   height: 220px;
   z-index: -1;
   pointer-events: none;
-  background: var(--ink-wash-url) center / 130% 100% no-repeat;
-  opacity: 0.32;
+  background: var(--mountain-art-url) center / 112% auto no-repeat;
+  opacity: 1;
 }
 
-.home-mountain-top { top: 118px; }
-.home-mountain-bottom { bottom: -55px; transform: scaleX(-1); opacity: 0.44; }
+.home-mountain-top { top: 86px; transform: scaleY(-1); opacity: 0.55; }
+.home-mountain-bottom { bottom: -55px; transform: scaleX(-1); }
 
 .home-heading {
   text-align: center;
@@ -1506,7 +1574,13 @@ a:focus-visible {
   justify-content: center;
   gap: 44px;
   padding: 28px;
-  background: var(--ink-wash-url) center 78% / 150% 58% no-repeat;
+  background: var(--mountain-art-url) center 90% / 170% auto no-repeat;
+}
+
+@media (min-height: 800px) {
+  .general-command-panel .command-skills {
+    margin-top: clamp(14px, calc((100dvh - 760px) * 0.16), 24px);
+  }
 }
 
 .result-copy { text-align: center; }

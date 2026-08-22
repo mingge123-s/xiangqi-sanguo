@@ -377,16 +377,303 @@
       .portrait-wrap, .portrait-wrap img, .portrait-fallback { width: 84px; height: 84px; }
       .portrait-wrap { flex-basis: 84px; }
     }
+
+    /* Command manuscript refresh */
+    body {
+      background-color: var(--paper);
+      background-image: url("ui/paper-fiber.webp");
+      background-size: 512px 300px;
+      background-repeat: repeat;
+      background-attachment: scroll;
+    }
+    body::before {
+      opacity: 0.045;
+      background: url("ui/ink-mountains-v2.webp") center 7rem / max(1180px, 100vw) auto no-repeat;
+    }
+    .wrap {
+      max-width: 1040px;
+      padding: 1.15rem 1.35rem 5.5rem;
+    }
+    .wiki-utility {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      border-bottom: 1px solid rgba(79, 56, 33, 0.22);
+      color: var(--ink-mute);
+      font-size: 0.78rem;
+      letter-spacing: 0.16em;
+    }
+    .wiki-back {
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      color: var(--cinnabar);
+      font-weight: 700;
+      text-decoration: none;
+      letter-spacing: 0.14em;
+    }
+    header.hero {
+      position: relative;
+      overflow: hidden;
+      padding: 3.4rem 1rem 3.1rem;
+      border-bottom: 1px solid rgba(85, 60, 34, 0.2);
+      background: rgba(248, 240, 222, 0.68);
+    }
+    header.hero::before {
+      content: "";
+      position: absolute;
+      inset: auto -18% -38% -18%;
+      height: 118%;
+      pointer-events: none;
+      background: url("ui/ink-mountains-v2.webp") center bottom / 112% auto no-repeat;
+      opacity: 0.4;
+    }
+    header.hero > * { position: relative; }
+    header.hero .seal-mark {
+      width: 2.65rem;
+      height: 2.65rem;
+      line-height: 2.65rem;
+      border-color: color-mix(in srgb, var(--cinnabar) 72%, transparent);
+      background: rgba(249, 238, 213, 0.52);
+      box-shadow: inset 0 0 0 3px rgba(255, 249, 235, 0.34);
+    }
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.1rem);
+      letter-spacing: 0.16em;
+      text-shadow: 0 2px 0 rgba(255, 249, 232, 0.86);
+    }
+    .lede {
+      margin-top: 0.9rem;
+      letter-spacing: 0.12em;
+    }
+    .hero-stats {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      margin-top: 1.25rem;
+    }
+    .hero-stat {
+      min-width: 7rem;
+      padding: 0.35rem 0.7rem;
+      border-top: 1px solid rgba(102, 71, 39, 0.34);
+      border-bottom: 1px solid rgba(102, 71, 39, 0.22);
+      color: var(--ink-soft);
+      background: rgba(250, 244, 228, 0.48);
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+    }
+    .hero-stat strong {
+      margin-right: 0.3rem;
+      color: var(--cinnabar);
+      font-size: 1rem;
+    }
+    .wiki-tools {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.75rem;
+      margin: 1.4rem 0 0.75rem;
+      padding: 0.65rem;
+      border: 1px solid rgba(84, 59, 35, 0.24);
+      background: rgba(250, 244, 229, 0.68);
+      box-shadow: 0 7px 20px rgba(72, 49, 26, 0.06);
+    }
+    .wiki-search {
+      min-width: 0;
+      min-height: 46px;
+      padding: 0 0.9rem;
+      border: 1px solid rgba(83, 58, 34, 0.38);
+      border-radius: 0;
+      color: var(--ink);
+      background: rgba(255, 251, 240, 0.72);
+      font: inherit;
+      letter-spacing: 0.05em;
+      outline: none;
+    }
+    .wiki-search:focus {
+      border-color: rgba(51, 111, 72, 0.78);
+      box-shadow: 0 0 0 3px rgba(51, 111, 72, 0.13);
+    }
+    .wiki-clear {
+      min-width: 64px;
+      min-height: 46px;
+      border: 1px solid rgba(83, 58, 34, 0.32);
+      color: var(--ink-mute);
+      background: rgba(241, 229, 204, 0.68);
+      font: inherit;
+      letter-spacing: 0.12em;
+      cursor: pointer;
+    }
+    .wiki-search-meta {
+      grid-column: 1 / -1;
+      color: var(--ink-mute);
+      font-size: 0.76rem;
+      letter-spacing: 0.08em;
+    }
+    nav.toc {
+      top: 0;
+      z-index: 30;
+      margin: 0 0 1.7rem;
+      padding: 0.55rem;
+      border: 1px solid rgba(83, 58, 34, 0.22);
+      background: color-mix(in srgb, var(--paper) 93%, transparent);
+      box-shadow: 0 8px 18px rgba(67, 44, 22, 0.06);
+    }
+    nav.toc a {
+      min-width: 4.2rem;
+      text-align: center;
+      transition: color 160ms ease, background 160ms ease, border-color 160ms ease;
+    }
+    h2.sec {
+      margin-top: 2.6rem;
+      font-size: 1.58rem;
+    }
+    .rule-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .rule-summary-item {
+      min-height: 92px;
+      padding: 0.85rem 0.95rem;
+      border-top: 2px solid rgba(145, 52, 43, 0.6);
+      background: rgba(250, 244, 229, 0.68);
+      box-shadow: 0 6px 16px rgba(68, 46, 24, 0.06);
+    }
+    .rule-summary-item strong {
+      display: block;
+      color: var(--cinnabar);
+      font-size: 0.88rem;
+      letter-spacing: 0.18em;
+    }
+    .rule-summary-item span {
+      display: block;
+      margin-top: 0.28rem;
+      color: var(--ink-soft);
+      font-size: 0.85rem;
+      line-height: 1.55;
+    }
+    .rule {
+      background: rgba(251, 246, 233, 0.72);
+      box-shadow: 0 7px 18px rgba(67, 45, 24, 0.05);
+    }
+    article.general {
+      position: relative;
+      overflow: hidden;
+      padding: 1.2rem;
+      border-top-width: 3px;
+      background:
+        url("ui/ink-mountains-v2.webp") center 118% / 165% auto no-repeat,
+        rgba(250, 246, 236, 0.76);
+      box-shadow: 0 9px 22px rgba(60, 39, 19, 0.08);
+      transition: transform 180ms ease, box-shadow 180ms ease;
+    }
+    article.general.shu { border-top-color: var(--shu); }
+    article.general.wei { border-top-color: var(--wei); }
+    article.general.wu { border-top-color: var(--wu); }
+    article.general.qun { border-top-color: var(--qun); }
+    @media (hover: hover) {
+      article.general:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 13px 28px rgba(60, 39, 19, 0.12);
+      }
+    }
+    .portrait-wrap::before {
+      inset: -6px;
+      border-width: 2px;
+    }
+    .portrait-wrap img,
+    .portrait-fallback {
+      box-shadow: 0 4px 12px rgba(48, 32, 18, 0.18);
+    }
+    .skill {
+      padding: 0.72rem 0 0.1rem;
+    }
+    .skill-head strong {
+      color: var(--ink);
+      font-size: 1.08rem;
+    }
+    .skill p { line-height: 1.8; }
+    .is-filtered-out { display: none !important; }
+    section.is-filtered-out { display: none !important; }
+    .wiki-empty {
+      display: none;
+      margin: 2rem 0;
+      padding: 2rem 1rem;
+      border: 1px solid var(--line);
+      color: var(--ink-mute);
+      background: rgba(250, 244, 229, 0.72);
+      text-align: center;
+      letter-spacing: 0.12em;
+    }
+    .wiki-empty.is-visible { display: block; }
+    .wiki-game-dock { display: none; }
+    footer { padding-bottom: 1.5rem; }
+
+    @media (max-width: 760px) {
+      .wrap { padding: 0 14px 6.8rem; }
+      .wiki-utility { padding-inline: 0.2rem; }
+      header.hero { margin-inline: -14px; padding: 2.45rem 1.1rem 2.7rem; }
+      header.hero::before { inset-inline: -45%; background-size: 145% auto; }
+      h1 { font-size: clamp(1.72rem, 7.6vw, 2.08rem); letter-spacing: 0.07em; white-space: nowrap; }
+      .lede { font-size: 0.82rem; letter-spacing: 0.08em; }
+      .hero-stats { gap: 0.38rem; }
+      .hero-stat { min-width: 0; padding-inline: 0.5rem; }
+      .wiki-tools { margin-top: 1rem; }
+      nav.toc { margin-inline: -4px; overflow-x: auto; flex-wrap: nowrap; justify-content: flex-start; }
+      nav.toc a { flex: 1 0 auto; min-width: 3.7rem; }
+      h2.sec { margin-top: 2.2rem; }
+      .rule-summary { grid-template-columns: 1fr; gap: 0.55rem; }
+      .rule-summary-item { min-height: 0; }
+      article.general { padding: 1rem; }
+      .who { align-items: flex-start; }
+      .wiki-game-dock {
+        position: fixed;
+        right: 16px;
+        bottom: max(14px, env(safe-area-inset-bottom));
+        z-index: 50;
+        min-width: 118px;
+        min-height: 46px;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(116, 39, 32, 0.64);
+        color: #fff7e5;
+        background: rgba(131, 42, 35, 0.94);
+        box-shadow: 0 8px 22px rgba(54, 29, 16, 0.24);
+        text-decoration: none;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
+    <div class="wiki-utility">
+      <a class="wiki-back" href="./">返回战场</a>
+      <span>十三将志 · 揭棋军略</span>
+    </div>
     <header class="hero">
       <div class="seal-mark" aria-hidden="true">鉴</div>
       <h1>象棋三国 · 武将图鉴</h1>
       <p class="lede">规则与技能以当前线上版本为准</p>
       <div class="ink-rule" aria-hidden="true"></div>
+      <div class="hero-stats" aria-label="图鉴概览">
+        <span class="hero-stat"><strong>13</strong>名武将</span>
+        <span class="hero-stat"><strong>4</strong>方势力</span>
+        <span class="hero-stat"><strong>26</strong>项技能</span>
+      </div>
     </header>
+
+    <div class="wiki-tools" role="search">
+      <label for="wiki-search" style="position:absolute;left:-9999px">搜索武将、技能或效果</label>
+      <input id="wiki-search" class="wiki-search" type="search" placeholder="搜索武将、技能或效果" autocomplete="off" />
+      <button id="wiki-clear" class="wiki-clear" type="button">清空</button>
+      <div id="wiki-search-meta" class="wiki-search-meta" aria-live="polite">收录 13 名武将 · 输入关键字即可筛选</div>
+    </div>
 
     <nav class="toc" aria-label="目录">
       <a href="#rules">规则</a>
@@ -398,6 +685,11 @@
 
     <section id="rules">
       <h2 class="sec">规则</h2>
+      <div class="rule-summary" aria-label="规则速览">
+        <div class="rule-summary-item"><strong>暗子伏兵</strong><span>除将帅外均为暗棋，首次行走后翻开真身。</span></div>
+        <div class="rule-summary-item"><strong>战气驱策</strong><span>回合开始战气 +1，主动技能按条件消耗战气。</span></div>
+        <div class="rule-summary-item"><strong>三将同行</strong><span>每方随机携三名武将，以技能改变战局节奏。</span></div>
+      </div>
       <div class="rules">
         <article class="rule wide">
           <h3>揭棋</h3>
@@ -476,7 +768,7 @@
         <article class="general shu" id="guanyu">
           <div class="who">
             <div class="portrait-wrap">
-              <img src="https://mingge.asia/xiangqi-sanguo/generals/guanyu.webp" alt="关羽" width="96" height="96" loading="lazy" />
+              <img src="generals/guanyu.webp" alt="关羽" width="96" height="96" loading="lazy" />
               <div class="portrait-fallback" aria-hidden="true">关</div>
             </div>
             <div class="who-text">
@@ -512,7 +804,7 @@
         <article class="general shu" id="zhuge">
           <div class="who">
             <div class="portrait-wrap">
-              <img src="https://mingge.asia/xiangqi-sanguo/generals/zhuge.webp" alt="诸葛亮" width="96" height="96" loading="lazy" />
+              <img src="generals/zhuge.webp" alt="诸葛亮" width="96" height="96" loading="lazy" />
               <div class="portrait-fallback" aria-hidden="true">诸</div>
             </div>
             <div class="who-text">
@@ -545,7 +837,7 @@
         <article class="general shu" id="zhangfei">
           <div class="who">
             <div class="portrait-wrap">
-              <img src="https://mingge.asia/xiangqi-sanguo/generals/zhangfei.webp" alt="张飞" width="96" height="96" loading="lazy" />
+              <img src="generals/zhangfei.webp" alt="张飞" width="96" height="96" loading="lazy" />
               <div class="portrait-fallback" aria-hidden="true">张</div>
             </div>
             <div class="who-text">
@@ -577,7 +869,7 @@
         <article class="general shu" id="zhaoyun">
           <div class="who">
             <div class="portrait-wrap">
-              <img src="https://mingge.asia/xiangqi-sanguo/generals/zhaoyun.webp" alt="赵云" width="96" height="96" loading="lazy" />
+              <img src="generals/zhaoyun.webp" alt="赵云" width="96" height="96" loading="lazy" />
               <div class="portrait-fallback" aria-hidden="true">赵</div>
             </div>
             <div class="who-text">
@@ -617,7 +909,7 @@
         <article class="general wei" id="caocao">
           <div class="who">
             <div class="portrait-wrap">
-              <img src="https://mingge.asia/xiangqi-sanguo/generals/caocao.webp" alt="曹操" width="96" height="96" loading="lazy" />
+              <img src="generals/caocao.webp" alt="曹操" width="96" height="96" loading="lazy" />
               <div class="portrait-fallback" aria-hidden="true">曹</div>
             </div>
             <div class="who-text">
@@ -649,7 +941,7 @@
         <article class="general wei" id="simayi">
           <div class="who">
             <div class="portrait-wrap">
-              <img src="https://mingge.asia/xiangqi-sanguo/generals/simayi.webp" alt="司马懿" width="96" height="96" loading="lazy" />
+              <img src="generals/simayi.webp" alt="司马懿" width="96" height="96" loading="lazy" />
               <div class="portrait-fallback" aria-hidden="true">司</div>
             </div>
             <div class="who-text">
@@ -682,7 +974,7 @@
         <article class="general wei" id="xiahoudun">
           <div class="who">
             <div class="portrait-wrap">
-              <img src="https://mingge.asia/xiangqi-sanguo/generals/xiahoudun.webp" alt="夏侯惇" width="96" height="96" loading="lazy" />
+              <img src="generals/xiahoudun.webp" alt="夏侯惇" width="96" height="96" loading="lazy" />
               <div class="portrait-fallback" aria-hidden="true">夏</div>
             </div>
             <div class="who-text">
@@ -725,7 +1017,7 @@
         <article class="general wu" id="huatuo">
           <div class="who">
             <div class="portrait-wrap">
-              <img src="https://mingge.asia/xiangqi-sanguo/generals/huatuo.webp" alt="华佗" width="96" height="96" loading="lazy" />
+              <img src="generals/huatuo.webp" alt="华佗" width="96" height="96" loading="lazy" />
               <div class="portrait-fallback" aria-hidden="true">华</div>
             </div>
             <div class="who-text">
@@ -757,7 +1049,7 @@
         <article class="general wu" id="zhouyu">
           <div class="who">
             <div class="portrait-wrap">
-              <img src="https://mingge.asia/xiangqi-sanguo/generals/zhouyu.webp" alt="周瑜" width="96" height="96" loading="lazy" />
+              <img src="generals/zhouyu.webp" alt="周瑜" width="96" height="96" loading="lazy" />
               <div class="portrait-fallback" aria-hidden="true">周</div>
             </div>
             <div class="who-text">
@@ -789,7 +1081,7 @@
         <article class="general wu" id="sunshangxiang">
           <div class="who">
             <div class="portrait-wrap">
-              <img src="https://mingge.asia/xiangqi-sanguo/generals/sunshangxiang.webp" alt="孙尚香" width="96" height="96" loading="lazy" />
+              <img src="generals/sunshangxiang.webp" alt="孙尚香" width="96" height="96" loading="lazy" />
               <div class="portrait-fallback" aria-hidden="true">孙</div>
             </div>
             <div class="who-text">
@@ -821,7 +1113,7 @@
         <article class="general wu" id="ganning">
           <div class="who">
             <div class="portrait-wrap">
-              <img src="https://mingge.asia/xiangqi-sanguo/generals/ganning.webp" alt="甘宁" width="96" height="96" loading="lazy" />
+              <img src="generals/ganning.webp" alt="甘宁" width="96" height="96" loading="lazy" />
               <div class="portrait-fallback" aria-hidden="true">甘</div>
             </div>
             <div class="who-text">
@@ -863,7 +1155,7 @@
         <article class="general qun" id="lvbu">
           <div class="who">
             <div class="portrait-wrap">
-              <img src="https://mingge.asia/xiangqi-sanguo/generals/lvbu.webp" alt="吕布" width="96" height="96" loading="lazy" />
+              <img src="generals/lvbu.webp" alt="吕布" width="96" height="96" loading="lazy" />
               <div class="portrait-fallback" aria-hidden="true">吕</div>
             </div>
             <div class="who-text">
@@ -899,7 +1191,7 @@
         <article class="general qun" id="diaochan">
           <div class="who">
             <div class="portrait-wrap">
-              <img src="https://mingge.asia/xiangqi-sanguo/generals/diaochan.webp" alt="貂蝉" width="96" height="96" loading="lazy" />
+              <img src="generals/diaochan.webp" alt="貂蝉" width="96" height="96" loading="lazy" />
               <div class="portrait-fallback" aria-hidden="true">貂</div>
             </div>
             <div class="who-text">
@@ -932,10 +1224,13 @@
       </div>
     </section>
 
+    <div id="wiki-empty" class="wiki-empty" role="status">未找到符合条件的武将或技能，请换一个关键字。</div>
+
     <footer>
-      共13名武将 · 与 <a href="https://mingge.asia/xiangqi-sanguo/">https://mingge.asia/xiangqi-sanguo/</a> 同步
+      共13名武将 · 与 <a href="./">象棋三国</a> 当前版本同步
     </footer>
   </div>
+  <a class="wiki-game-dock" href="./">返回战场</a>
 
   <script>
     (function () {
@@ -965,6 +1260,48 @@
           var fb = img.parentNode.querySelector(".portrait-fallback");
           if (fb) fb.style.display = "flex";
         });
+      });
+
+      var search = document.getElementById("wiki-search");
+      var clear = document.getElementById("wiki-clear");
+      var meta = document.getElementById("wiki-search-meta");
+      var empty = document.getElementById("wiki-empty");
+      var cards = Array.prototype.slice.call(document.querySelectorAll("article.general"));
+      var factionSections = ["shu", "wei", "wu", "qun"]
+        .map(function (id) { return document.getElementById(id); })
+        .filter(Boolean);
+      var rulesSection = document.getElementById("rules");
+
+      function applySearch() {
+        var query = search.value.trim().toLocaleLowerCase("zh-CN");
+        var visibleCount = 0;
+
+        cards.forEach(function (card) {
+          var matches = !query || card.textContent.toLocaleLowerCase("zh-CN").indexOf(query) !== -1;
+          card.classList.toggle("is-filtered-out", !matches);
+          if (matches) visibleCount += 1;
+        });
+
+        factionSections.forEach(function (section) {
+          var hasVisibleCard = Array.prototype.some.call(
+            section.querySelectorAll("article.general"),
+            function (card) { return !card.classList.contains("is-filtered-out"); }
+          );
+          section.classList.toggle("is-filtered-out", !!query && !hasVisibleCard);
+        });
+
+        rulesSection.classList.toggle("is-filtered-out", !!query);
+        empty.classList.toggle("is-visible", !!query && visibleCount === 0);
+        meta.textContent = query
+          ? "找到 " + visibleCount + " 名相关武将 · 可匹配姓名、技能与效果描述"
+          : "收录 13 名武将 · 输入关键字即可筛选";
+      }
+
+      search.addEventListener("input", applySearch);
+      clear.addEventListener("click", function () {
+        search.value = "";
+        applySearch();
+        search.focus();
       });
     })();
   </script>
