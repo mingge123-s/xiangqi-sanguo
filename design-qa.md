@@ -101,3 +101,46 @@ final result: passed
 - Browser console warnings/errors: none. Production build, TypeScript, engine tests, and layout tests passed.
 
 final result: passed
+
+## Round 4 — split enemy and player qi placement
+
+### Comparison target
+
+- Source visual truth: `C:/Users/CHENKA~1/AppData/Local/Temp/codex-clipboard-aeac931f-720e-4aa8-b0cd-6db02a3905b6.png`.
+- Normalized source: `design-audit/round-4/source-normalized-430x906.png`.
+- Browser implementation: `design-audit/round-4/after/01-split-qi-430x906-v2.png`.
+- Full comparison: `design-audit/round-4/after/compare-split-qi.png`.
+- Focused lower-region comparison: `design-audit/round-4/after/compare-split-qi-focus.png`.
+- Responsive evidence: `design-audit/round-4/after/02-split-qi-360x720-v2.png`.
+- Source pixels: 442 × 855. The app-owned 381 × 802 phone region was cropped and normalized to 430 × 906 with Lanczos resampling.
+- Implementation pixels and CSS viewport: 430 × 906 at browser density 1; compact check at 360 × 720.
+- State: active red turn, enemy qi 0/20, player qi 1/20, two live skill cards, focused player general.
+
+### Findings
+
+- No actionable P0, P1, or P2 finding remains.
+- Typography: the existing calligraphic stack, weight, small numerals, and 20-point tracks remain consistent with the manuscript UI; enemy/player ownership is clearer than the annotation-only source.
+- Spacing and layout: enemy qi occupies the original header meter position; player qi sits between the skill row and player portraits inside the marked lower region. The board height is unchanged.
+- Colors and tokens: enemy qi uses black ink and player qi uses cinnabar; both remain on the existing rice-paper palette.
+- Image quality: all existing portraits, mountain art, paper texture, and seal assets are preserved without replacement or raster degradation.
+- Copy: the fixed labels `敌方战气` and `我方战气` remove ownership ambiguity while values remain live engine state.
+
+### Comparison history
+
+- Pass 1 — blocked: at 360 × 720 the added player qi band pushed the player-general names partly below the viewport (P2).
+- Fix: tightened only the compact-height command spacing, qi band, and portrait sizes while preserving the board height and 430 × 906 composition.
+- Pass 2 — passed: all three portraits, names, both qi meters, skill cards, board, and record control are visible at 360 × 720; the 430 × 906 comparison aligns with the marked target region.
+
+### Primary interactions tested
+
+- Start a match and verify enemy qi is the only meter in the top status header.
+- Verify player qi appears between the focused general's skill cards and player portraits.
+- Verify accessible live labels for `敌方战气 0/20` and `我方战气 1/20`.
+- Verify the 430 × 906 and 360 × 720 responsive layouts.
+- Browser console errors/warnings checked: none.
+
+### Follow-up polish
+
+- No P3 follow-up is required for this scoped placement change.
+
+final result: passed

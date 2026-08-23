@@ -643,85 +643,83 @@ a:focus-visible {
   flex: 0 0 auto;
 }
 
-.qi-dual {
+.battle-status-enemy-qi {
   min-width: 0;
-  display: grid;
-  gap: 2px;
-  padding: 2px 0;
+  display: flex;
+  justify-content: center;
 }
 
-.qi-line {
+.qi-meter {
   min-width: 0;
-  height: 22px;
-  display: grid;
-  grid-template-columns: 19px 41px minmax(0, 1fr);
-  align-items: center;
-  column-gap: 4px;
-  padding: 0 3px 0 5px;
-  border-left: 2px solid transparent;
-  opacity: 0.76;
-  transition: opacity 160ms ease, background-color 160ms ease;
+  color: var(--ink-rich);
 }
 
-.qi-line-active {
-  opacity: 1;
-  border-left-color: currentColor;
-  background: linear-gradient(90deg, color-mix(in srgb, currentColor 9%, transparent), transparent 88%);
+.qi-meter-red { color: var(--cinnabar); }
+.qi-meter-black { color: var(--ink-rich); }
+
+.qi-meter-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.qi-line-red { color: var(--cinnabar); }
-.qi-line-black { color: var(--ink-rich); }
-
-.qi-line-side {
+.qi-meter-label {
   font-family: var(--font-display);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1;
-  text-align: center;
-}
-
-.qi-line-value {
-  color: currentColor;
-  font-family: var(--font-display);
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.1em;
   white-space: nowrap;
 }
 
-.qi-line-value small {
-  font-size: 10px;
+.qi-meter-value {
+  color: currentColor;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.qi-meter-value small {
+  font-size: 12px;
   font-weight: 400;
 }
 
-.qi-line-track {
+.qi-meter-track {
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(20, 3px);
-  gap: 1px;
+  grid-template-columns: repeat(20, 5px);
+  gap: 2px;
   align-items: center;
+  margin-top: 5px;
 }
 
 .qi-dot {
-  width: 3px;
-  height: 3px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  border: 1px solid rgba(112, 91, 60, 0.36);
-  background: rgba(248, 239, 220, 0.5);
+  border: 1px solid rgba(112, 91, 60, 0.42);
+  background: rgba(248, 239, 220, 0.62);
   box-sizing: border-box;
 }
 
-.qi-line-red .qi-dot-filled {
+.qi-meter-red .qi-dot-filled {
   border-color: var(--cinnabar-deep);
   background: var(--cinnabar);
   box-shadow: inset 0 1px 1px rgba(255, 218, 180, 0.28);
 }
 
-.qi-line-black .qi-dot-filled {
+.qi-meter-black .qi-dot-filled {
   border-color: #2d261f;
   background: #4a4035;
   box-shadow: inset 0 1px 1px rgba(255, 248, 228, 0.16);
+}
+
+.battle-status-enemy-qi .qi-meter {
+  width: min(100%, 150px);
 }
 
 .battle-status-log {
@@ -1021,6 +1019,42 @@ a:focus-visible {
   justify-content: space-between;
   gap: 8px;
   padding-top: 4px;
+}
+
+.player-qi-band {
+  width: 100%;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 12px;
+  border-block: 1px solid rgba(130, 47, 39, 0.2);
+  background: rgba(249, 239, 218, 0.32);
+  box-sizing: border-box;
+}
+
+.player-qi-band .qi-meter {
+  width: min(100%, 304px);
+  display: grid;
+  grid-template-columns: auto 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.player-qi-band .qi-meter-summary {
+  display: contents;
+}
+
+.player-qi-band .qi-meter-label {
+  font-size: 14px;
+}
+
+.player-qi-band .qi-meter-value {
+  font-size: 17px;
+}
+
+.player-qi-band .qi-meter-track {
+  margin-top: 0;
 }
 
 .command-skills {
@@ -1724,9 +1758,14 @@ a:focus-visible {
   }
   .turn-marker { gap: 6px; font-size: 17px; }
   .turn-marker-diamond { width: 10px; height: 10px; }
-  .qi-line { grid-template-columns: 17px 38px minmax(0, 1fr); column-gap: 3px; padding-inline: 3px 1px; }
-  .qi-line-track { grid-template-columns: repeat(20, 3px); gap: 1px; }
-  .qi-line-value { font-size: 14px; }
+  .battle-status-enemy-qi .qi-meter-track { grid-template-columns: repeat(20, 4px); gap: 1px; }
+  .battle-status-enemy-qi .qi-dot { width: 4px; height: 4px; }
+  .qi-meter-label { font-size: 13px; }
+  .qi-meter-value { font-size: 16px; }
+  .player-qi-band { padding-inline: 6px; }
+  .player-qi-band .qi-meter { grid-template-columns: auto 39px minmax(0, 1fr); gap: 6px; }
+  .player-qi-band .qi-meter-track { grid-template-columns: repeat(20, 4px); gap: 1px; }
+  .player-qi-band .qi-dot { width: 4px; height: 4px; }
   .battle-status-log { min-width: 44px; }
   .play-generals-me { padding-inline: 10px; }
   .command-skills { gap: 8px; }
@@ -1744,13 +1783,22 @@ a:focus-visible {
   .enemy-command-panel .general-name { font-size: 15px; }
   .general-state { width: 22px; height: 22px; font-size: 12px; }
   .play-board { flex: 1 1 auto; }
-  .play-generals-me { flex: 0 0 168px; }
-  .command-skill { min-height: 50px; }
-  .general-command-panel .general-ribbon { min-height: 92px; }
-  .general-command-panel .general-portrait { width: 54px; height: 54px; }
-  .general-command-panel .general-portrait-focused .general-portrait { width: 64px; height: 64px; }
-  .general-command-panel .general-name { font-size: 16px; }
-  .general-command-panel .general-portrait-focused .general-name { font-size: 18px; }
+  .play-generals-me { flex: 0 0 168px; box-sizing: border-box; padding-bottom: 2px; }
+  .general-command-panel { gap: 3px; padding-top: 0; }
+  .command-skill { min-height: 46px; padding-block: 4px; }
+  .player-qi-band { min-height: 22px; padding: 1px 6px; }
+  .player-qi-band .qi-meter { grid-template-columns: auto 37px minmax(0, 1fr); gap: 5px; }
+  .player-qi-band .qi-meter-label { font-size: 12px; }
+  .player-qi-band .qi-meter-value { font-size: 14px; }
+  .player-qi-band .qi-meter-value small { font-size: 9px; }
+  .player-qi-band .qi-meter-track { grid-template-columns: repeat(20, 3px); gap: 1px; }
+  .player-qi-band .qi-dot { width: 3px; height: 3px; }
+  .general-command-panel .general-ribbon { min-height: 78px; }
+  .general-command-panel .general-portrait { width: 48px; height: 48px; }
+  .general-command-panel .general-portrait-focused .general-portrait { width: 58px; height: 58px; }
+  .general-command-panel .general-name { font-size: 15px; }
+  .general-command-panel .general-portrait-focused .general-name { font-size: 16px; }
+  .general-command-panel .general-name { margin-top: 4px; }
   .general-detail-layer { padding: 10px; }
   .general-detail-sheet { max-height: 94dvh; padding: 14px; }
   .general-detail-header { gap: 11px; padding-bottom: 11px; }

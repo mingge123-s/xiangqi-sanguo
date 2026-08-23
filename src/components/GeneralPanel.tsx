@@ -3,6 +3,7 @@ import { CaretDown } from '@phosphor-icons/react';
 import { FACTION_COLOR } from '../game/types';
 import type { GeneralRuntime, Piece, SkillRuntime } from '../game/types';
 import { CHAR } from '../game/types';
+import { QiMeter } from './QiMeter';
 
 function portraitSrc(id: string): string {
   return `${import.meta.env.BASE_URL}generals/${id}.webp`;
@@ -144,6 +145,7 @@ export function GeneralPanel({
   captured,
   showCaptured,
   onPickCaptured,
+  qi,
 }: {
   generals: GeneralRuntime[];
   mine: boolean;
@@ -190,6 +192,12 @@ export function GeneralPanel({
               onInspect={onInspectSkill ? () => onInspectSkill(focused, skill) : undefined}
             />
           ))}
+        </div>
+      )}
+
+      {mine && qi != null && (
+        <div className="player-qi-band">
+          <QiMeter side="red" qi={qi} label="我方战气" />
         </div>
       )}
 

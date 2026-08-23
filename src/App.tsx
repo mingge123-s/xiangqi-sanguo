@@ -455,8 +455,7 @@ export default function App() {
         <div className="play-screen">
           <BattleStatus
             side={state.side}
-            redQi={state.qi?.red ?? 0}
-            blackQi={state.qi?.black ?? 0}
+            enemyQi={state.qi?.black ?? 0}
             onOpenLog={() => setLogOpen(true)}
           />
           <div className="play-generals">
@@ -675,6 +674,7 @@ export default function App() {
               onInspectSkill={(g, sk) => onInspectSkill(g, sk, true)}
               onCastSkill={onCastSkill}
               canCastSkill={(id) => !inputLocked && canUseSkill(state, id)}
+              qi={state.qi?.red ?? 0}
             />
           </div>
 
