@@ -455,7 +455,8 @@ export default function App() {
         <div className="play-screen">
           <BattleStatus
             side={state.side}
-            qi={state.qi?.red ?? 0}
+            redQi={state.qi?.red ?? 0}
+            blackQi={state.qi?.black ?? 0}
             onOpenLog={() => setLogOpen(true)}
           />
           <div className="play-generals">

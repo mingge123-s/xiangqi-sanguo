@@ -87,3 +87,17 @@ final result: passed
 - Production build, TypeScript, engine tests, and layout tests passed.
 
 final result: passed
+
+## Round 3 — persistent dual qi and general detail hierarchy
+
+- User reference: `C:/Users/CHENKA~1/AppData/Local/Temp/codex-clipboard-a1255e7f-7866-424c-85fa-db718017c09f.png`.
+- Combined status comparison: `design-audit/round-3/after/compare-status.png`.
+- Combined modal comparison: `design-audit/round-3/after/compare-detail.png`.
+- Accepted large captures: `01-game-status-430x906.png` and `05-general-detail-huatuo-430x906.png`.
+- Accepted compact captures: `03-game-status-360x720.png` and `04-general-detail-360x720.png`.
+- Both `.qi-line` regions are present and expose independent labels for red and black qi; the live test state showed `红 1/20` and `黑 0/20` simultaneously.
+- The detail dialog exposes a named icon close control, preserves Escape behavior, and fits without clipping at 360 × 720.
+- Faction identity, real seal art, skill badges, qi costs, descriptions, live state, and cast actions were visually rechecked.
+- Browser console warnings/errors: none. Production build, TypeScript, engine tests, and layout tests passed.
+
+final result: passed

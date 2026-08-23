@@ -1,7 +1,16 @@
+import { X } from '@phosphor-icons/react';
 import { useEffect } from 'react';
+import type { CSSProperties } from 'react';
 import { FACTION_COLOR } from '../game/types';
 import type { GeneralRuntime } from '../game/types';
 import { skillPhaseOf, skillTypeLabel } from '../game/generals';
+
+const FACTION_NAME = {
+  shu: '蜀',
+  wei: '魏',
+  wu: '吴',
+  qun: '群',
+} as const;
 
 function portraitSrc(id: string): string {
   return `${import.meta.env.BASE_URL}generals/${id}.webp`;
@@ -21,6 +30,7 @@ export function GeneralDetail({
   liveState?: (skillId: string) => string | null;
 }) {
   const color = FACTION_COLOR[general.faction];
+  const factionName = FACTION_NAME[general.faction];
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
@@ -34,6 +44,7 @@ export function GeneralDetail({
       <div className="general-detail-backdrop" />
       <div
         className="general-detail-sheet"
+        style={{ '--faction-color': color } as CSSProperties}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -54,10 +65,25 @@ export function GeneralDetail({
             />
           </div>
           <div className="general-detail-heading">
+            <div className="general-detail-kicker">武将志 · {factionName}</div>
             <div id="general-detail-title" className="general-detail-name">{general.name}</div>
             <div className="general-detail-title">{general.title}</div>
           </div>
-          <button type="button" onClick={onClose} className="general-detail-close" autoFocus>关闭</button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="general-detail-close"
+            aria-label="关闭武将详情"
+            title="关闭"
+            autoFocus
+          >
+            <X size={21} weight="bold" aria-hidden />
+          </button>
+        </div>
+        <div className="general-detail-summary" aria-label={`${general.skills.length}项技能`}>
+          <span>{general.skills.length} 项技能</span>
+          <i aria-hidden />
+          <span>当前状态以对局为准</span>
         </div>
         <div className="general-detail-skills">
           {general.skills.map((sk) => {
@@ -69,26 +95,34 @@ export function GeneralDetail({
             return (
               <article key={sk.id} className="general-detail-skill">
                 <div className="general-detail-skill-head">
-                  {nature && (
-                    <span
-                      className="skill-badge"
-                      style={{ color: natureColor }}
-                    >
-                      {nature}
-                    </span>
-                  )}
-                  {phase && (
-                    <span
-                      className="skill-badge skill-badge-phase"
-                      style={{ color: '#2c4a7c' }}
-                    >
-                      {phase}
-                    </span>
-                  )}
-                  <h3>{sk.name}</h3>
+                  <span className="general-detail-skill-seal" aria-hidden>{sk.name.slice(0, 1)}</span>
+                  <div className="general-detail-skill-heading">
+                    <h3>{sk.name}</h3>
+                    <div className="general-detail-skill-badges">
+                      {nature && (
+                        <span
+                          className="skill-badge"
+                          style={{ color: natureColor }}
+                        >
+                          {nature}
+                        </span>
+                      )}
+                      {phase && (
+                        <span
+                          className="skill-badge skill-badge-phase"
+                          style={{ color: '#2c4a7c' }}
+                        >
+                          {phase}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 {sk.qiCost != null && sk.qiCost > 0 && (
-                  <div className="general-detail-cost">消耗 {sk.qiCost} 战气</div>
+                  <div className="general-detail-cost">
+                    <span>发动消耗</span>
+                    <strong>{sk.qiCost} 战气</strong>
+                  </div>
                 )}
                 <p className="general-detail-desc">{sk.desc}</p>
                 {live && (
