@@ -490,6 +490,8 @@ export default function App() {
                   danjingMarkId={danjingMarkId}
                   kongchengMarkId={kongchengMarkId}
                   wushengMarkId={wushengMarkId}
+                  zhangfeiMarkId={state.pending.zhangFeiPieceId}
+                  wushuangMarkId={wushuangKingId}
                   selected={
                     targeting?.skillId === 'zhuge-guanxing' ||
                     targeting?.skillId === 'simayi-yingshi' ||

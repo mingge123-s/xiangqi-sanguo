@@ -937,6 +937,49 @@ a:focus-visible {
   animation: selected-piece-glow 1.65s ease-in-out infinite alternate;
 }
 
+.piece-effect-halo {
+  --effect-color: var(--gold);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 0;
+  pointer-events: none;
+  border: 3px solid var(--effect-color);
+  border-radius: 50%;
+  opacity: 0.88;
+  transform: translate(-50%, -50%);
+  box-shadow:
+    0 0 0 2px rgba(249, 239, 218, 0.94),
+    0 0 0 5px color-mix(in srgb, var(--effect-color) 28%, transparent),
+    0 0 13px color-mix(in srgb, var(--effect-color) 64%, transparent);
+  animation: pending-piece-effect 1.25s ease-in-out infinite alternate;
+}
+
+.piece-status-seal {
+  --effect-color: var(--ink-rich);
+  box-shadow:
+    0 0 0 2px rgba(249, 239, 218, 0.82),
+    0 1px 5px color-mix(in srgb, var(--effect-color) 34%, transparent);
+}
+
+.piece-effect-threat { --effect-color: #a12f2a; }
+.piece-effect-control { --effect-color: #6b4c8a; }
+.piece-effect-guard { --effect-color: #3f8251; }
+.piece-effect-command { --effect-color: #b97825; }
+.piece-effect-intel { --effect-color: #31558a; }
+.piece-effect-support { --effect-color: #39715a; }
+
+@keyframes pending-piece-effect {
+  from {
+    opacity: 0.72;
+    transform: translate(-50%, -50%) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.04);
+  }
+}
+
 .piece-button:focus-visible {
   outline-color: rgba(196, 137, 44, 0.9);
 }

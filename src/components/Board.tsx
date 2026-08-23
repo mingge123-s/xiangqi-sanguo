@@ -4,6 +4,7 @@ import { GanglieDice } from './GanglieDice';
 import { CapturedRail } from './CapturedRail';
 import type { Piece, PieceType, Pos } from '../game/types';
 import { posEq } from '../game/core';
+import { pieceStatusEffect } from './pieceStatus';
 
 const ROWS = 10;
 const COLS = 9;
@@ -141,6 +142,8 @@ export function Board({
   danjingMarkId,
   kongchengMarkId,
   wushengMarkId,
+  zhangfeiMarkId,
+  wushuangMarkId,
   ganglieDice,
   onGanglieSettled,
   topSlot,
@@ -174,6 +177,10 @@ export function Board({
   kongchengMarkId?: string;
   /** 武圣受护子 id → 棋面「武」印 */
   wushengMarkId?: string;
+  /** 咆哮指定子 id → 棋面「咆」印 */
+  zhangfeiMarkId?: string;
+  /** 无双受护将帅 id → 棋面「双」印 */
+  wushuangMarkId?: string;
   ganglieDice?: { roll: number; capturerPos: Pos } | null;
   onGanglieSettled?: () => void;
   /** Announce strip flush to the wood board's top edge. */
@@ -230,6 +237,18 @@ export function Board({
   const diceKey = ganglieDice
     ? `${ganglieDice.capturerPos.r},${ganglieDice.capturerPos.c}:${ganglieDice.roll}`
     : '';
+  const statusSources = {
+    yingshiMarkId,
+    fanjianMarkId,
+    lijianMarkId,
+    guicaiMarkId,
+    qingnangMarkId,
+    danjingMarkId,
+    kongchengMarkId,
+    wushengMarkId,
+    zhangfeiMarkId,
+    wushuangMarkId,
+  };
 
   const handleGanglieSettled = useCallback(() => {
     if (settledRef.current) return;
@@ -279,6 +298,7 @@ export function Board({
                   const isLastTo = !!(lastMove && posEq(lastMove.to, pos));
                   const isLast = isLastFrom || isLastTo;
                   const showKillBloom = !!(killBloom && posEq(killBloom, pos));
+                  const statusEffect = piece ? pieceStatusEffect(piece.id, statusSources) : undefined;
                   return (
                     <div
                       key={`${r}-${c}`}
@@ -319,7 +339,7 @@ export function Board({
                           style={{ width: pieceSize + 6, height: pieceSize + 6, zIndex: 1 }}
                         />
                       )}
-                      {piece && lockedPieceId === piece.id && (
+                      {piece && lockedPieceId === piece.id && !statusEffect && (
                         <div
                           className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-[2.5px] ring-[#6b8f71]/95"
                           style={{ width: pieceSize + 10, height: pieceSize + 10, zIndex: 1 }}
@@ -347,24 +367,10 @@ export function Board({
                           size={pieceSize}
                           peeked={!!(showPeek && peekedIds?.includes(piece.id))}
                           peekMark={yingshiMarkId === piece.id ? '鹰' : '观'}
-                          statusMark={
-                            guicaiMarkId === piece.id
-                              ? '鬼'
-                              : fanjianMarkId === piece.id
-                                ? '反'
-                                : lijianMarkId === piece.id
-                                  ? '离'
-                                  : qingnangMarkId === piece.id
-                                    ? '青'
-                                    : danjingMarkId === piece.id
-                                      ? '啖'
-                                      : kongchengMarkId === piece.id
-                                        ? '空'
-                                        : wushengMarkId === piece.id
-                                          ? '武'
-                                          : undefined
-                          }
-                          locked={lockedPieceId === piece.id}
+                          statusMark={statusEffect?.mark}
+                          statusLabel={statusEffect?.label}
+                          statusTone={statusEffect?.tone}
+                          locked={lockedPieceId === piece.id && !statusEffect}
                           coverHint={
                             showCoverHint && !piece.revealed && piece.side === 'black'
                               ? (piece.coverType as PieceType)

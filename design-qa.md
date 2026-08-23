@@ -144,3 +144,15 @@ final result: passed
 - No P3 follow-up is required for this scoped placement change.
 
 final result: passed
+
+## Round 5 — pending skill target visibility
+
+- User evidence: `design-audit/round-5/01-user-lijian-before.png`.
+- Unified effect preview: `design-audit/round-5/02-all-skill-highlights-430x906.png`.
+- Compact real-match regression: `design-audit/round-5/03-game-regression-360x720.png`.
+- Ten persistent piece effects render a character seal plus semantic-color outer halo: 离、反、啖、鬼、空、武、双、咆、鹰、青.
+- 咆哮 and 无双 were added to the board marker system; global and immediate skills retain banners, dice, or immediate resolution.
+- Each affected Piece button now exposes the complete effect description instead of the one-character seal alone.
+- Deterministic mapping tests: 32 checks passed. Browser console warnings/errors: none.
+
+final result: passed

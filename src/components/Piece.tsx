@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { CHAR, COVER_CHAR } from '../game/types';
 import type { Piece as PieceT, PieceType } from '../game/types';
+import type { PieceStatusTone } from './pieceStatus';
 
 /** Vermilion / pine-soot ink on cream 水墨 tokens. */
 function inkColor(side: PieceT['side']) {
@@ -63,26 +64,28 @@ function CornerSeal({
   pieceSize,
   mark,
   label,
+  tone,
 }: {
   pieceSize: number;
   mark: string;
   label?: string;
+  tone?: PieceStatusTone;
 }) {
-  const diam = Math.max(12, Math.round(pieceSize * 0.35));
+  const diam = Math.max(14, Math.round(pieceSize * 0.42));
   const fontSize = Math.max(8, diam * 0.68);
   const border = Math.max(1, Math.round(diam * 0.06));
 
   return (
     <span
-      className="pointer-events-none absolute flex items-center justify-center rounded-full font-bold"
+      className={`piece-status-seal${tone ? ` piece-effect-${tone}` : ''} pointer-events-none absolute flex items-center justify-center rounded-full font-bold`}
       style={{
         width: diam,
         height: diam,
         top: pieceSize * -0.02,
         right: pieceSize * -0.02,
         background: '#f4ead6',
-        border: `${border}px solid #2a2520`,
-        color: '#2a2520',
+        border: `${border}px solid var(--effect-color, #2a2520)`,
+        color: 'var(--effect-color, #2a2520)',
         fontSize,
         lineHeight: 1,
         fontFamily: 'var(--font-serif), serif',
@@ -105,6 +108,8 @@ export function PieceView({
   coverHint,
   peekMark,
   statusMark,
+  statusLabel,
+  statusTone,
   locked,
   onPointer,
 }: {
@@ -117,6 +122,9 @@ export function PieceView({
   peekMark?: string;
   /** 棋面状态印（鬼/反/离/青/啖/空/武等），明棋暗棋均显示 */
   statusMark?: string;
+  /** 状态的完整读屏说明。 */
+  statusLabel?: string;
+  statusTone?: PieceStatusTone;
   locked?: boolean;
   onPointer: () => void;
 }) {
@@ -137,6 +145,7 @@ export function PieceView({
   return (
     <motion.button
       type="button"
+      aria-label={`${piece.side === 'red' ? '红方' : '黑方'}${dark ? '暗棋' : CHAR[piece.side][piece.type]}${statusLabel ? `，${statusLabel}` : ''}`}
       onClick={onPointer}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -164,6 +173,13 @@ export function PieceView({
               : undefined,
         }}
       >
+        {statusMark && (
+          <span
+            className={`piece-effect-halo piece-effect-${statusTone ?? 'command'}`}
+            style={{ width: size + 12, height: size + 12 }}
+            aria-hidden
+          />
+        )}
         <SoftInkRing size={size} insetPx={ringInset} strokePx={outerW} color={ink} soft={dark} />
         {!dark && (
           <SoftInkRing size={size} insetPx={innerInset} strokePx={innerW} color={ink} />
@@ -191,7 +207,9 @@ export function PieceView({
         {showPeek && !statusMark && (
           <CornerSeal pieceSize={size} mark={peekMark ?? '观'} label={`窥视印：${peekMark ?? '观'}`} />
         )}
-        {statusMark && <CornerSeal pieceSize={size} mark={statusMark} />}
+        {statusMark && (
+          <CornerSeal pieceSize={size} mark={statusMark} label={statusLabel} tone={statusTone} />
+        )}
         {hint && !showPeek && (
           <span
             className="pointer-events-none absolute"
