@@ -1157,13 +1157,18 @@ a:focus-visible {
   padding: 8px 22px;
 }
 
+.skill-center-mask::before {
+  display: none;
+}
+
 .skill-center-mask::after {
   inset: -13px -28px;
-  background-image: url("./assets/ink-command.webp");
+  border-radius: 0;
+  background-image: url("./assets/skill-broadcast-ink.webp");
   background-position: center;
   background-size: 100% 100%;
-  opacity: 0.9;
-  filter: contrast(1.04);
+  opacity: 1;
+  filter: contrast(1.02);
   -webkit-mask-image: none;
   mask-image: none;
 }

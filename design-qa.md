@@ -213,3 +213,14 @@ final result: passed
 - P3: target-path curvature comes from one raster brush texture, so different board vectors vary by rotation/stretch rather than true Bézier curvature. This is acceptable for the restrained one-shot accent and avoids a heavier canvas/WebGL layer.
 
 final result: passed
+
+## Round 9 — unified command-strip ink background
+
+- User references: `C:/Users/CHENKA~1/AppData/Local/Temp/codex-clipboard-34cd5bba-2cc7-46dc-9e48-a178968c81b1.png` and `codex-clipboard-d90d633f-d41f-4de6-a3b1-c3026ae5b716.png`.
+- Accepted comparison preview: `design-audit/round-9/01-unified-ink-background-430x720.png`.
+- Normal battle logs, wrapped status copy, inline prompts with a cancel action, turn splashes, and expanded skill broadcasts now share `skill-broadcast-ink.webp`.
+- The previous radial paper wash and `ink-command.webp` prompt background are disabled for command masks.
+- Computed pseudo-element styles confirmed one background asset, opacity 1, and no legacy `::before` layer. Browser console warnings/errors: none.
+- Production build, engine tests, target-state tests, and layout tests passed.
+
+final result: passed
