@@ -111,6 +111,7 @@ export function PieceView({
   statusLabel,
   statusTone,
   locked,
+  tabIndex,
   onPointer,
 }: {
   piece: PieceT;
@@ -126,6 +127,7 @@ export function PieceView({
   statusLabel?: string;
   statusTone?: PieceStatusTone;
   locked?: boolean;
+  tabIndex?: number;
   onPointer: () => void;
 }) {
   const ink = inkColor(piece.side);
@@ -145,6 +147,7 @@ export function PieceView({
   return (
     <motion.button
       type="button"
+      tabIndex={tabIndex}
       aria-label={`${piece.side === 'red' ? '红方' : '黑方'}${dark ? '暗棋' : CHAR[piece.side][piece.type]}${statusLabel ? `，${statusLabel}` : ''}`}
       onClick={onPointer}
       onContextMenu={(e) => {

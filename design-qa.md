@@ -166,3 +166,50 @@ final result: passed
 - Production build, engine/layout tests, and browser console checks passed.
 
 final result: passed
+
+## Round 8 — animated ink command broadcast and target trace
+
+### Comparison target
+
+- Selected combined mock: `design-audit/round-8/01-selected-final-target.png` (864 × 1821).
+- Normalized target: `design-audit/round-8/13-target-normalized-430x906.png`.
+- User-authoritative ink reference: `design-audit/round-8/18-broadcast-ink-reference.png`.
+- Final browser implementation: `design-audit/round-8/21-implementation-430x906-final.png` at 430 × 906, density 1.
+- Compact layout evidence: `design-audit/round-8/11-implementation-360x720-ink-final.png` at 360 × 720, density 1.
+- Full comparison: `design-audit/round-8/23-compare-full-final.png`.
+- Focused ink comparison: `design-audit/round-8/24-compare-broadcast-final.png`.
+- State: red active turn, 离间 resolved against one dark enemy piece, command scroll expanded, target trace visible, active skill card raised.
+
+### Findings
+
+- No actionable P0, P1, or P2 finding remains.
+- Typography: the broadcast uses the existing Chinese serif/display stacks, a large cinnabar skill name, bold two-line rules copy, and centered vertical alignment without truncation.
+- Spacing and layout: the command scroll paints through the existing 44 px board slot, so the board, two skill cards, player qi, and all three generals keep their established positions.
+- Colors and tokens: the new art maps to pine-soot black, cinnabar, muted jade, and antique gold; skill-card and target accents reuse the game tokens.
+- Image quality: the command background, target streak, and tassel are dedicated transparent WebP assets with clean alpha. Existing portraits, paper, mountain, seal, and board assets remain unchanged.
+- Copy/content: live engine skill names determine the title; the existing skill hints are condensed into at most two broadcast lines. No decorative mock data enters gameplay.
+- Interaction: Framer Motion expands the scroll, blur-reveals its copy, draws the target path, springs the target token, and raises the active skill card. `useReducedMotion` preserves a fully readable static state.
+
+### Comparison history
+
+- Pass 1 — blocked: the original compact splash appeared near the status bar and did not connect the broadcast to its target (P1).
+- Fix: moved the resolved-skill broadcast into the board command slot, added target-piece preview, persistent selected-card state, and a generated gold/ink trace.
+- Pass 2 — blocked: the first background looked like a light ink cloud and the short trail did not match the selected references (P2).
+- Fix: generated a dense dry-brush broadcast plate from the user crop and changed the trace to connect the bottom-center command origin to the marked piece.
+- Pass 3 — blocked: the raster brush head overshot the target ring at edge-board positions (P2).
+- Fix: calibrated the path geometry to 95.7% of the center-to-center distance while keeping the target ring authoritative.
+- Pass 4 — passed: full-view and focused comparisons show the dense horizontal ink scroll, target token/tassel, long gold/ink trace, and raised skill card without clipping persistent controls.
+
+### Primary interactions tested
+
+- Start a real randomized match and verify opening skill broadcasts render inside the board command slot.
+- Render a deterministic 离间 state with one target, trace, expanded scroll, and selected skill card.
+- Verify 430 × 906 full layout and 360 × 720 compact panel/card layout.
+- Verify reduced-motion branches exist for the scroll, copy, target, trace, and card lift.
+- Browser console checked after the final production-component render; no current code warning or error remains.
+
+### Follow-up polish
+
+- P3: target-path curvature comes from one raster brush texture, so different board vectors vary by rotation/stretch rather than true Bézier curvature. This is acceptable for the restrained one-shot accent and avoids a heavier canvas/WebGL layer.
+
+final result: passed

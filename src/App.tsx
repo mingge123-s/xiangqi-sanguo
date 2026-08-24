@@ -32,6 +32,7 @@ import {
 import { sideHasSkill } from './game/generals';
 import type { GameState, GeneralRuntime, Pos, Side, SkillPayload, SkillRuntime } from './game/types';
 import { CHAR } from './game/types';
+import { pieceStatusEffect } from './components/pieceStatus';
 
 interface Targeting {
   skillId: string;
@@ -75,6 +76,44 @@ function hintFor(id: string): string {
       return '啖睛：点选对方一枚棋子，该子于其下个回合不能吃子';
     default:
       return '选择目标';
+  }
+}
+
+function broadcastLinesFor(id: string): string[] {
+  switch (id) {
+    case 'guanyu-yijue': return ['对比双方各一枚暗棋', '同种毁敌；异种两者皆毁'];
+    case 'guanyu-wusheng': return ['守护己方一枚非将帅明棋', '过河前无法被吃'];
+    case 'zhangfei-paoxiao': return ['指定己方一枚暗棋', '本回合可额外走一步'];
+    case 'zhaoyun-longhun': return ['交换己方两枚非将帅棋', '消耗一步与6点战气'];
+    case 'caocao-guixin': return ['收服己方九宫内全部敌棋'];
+    case 'simayi-guicai': return ['锁定对方一枚可走棋', '其下回合只能移动该棋'];
+    case 'simayi-yingshi': return ['标记并查看对方一枚暗棋', '翻开或被吃后可再次发动'];
+    case 'huatuo-qingnang': return ['随机挪动己方一枚非将帅棋', '移至己方半场空位'];
+    case 'zhouyu-fanjian': return ['标记对方一枚棋', '下回合移动该棋将随机落点'];
+    case 'sunshangxiang-lianyin': return ['传送己方一枚非将帅明棋', '移至对方半场随机空位'];
+    case 'lvbu-chitu': return ['将己方一枚明兵卒', '永久转化为马'];
+    case 'lvbu-wushuang': return ['保护己方将帅三个敌方回合', '免于被吃与被将军'];
+    case 'diaochan-lijian': return ['标记对方一枚暗棋', '若改走其他棋，随机失去一枚非将帅'];
+    case 'zhuge-guanxing': return ['选择五枚暗棋', '查看其真实身份'];
+    case 'zhuge-kongcheng': return ['守护己方一枚棋', '直至下回合开始无法被吃'];
+    case 'xiahoudun-danjing': return ['标记对方一枚棋', '其下回合不能吃子'];
+    default: return [hintFor(id).replace(/^[^：]+：/, '')];
+  }
+}
+
+function broadcastTargetIdFor(state: GameState, skillId: string, wushuangKingId?: string): string | undefined {
+  switch (skillId) {
+    case 'guanyu-wusheng': return state.pending.wushengGuard?.pieceId;
+    case 'zhangfei-paoxiao': return state.pending.zhangFeiPieceId;
+    case 'simayi-guicai': return state.pending.guicaiLock?.pieceId;
+    case 'simayi-yingshi': return state.pending.yingshiMark?.pieceId;
+    case 'huatuo-qingnang': return state.pending.qingnangMark?.pieceId;
+    case 'zhouyu-fanjian': return state.pending.fanjianMark?.pieceId;
+    case 'diaochan-lijian': return state.pending.lijianMark?.pieceId;
+    case 'zhuge-kongcheng': return state.pending.kongcheng?.pieceId;
+    case 'xiahoudun-danjing': return state.pending.danjing?.pieceId;
+    case 'lvbu-wushuang': return wushuangKingId;
+    default: return undefined;
   }
 }
 
@@ -446,6 +485,36 @@ export default function App() {
     state.pending.wushuang && state.pending.wushuang.turnsLeft > 0
       ? state.board.flat().find((p) => p && p.type === 'K' && p.side === state.pending.wushuang!.owner)?.id
       : undefined;
+  const broadcastSkillRuntime = state.skillBroadcast
+    ? [...state.redGenerals, ...state.blackGenerals]
+        .flatMap((general) => general.skills)
+        .find((skill) => skill.name === state.skillBroadcast?.skill)
+    : undefined;
+  const broadcastSkillId = broadcastSkillRuntime?.id;
+  const broadcastMineSkillId = broadcastSkillId && state.redGenerals.some((general) =>
+    general.skills.some((skill) => skill.id === broadcastSkillId),
+  ) ? broadcastSkillId : null;
+  const broadcastTargetId = broadcastSkillId
+    ? broadcastTargetIdFor(state, broadcastSkillId, wushuangKingId)
+    : undefined;
+  const broadcastTargetPiece = broadcastTargetId
+    ? state.board.flat().find((piece) => piece?.id === broadcastTargetId) ?? undefined
+    : undefined;
+  const broadcastTargetEffect = broadcastTargetId
+    ? pieceStatusEffect(broadcastTargetId, {
+        yingshiMarkId: state.pending.yingshiMark?.pieceId,
+        fanjianMarkId,
+        lijianMarkId,
+        guicaiMarkId,
+        qingnangMarkId,
+        danjingMarkId,
+        kongchengMarkId,
+        wushengMarkId,
+        zhangfeiMarkId: state.pending.zhangFeiPieceId,
+        wushuangMarkId: wushuangKingId,
+      })
+    : undefined;
+  const broadcastLines = broadcastSkillId ? broadcastLinesFor(broadcastSkillId) : [];
 
   return (
     <div className="phone-frame">
@@ -492,6 +561,7 @@ export default function App() {
                   wushengMarkId={wushengMarkId}
                   zhangfeiMarkId={state.pending.zhangFeiPieceId}
                   wushuangMarkId={wushuangKingId}
+                  accentPieceId={broadcastTargetId}
                   selected={
                     targeting?.skillId === 'zhuge-guanxing' ||
                     targeting?.skillId === 'simayi-yingshi' ||
@@ -515,10 +585,18 @@ export default function App() {
                   onGanglieSettled={onGanglieSettled}
                   bottomSlot={
                     <div className="skill-slot skill-slot-bottom" aria-live="polite">
-                      {turnSplash && (
+                      {state.skillBroadcast ? (
+                        <SkillBroadcast
+                          data={state.skillBroadcast}
+                          lines={broadcastLines}
+                          targetPiece={broadcastTargetPiece}
+                          targetMark={broadcastTargetEffect?.mark}
+                          targetTone={broadcastTargetEffect?.tone}
+                          onDone={dismissBroadcast}
+                        />
+                      ) : turnSplash ? (
                         <TurnBroadcast side={turnSplash} onDone={() => setTurnSplash(null)} />
-                      )}
-                      {!turnSplash && (
+                      ) : (
                         <AnimatePresence mode="wait">
                           {checked ? (
                             <motion.div
@@ -671,7 +749,7 @@ export default function App() {
             <GeneralPanel
               generals={state.redGenerals}
               mine={true}
-              selectedSkillId={targeting?.skillId}
+              selectedSkillId={targeting?.skillId ?? broadcastMineSkillId}
               onPortrait={(g) => onPortrait(g, true)}
               onInspectSkill={(g, sk) => onInspectSkill(g, sk, true)}
               onCastSkill={onCastSkill}
@@ -692,7 +770,6 @@ export default function App() {
         <Result winner={state.winner} onAgain={() => setState(startMatch())} />
       )}
 
-      <SkillBroadcast data={state.skillBroadcast} onDone={dismissBroadcast} />
       {detail && (
         <GeneralDetail
           general={detail}

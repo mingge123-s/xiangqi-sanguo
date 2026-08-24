@@ -1,10 +1,12 @@
 import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { PieceView } from './Piece';
 import { GanglieDice } from './GanglieDice';
 import { CapturedRail } from './CapturedRail';
 import type { Piece, PieceType, Pos } from '../game/types';
 import { posEq } from '../game/core';
 import { pieceStatusEffect } from './pieceStatus';
+import targetStreakUrl from '../assets/skill-target-streak.webp';
 
 const ROWS = 10;
 const COLS = 9;
@@ -144,6 +146,7 @@ export function Board({
   wushengMarkId,
   zhangfeiMarkId,
   wushuangMarkId,
+  accentPieceId,
   ganglieDice,
   onGanglieSettled,
   topSlot,
@@ -181,6 +184,8 @@ export function Board({
   zhangfeiMarkId?: string;
   /** 无双受护将帅 id → 棋面「双」印 */
   wushuangMarkId?: string;
+  /** Brief resolved-skill accent shown only during the command broadcast. */
+  accentPieceId?: string;
   ganglieDice?: { roll: number; capturerPos: Pos } | null;
   onGanglieSettled?: () => void;
   /** Announce strip flush to the wood board's top edge. */
@@ -188,6 +193,7 @@ export function Board({
   /** Announce strip flush to the wood board's bottom edge. */
   bottomSlot?: ReactNode;
 }) {
+  const reduceMotion = useReducedMotion();
   const hostRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [killBloom, setKillBloom] = useState<Pos | null>(null);
@@ -237,6 +243,27 @@ export function Board({
   const diceKey = ganglieDice
     ? `${ganglieDice.capturerPos.r},${ganglieDice.capturerPos.c}:${ganglieDice.roll}`
     : '';
+  const accentPos = accentPieceId
+    ? board.flatMap((row, r) => row.map((piece, c) => piece?.id === accentPieceId ? { r, c } : null))
+        .find((pos): pos is Pos => pos != null)
+    : undefined;
+  const accentPath = accentPos ? (() => {
+    const fromX = rail + pad + 4 * cell;
+    const fromY = pad + 9 * cellY;
+    const toX = rail + pad + accentPos.c * cell;
+    const toY = pad + accentPos.r * cellY;
+    const dx = toX - fromX;
+    const dy = toY - fromY;
+    return {
+      fromX,
+      fromY,
+      // The raster's glowing brush head extends beyond its painted center; trim the
+      // geometric path slightly so the visible endpoint lands on the target ring.
+      length: Math.max(pieceSize * 1.35, Math.hypot(dx, dy) * 0.957),
+      angle: Math.atan2(dy, dx) * 180 / Math.PI,
+      height: Math.max(30, pieceSize * 1.08),
+    };
+  })() : undefined;
   const statusSources = {
     yingshiMarkId,
     fanjianMarkId,
@@ -277,6 +304,24 @@ export function Board({
             style={{ width: boardW, height: boardH }}
           >
             <BoardArt w={boardW} h={boardH} pad={pad} cellX={cell} cellY={cellY} rail={rail} />
+            {accentPath && (
+              <motion.img
+                src={targetStreakUrl}
+                className="skill-target-path"
+                style={{
+                  left: accentPath.fromX,
+                  top: accentPath.fromY - accentPath.height / 2,
+                  width: accentPath.length,
+                  height: accentPath.height,
+                  rotate: accentPath.angle,
+                  zIndex: 1,
+                }}
+                initial={reduceMotion ? false : { opacity: 0, scaleX: 0.08 }}
+                animate={{ opacity: 0.72, scaleX: 1 }}
+                transition={{ duration: 0.46, ease: 'easeOut' }}
+                aria-hidden
+              />
+            )}
             <div className="board-captured board-captured-left" style={{ width: rail }}>
               <span className="board-captured-label" aria-hidden>我方俘子</span>
               <CapturedRail pieces={capturedRed ?? []} align="top" />
@@ -299,6 +344,7 @@ export function Board({
                   const isLast = isLastFrom || isLastTo;
                   const showKillBloom = !!(killBloom && posEq(killBloom, pos));
                   const statusEffect = piece ? pieceStatusEffect(piece.id, statusSources) : undefined;
+                  const isBroadcastTarget = !!(piece && accentPieceId === piece.id);
                   return (
                     <div
                       key={`${r}-${c}`}
@@ -337,6 +383,13 @@ export function Board({
                         <div
                           className="skill-target-ring pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
                           style={{ width: pieceSize + 6, height: pieceSize + 6, zIndex: 1 }}
+                        />
+                      )}
+                      {isBroadcastTarget && (
+                        <span
+                          className="skill-broadcast-accent-ring pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                          style={{ width: pieceSize + 15, height: pieceSize + 15, zIndex: 3 }}
+                          aria-hidden
                         />
                       )}
                       {piece && lockedPieceId === piece.id && !statusEffect && (

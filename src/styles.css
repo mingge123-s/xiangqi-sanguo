@@ -163,6 +163,142 @@ body {
   overflow: visible;
 }
 
+.skill-broadcast-slot {
+  width: 100%;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  transform-origin: center;
+  z-index: 8;
+}
+
+.skill-broadcast-scroll {
+  position: relative;
+  width: min(100%, 398px);
+  height: 70px;
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr) 64px;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px 7px 13px;
+  color: #f9edcf;
+  background: url("./assets/skill-broadcast-ink.webp") center / 100% 100% no-repeat;
+  box-sizing: border-box;
+  isolation: isolate;
+  overflow: visible;
+  transform: translateY(-3px);
+}
+
+.skill-broadcast-title {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  color: #c54a3b;
+  font-family: var(--font-display);
+  text-align: center;
+  text-shadow: 0 1px 1px rgba(18, 12, 8, 0.72);
+}
+
+.skill-broadcast-title strong {
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+}
+
+.skill-broadcast-title span {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.skill-broadcast-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  color: #fbefd5;
+  font-family: var(--font-serif);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.38;
+  letter-spacing: 0.03em;
+  text-align: left;
+  text-shadow: 0 1px 2px rgba(12, 9, 6, 0.88);
+}
+
+.skill-broadcast-copy span {
+  display: block;
+  max-width: 100%;
+}
+
+.skill-broadcast-target {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  z-index: 2;
+}
+
+.skill-broadcast-target-streak {
+  position: absolute;
+  right: 17px;
+  top: 12px;
+  z-index: 0;
+  width: 75px;
+  max-width: none;
+  height: auto;
+  opacity: 0.78;
+  filter: drop-shadow(0 0 4px rgba(196, 137, 44, 0.52));
+}
+
+.skill-broadcast-target-piece {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  display: block;
+  z-index: 2;
+}
+
+.skill-broadcast-fallback-seal {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #b97825;
+  border-radius: 50%;
+  color: var(--cinnabar);
+  background: #f4ead6;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  box-shadow: 0 0 0 3px rgba(247, 230, 184, 0.68), 0 0 11px rgba(185, 111, 29, 0.58);
+}
+
+.skill-broadcast-tassel {
+  position: absolute;
+  right: -10px;
+  top: 31px;
+  z-index: 3;
+  width: 18px;
+  height: auto;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 2px rgba(32, 20, 10, 0.24));
+}
+
 /* 水墨云：文字后一团洇开的椭圆墨晕，无方框/题签线/圆角卡片 */
 .skill-center-mask {
   position: relative;
@@ -969,6 +1105,24 @@ a:focus-visible {
 .piece-effect-intel { --effect-color: #31558a; }
 .piece-effect-support { --effect-color: #39715a; }
 
+.skill-target-path {
+  position: absolute;
+  max-width: none;
+  pointer-events: none;
+  transform-origin: 0 50%;
+  object-fit: fill;
+  filter: drop-shadow(0 0 5px rgba(196, 137, 44, 0.58));
+}
+
+.skill-broadcast-accent-ring {
+  border: 3px solid rgba(185, 120, 37, 0.96);
+  box-shadow:
+    0 0 0 2px rgba(249, 239, 218, 0.92),
+    0 0 0 5px rgba(159, 47, 40, 0.28),
+    0 0 13px rgba(196, 137, 44, 0.72);
+  animation: skill-broadcast-target-pulse 0.72s ease-in-out infinite alternate;
+}
+
 @keyframes pending-piece-effect {
   from {
     opacity: 0.72;
@@ -978,6 +1132,11 @@ a:focus-visible {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1.04);
   }
+}
+
+@keyframes skill-broadcast-target-pulse {
+  from { opacity: 0.76; transform: translate(-50%, -50%) scale(0.94); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
 }
 
 .piece-button:focus-visible {
@@ -1150,8 +1309,21 @@ a:focus-visible {
 }
 
 .command-skill-selected {
+  position: relative;
   border-color: var(--gold);
-  box-shadow: 0 0 0 2px rgba(202, 143, 49, 0.3), 0 3px 8px rgba(69, 42, 18, 0.16);
+  color: var(--ink-rich);
+  box-shadow:
+    0 0 0 2px rgba(202, 143, 49, 0.56),
+    0 0 18px rgba(194, 118, 29, 0.48),
+    0 5px 10px rgba(69, 42, 18, 0.2),
+    inset 0 0 0 3px rgba(255, 247, 220, 0.48);
+  will-change: transform;
+}
+
+.command-skill-selected .command-skill-seal {
+  color: var(--cinnabar);
+  filter: none;
+  opacity: 1;
 }
 
 .command-skill-seal {
@@ -1823,6 +1995,14 @@ a:focus-visible {
   .player-qi-band .qi-meter-track { grid-template-columns: repeat(20, 4px); gap: 1px; }
   .player-qi-band .qi-dot { width: 4px; height: 4px; }
   .battle-status-log { min-width: 44px; }
+  .skill-broadcast-scroll { height: 62px; grid-template-columns: 55px minmax(0, 1fr) 52px; gap: 4px; padding-inline: 9px 7px; }
+  .skill-broadcast-title strong { font-size: 18px; }
+  .skill-broadcast-title span { width: 20px; height: 20px; font-size: 12px; }
+  .skill-broadcast-copy { font-size: 10px; line-height: 1.32; }
+  .skill-broadcast-target { width: 46px; height: 46px; }
+  .skill-broadcast-target-piece { width: 40px; height: 40px; }
+  .skill-broadcast-target-streak { width: 62px; right: 14px; top: 11px; }
+  .skill-broadcast-tassel { width: 15px; right: -8px; top: 28px; }
   .play-generals-me { padding-inline: 10px; }
   .command-skills { gap: 8px; }
   .command-skill { gap: 7px; padding-inline: 8px; }

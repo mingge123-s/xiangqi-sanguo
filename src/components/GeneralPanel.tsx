@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { CaretDown } from '@phosphor-icons/react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { FACTION_COLOR } from '../game/types';
 import type { GeneralRuntime, Piece, SkillRuntime } from '../game/types';
 import { CHAR } from '../game/types';
@@ -26,6 +27,7 @@ function SkillAction({
   onCast?: () => void;
   onInspect?: () => void;
 }) {
+  const reduceMotion = useReducedMotion();
   const timer = useRef<number | null>(null);
   const longPressed = useRef(false);
   const passive = skill.kind === 'passive' || skill.engineKind === 'passive';
@@ -59,9 +61,12 @@ function SkillAction({
         : '蓄势中';
 
   return (
-    <button
+    <motion.button
       type="button"
       className={`command-skill${ready ? ' command-skill-ready' : ''}${selected ? ' command-skill-selected' : ''}`}
+      animate={selected && !reduceMotion ? { y: -2, scale: 1.015 } : { y: 0, scale: 1 }}
+      whileTap={ready && !reduceMotion ? { scale: 0.985 } : undefined}
+      transition={{ type: 'spring', stiffness: 380, damping: 28 }}
       aria-disabled={!ready}
       aria-label={`${general.name}技能${skill.name}，${stateText}。长按查看详情`}
       onPointerDown={(event) => {
@@ -85,7 +90,7 @@ function SkillAction({
         <strong>{skill.name}</strong>
         <small>{stateText}</small>
       </span>
-    </button>
+    </motion.button>
   );
 }
 

@@ -1,19 +1,32 @@
 import { useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import type { SkillBroadcast as SB } from '../game/types';
-import { FACTION_COLOR } from '../game/types';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import type { Piece, SkillBroadcast as SB } from '../game/types';
+import type { PieceStatusTone } from './pieceStatus';
+import { PieceView } from './Piece';
+import tasselUrl from '../assets/command-tassel.webp';
+import targetStreakUrl from '../assets/skill-target-streak.webp';
 
-/** Brief skill-name splash near the status band — never dims or covers the board. */
+/** Expanded horizontal command scroll for a resolved skill. */
 export function SkillBroadcast({
   data,
+  lines,
+  targetPiece,
+  targetMark,
+  targetTone,
   onDone,
 }: {
   data: SB | null;
+  lines: string[];
+  targetPiece?: Piece;
+  targetMark?: string;
+  targetTone?: PieceStatusTone;
   onDone: () => void;
 }) {
+  const reduceMotion = useReducedMotion();
+
   useEffect(() => {
     if (!data) return;
-    const t = window.setTimeout(onDone, 700);
+    const t = window.setTimeout(onDone, 1750);
     return () => window.clearTimeout(t);
   }, [data, onDone]);
 
@@ -22,28 +35,56 @@ export function SkillBroadcast({
       {data && (
         <motion.div
           key={`${data.name}-${data.skill}`}
-          className="pointer-events-none absolute inset-x-0 top-[9%] z-40 flex justify-center px-4"
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -4 }}
-          transition={{ duration: 0.22 }}
+          className="skill-broadcast-slot"
+          role="status"
+          aria-live="assertive"
+          aria-label={`${data.name}发动${data.skill}。${lines.join('，')}`}
+          initial={reduceMotion ? false : { opacity: 0, scaleX: 0.35 }}
+          animate={{ opacity: 1, scaleX: 1 }}
+          exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scaleX: 0.72 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 28 }}
         >
-          <div className="skill-center-mask skill-center-mask-compact">
+          <div className="skill-broadcast-scroll" aria-hidden>
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 1.02, opacity: 0 }}
-              className="text-center"
+              className="skill-broadcast-title"
+              initial={reduceMotion ? false : { opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: reduceMotion ? 0 : 0.12, duration: 0.24 }}
             >
-              <div className="text-[11px] tracking-[0.5em]" style={{ color: FACTION_COLOR[data.faction] }}>
-                {data.name}
-              </div>
-              <div
-                className="skill-center-text mt-0.5"
-                style={{ fontSize: 20, fontWeight: 700, letterSpacing: '0.28em' }}
-              >
-                {data.skill}
-              </div>
+              <strong>{data.skill}</strong>
+              <span>技</span>
+            </motion.div>
+            <motion.div
+              className="skill-broadcast-copy"
+              initial={reduceMotion ? false : { opacity: 0, filter: 'blur(5px)' }}
+              animate={{ opacity: 1, filter: 'blur(0px)' }}
+              transition={{ delay: reduceMotion ? 0 : 0.18, duration: 0.3 }}
+            >
+              {lines.slice(0, 2).map((line) => <span key={line}>{line}</span>)}
+            </motion.div>
+            <motion.div
+              className="skill-broadcast-target"
+              initial={reduceMotion ? false : { opacity: 0, scale: 0.66, rotate: -8 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              transition={{ delay: reduceMotion ? 0 : 0.2, type: 'spring', stiffness: 320, damping: 22 }}
+            >
+              <img src={targetStreakUrl} className="skill-broadcast-target-streak" alt="" />
+              <span className="skill-broadcast-target-piece">
+                {targetPiece ? (
+                  <PieceView
+                    piece={targetPiece}
+                    selected={false}
+                    size={38}
+                    statusMark={targetMark}
+                    statusTone={targetTone}
+                    tabIndex={-1}
+                    onPointer={() => undefined}
+                  />
+                ) : (
+                  <span className="skill-broadcast-fallback-seal">{data.skill.slice(0, 1)}</span>
+                )}
+              </span>
+              <img src={tasselUrl} className="skill-broadcast-tassel" alt="" />
             </motion.div>
           </div>
         </motion.div>
