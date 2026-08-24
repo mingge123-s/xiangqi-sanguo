@@ -156,3 +156,13 @@ final result: passed
 - Deterministic mapping tests: 32 checks passed. Browser console warnings/errors: none.
 
 final result: passed
+
+## Round 6 — command-strip typography alignment
+
+- User reference: `C:/Users/CHENKA~1/AppData/Local/Temp/codex-clipboard-432d4127-86a9-4b08-9e55-13d4025ccae2.png`.
+- Accepted preview: `design-audit/round-6/01-command-text-centered-430x720.png`.
+- Single-line prompts, wrapped battle logs, and inline prompts with an action button were checked.
+- Computed styles confirmed `font-weight: 700`, horizontal centering, and vertical centering for all three cases.
+- Production build, engine/layout tests, and browser console checks passed.
+
+final result: passed
