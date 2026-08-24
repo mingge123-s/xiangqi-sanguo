@@ -40,6 +40,9 @@ interface Targeting {
   picks: Pos[];
 }
 
+const AI_THINK_DELAY_MS = 420;
+const AI_MOVE_ANIMATION_MS = 760;
+
 function hintFor(id: string): string {
   switch (id) {
     case 'guanyu-yijue':
@@ -122,6 +125,8 @@ export default function App() {
   const [selected, setSelected] = useState<Pos | null>(null);
   const [targeting, setTargeting] = useState<Targeting | null>(null);
   const [thinking, setThinking] = useState(false);
+  const [aiMoveAnimating, setAiMoveAnimating] = useState(false);
+  const animatedAiMove = useRef('');
   const [detail, setDetail] = useState<GeneralRuntime | null>(null);
   const [turnSplash, setTurnSplash] = useState<Side | null>(null);
   const turnSeen = useRef<{ phase: string; side: string } | null>(null);
@@ -174,6 +179,7 @@ export default function App() {
   const gangliePending = !!state.pending.ganglieDice;
   const inputLocked =
     thinking ||
+    aiMoveAnimating ||
     (!!state.winner) ||
     !!state.skillBroadcast ||
     gangliePending ||
@@ -330,7 +336,7 @@ export default function App() {
         return applyAITurn(cur);
       });
       setThinking(false);
-    }, 90);
+    }, AI_THINK_DELAY_MS);
     return () => {
       cancelled = true;
       window.clearTimeout(t);
@@ -343,6 +349,22 @@ export default function App() {
     state.turnCount,
     state.pending.ganglieDice,
   ]);
+
+  useEffect(() => {
+    const move = state.lastMove;
+    if (state.phase !== 'playing' || !move) {
+      animatedAiMove.current = '';
+      setAiMoveAnimating(false);
+      return;
+    }
+    if (move.piece.side !== 'black') return;
+    const key = `${state.moveSerial}:${move.piece.id}:${move.from.r},${move.from.c}>${move.to.r},${move.to.c}`;
+    if (animatedAiMove.current === key) return;
+    animatedAiMove.current = key;
+    setAiMoveAnimating(true);
+    const timer = window.setTimeout(() => setAiMoveAnimating(false), AI_MOVE_ANIMATION_MS);
+    return () => window.clearTimeout(timer);
+  }, [state.lastMove, state.moveSerial, state.phase]);
 
   const onGanglieSettled = useCallback(() => {
     setState((s) => (s.pending.ganglieDice ? resolveGanglie(s) : s));

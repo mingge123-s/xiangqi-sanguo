@@ -3,7 +3,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { PieceView } from './Piece';
 import { GanglieDice } from './GanglieDice';
 import { CapturedRail } from './CapturedRail';
-import type { Piece, PieceType, Pos } from '../game/types';
+import type { LastMove, Piece, PieceType, Pos } from '../game/types';
 import { posEq } from '../game/core';
 import { pieceStatusEffect } from './pieceStatus';
 import targetStreakUrl from '../assets/skill-target-streak.webp';
@@ -155,7 +155,7 @@ export function Board({
   board: (Piece | null)[][];
   selected: Pos | Pos[] | null;
   legal: Pos[];
-  lastMove: { from: Pos; to: Pos } | null;
+  lastMove: LastMove | null;
   highlights: Pos[];
   capturedRed?: Piece[];
   capturedBlack?: Piece[];
@@ -240,6 +240,23 @@ export function Board({
   const lastKey = lastMove
     ? `${lastMove.from.r},${lastMove.from.c}->${lastMove.to.r},${lastMove.to.c}`
     : '';
+  const enemyLastMove = lastMove?.piece.side === 'black' ? lastMove : null;
+  const enemyMovePath = enemyLastMove ? (() => {
+    const fromX = rail + pad + enemyLastMove.from.c * cell;
+    const fromY = pad + enemyLastMove.from.r * cellY;
+    const toX = rail + pad + enemyLastMove.to.c * cell;
+    const toY = pad + enemyLastMove.to.r * cellY;
+    const dx = toX - fromX;
+    const dy = toY - fromY;
+    return {
+      fromX,
+      fromY,
+      dx,
+      dy,
+      length: Math.hypot(dx, dy),
+      angle: Math.atan2(dy, dx) * 180 / Math.PI,
+    };
+  })() : undefined;
   const diceKey = ganglieDice
     ? `${ganglieDice.capturerPos.r},${ganglieDice.capturerPos.c}:${ganglieDice.roll}`
     : '';
@@ -304,6 +321,36 @@ export function Board({
             style={{ width: boardW, height: boardH }}
           >
             <BoardArt w={boardW} h={boardH} pad={pad} cellX={cell} cellY={cellY} rail={rail} />
+            {enemyMovePath && (
+              <div key={`enemy-move-${lastKey}`} className="enemy-move-trace-layer" aria-hidden>
+                <motion.span
+                  className="enemy-move-trail"
+                  style={{
+                    left: enemyMovePath.fromX,
+                    top: enemyMovePath.fromY,
+                    width: enemyMovePath.length,
+                    rotate: enemyMovePath.angle,
+                  }}
+                  initial={reduceMotion ? false : { opacity: 0, scaleX: 0.04 }}
+                  animate={{ opacity: [0, 0.9, 0.22], scaleX: 1 }}
+                  transition={{ duration: 0.72, times: [0, 0.34, 1], ease: 'easeOut' }}
+                />
+                {!reduceMotion && (
+                  <motion.span
+                    className="enemy-move-tracer"
+                    style={{ left: enemyMovePath.fromX, top: enemyMovePath.fromY }}
+                    initial={{ x: 0, y: 0, opacity: 0, scale: 0.45 }}
+                    animate={{
+                      x: enemyMovePath.dx,
+                      y: enemyMovePath.dy,
+                      opacity: [0, 1, 1, 0],
+                      scale: [0.45, 1.2, 0.7],
+                    }}
+                    transition={{ duration: 0.68, times: [0, 0.2, 0.78, 1], ease: 'easeOut' }}
+                  />
+                )}
+              </div>
+            )}
             {accentPath && (
               <motion.img
                 src={targetStreakUrl}
@@ -342,6 +389,17 @@ export function Board({
                   const isLastFrom = !!(lastMove && posEq(lastMove.from, pos));
                   const isLastTo = !!(lastMove && posEq(lastMove.to, pos));
                   const isLast = isLastFrom || isLastTo;
+                  const isEnemyLastFrom = !!(enemyLastMove && posEq(enemyLastMove.from, pos));
+                  const isEnemyLastTo = !!(enemyLastMove && posEq(enemyLastMove.to, pos));
+                  const enemyMoveOffset =
+                    !reduceMotion &&
+                    isEnemyLastTo &&
+                    piece?.id === enemyLastMove?.piece.id
+                      ? {
+                          x: (enemyLastMove.from.c - enemyLastMove.to.c) * cell,
+                          y: (enemyLastMove.from.r - enemyLastMove.to.r) * cellY,
+                        }
+                      : undefined;
                   const showKillBloom = !!(killBloom && posEq(killBloom, pos));
                   const statusEffect = piece ? pieceStatusEffect(piece.id, statusSources) : undefined;
                   const isBroadcastTarget = !!(piece && accentPieceId === piece.id);
@@ -379,6 +437,22 @@ export function Board({
                           style={{ width: lastTint, height: lastTint, zIndex: 1 }}
                         />
                       )}
+                      {isEnemyLastFrom && (
+                        <span
+                          className="enemy-last-origin pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                          style={{ width: pieceSize * 0.76, height: pieceSize * 0.76, zIndex: 2 }}
+                          aria-hidden
+                        />
+                      )}
+                      {isEnemyLastTo && (
+                        <span
+                          className="enemy-last-destination pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                          style={{ width: pieceSize + 13, height: pieceSize + 13, zIndex: 4 }}
+                          aria-hidden
+                        >
+                          <span className="enemy-last-seal">动</span>
+                        </span>
+                      )}
                       {isHi && (
                         <div
                           className="skill-target-ring pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
@@ -415,6 +489,7 @@ export function Board({
                       )}
                       {piece && (
                         <PieceView
+                          key={piece.id}
                           piece={piece}
                           selected={isSel}
                           size={pieceSize}
@@ -424,6 +499,7 @@ export function Board({
                           statusLabel={statusEffect?.label}
                           statusTone={statusEffect?.tone}
                           locked={lockedPieceId === piece.id && !statusEffect}
+                          moveOffset={enemyMoveOffset}
                           coverHint={
                             showCoverHint && !piece.revealed && piece.side === 'black'
                               ? (piece.coverType as PieceType)

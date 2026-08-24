@@ -111,6 +111,7 @@ export function PieceView({
   statusLabel,
   statusTone,
   locked,
+  moveOffset,
   tabIndex,
   onPointer,
 }: {
@@ -127,6 +128,8 @@ export function PieceView({
   statusLabel?: string;
   statusTone?: PieceStatusTone;
   locked?: boolean;
+  /** Render this newly landed piece from its previous board-space offset. */
+  moveOffset?: { x: number; y: number };
   tabIndex?: number;
   onPointer: () => void;
 }) {
@@ -148,21 +151,33 @@ export function PieceView({
     <motion.button
       type="button"
       tabIndex={tabIndex}
-      aria-label={`${piece.side === 'red' ? '红方' : '黑方'}${dark ? '暗棋' : CHAR[piece.side][piece.type]}${statusLabel ? `，${statusLabel}` : ''}`}
+      aria-label={`${piece.side === 'red' ? '红方' : '黑方'}${dark ? '暗棋' : CHAR[piece.side][piece.type]}${moveOffset ? '，敌方刚刚移动' : ''}${statusLabel ? `，${statusLabel}` : ''}`}
       onClick={onPointer}
       onContextMenu={(e) => {
         e.preventDefault();
         onPointer();
       }}
+      initial={moveOffset ? {
+        x: moveOffset.x,
+        y: moveOffset.y,
+        scale: 0.94,
+        opacity: 0.76,
+      } : false}
       animate={{
+        x: 0,
         y: selected ? -3 : 0,
         scale: selected ? 1.04 : 1,
         opacity: dimmed ? 0.45 : 1,
       }}
       whileTap={{ scale: 0.94 }}
-      transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+      transition={moveOffset ? {
+        x: { duration: 0.68, ease: [0.2, 0.72, 0.18, 1] },
+        y: { duration: 0.68, ease: [0.2, 0.72, 0.18, 1] },
+        scale: { duration: 0.3, ease: 'easeOut' },
+        opacity: { duration: 0.22, ease: 'easeOut' },
+      } : { type: 'spring', stiffness: 420, damping: 28 }}
       className="piece-button absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-transparent p-0"
-      style={{ width: hit, height: hit, zIndex: selected ? 5 : 2 }}
+      style={{ width: hit, height: hit, zIndex: moveOffset ? 6 : selected ? 5 : 2 }}
     >
       <span
         className={`wood-token piece-token relative flex items-center justify-center rounded-full${selected ? ' piece-token-selected' : ''}`}
