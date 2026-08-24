@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BattleLogPanel } from './components/BattleLogPanel';
+import type { BattleAlertData } from './components/BattleAlert';
 import { BattleStatus } from './components/BattleStatus';
 import { Board } from './components/Board';
 import { GeneralDetail } from './components/GeneralDetail';
@@ -42,6 +43,8 @@ interface Targeting {
 
 const AI_THINK_DELAY_MS = 420;
 const AI_MOVE_ANIMATION_MS = 760;
+const CHECK_ALERT_MS = 1550;
+const RESULT_PRELUDE_MS = 2600;
 
 function hintFor(id: string): string {
   switch (id) {
@@ -127,6 +130,9 @@ export default function App() {
   const [thinking, setThinking] = useState(false);
   const [aiMoveAnimating, setAiMoveAnimating] = useState(false);
   const animatedAiMove = useRef('');
+  const [checkAlert, setCheckAlert] = useState<BattleAlertData | null>(null);
+  const seenCheckAlert = useRef('');
+  const [resultRevealReady, setResultRevealReady] = useState(false);
   const [detail, setDetail] = useState<GeneralRuntime | null>(null);
   const [turnSplash, setTurnSplash] = useState<Side | null>(null);
   const turnSeen = useRef<{ phase: string; side: string } | null>(null);
@@ -264,6 +270,32 @@ export default function App() {
   })();
 
   useEffect(() => {
+    if (!checked || state.winner) {
+      seenCheckAlert.current = '';
+      setCheckAlert(null);
+      return;
+    }
+    const id = `check-${state.moveSerial}-${state.side}`;
+    if (seenCheckAlert.current === id) return;
+    seenCheckAlert.current = id;
+    setCheckAlert({ id, kind: 'check', victim: state.side });
+    const timer = window.setTimeout(() => {
+      setCheckAlert((current) => (current?.id === id ? null : current));
+    }, CHECK_ALERT_MS);
+    return () => window.clearTimeout(timer);
+  }, [checked, state.moveSerial, state.side, state.winner]);
+
+  useEffect(() => {
+    if (state.phase !== 'result' || !state.winner) {
+      setResultRevealReady(false);
+      return;
+    }
+    setResultRevealReady(false);
+    const timer = window.setTimeout(() => setResultRevealReady(true), RESULT_PRELUDE_MS);
+    return () => window.clearTimeout(timer);
+  }, [state.phase, state.winner, state.moveSerial]);
+
+  useEffect(() => {
     if (state.phase !== 'playing') setLogOpen(false);
   }, [state.phase]);
 
@@ -352,7 +384,7 @@ export default function App() {
 
   useEffect(() => {
     const move = state.lastMove;
-    if (state.phase !== 'playing' || !move) {
+    if (state.phase === 'home' || !move) {
       animatedAiMove.current = '';
       setAiMoveAnimating(false);
       return;
@@ -537,12 +569,22 @@ export default function App() {
       })
     : undefined;
   const broadcastLines = broadcastSkillId ? broadcastLinesFor(broadcastSkillId) : [];
+  const resultPrelude = state.phase === 'result' && !!state.winner && !resultRevealReady;
+  const showBattleBoard = state.phase === 'playing' || resultPrelude;
+  const battleAlert: BattleAlertData | null = resultPrelude && state.winner
+    ? {
+        id: `mate-${state.moveSerial}-${state.winner}`,
+        kind: 'mate',
+        victim: state.winner === 'red' ? 'black' : 'red',
+        winner: state.winner,
+      }
+    : checkAlert;
 
   return (
     <div className="phone-frame">
       {state.phase === 'home' && <Home onStart={() => setState(startMatch())} />}
 
-      {state.phase === 'playing' && (
+      {showBattleBoard && (
         <div className="play-screen">
           <BattleStatus
             side={state.side}
@@ -593,6 +635,7 @@ export default function App() {
                   }
                   legal={targeting ? [] : legal}
                   lastMove={state.lastMove}
+                  battleAlert={battleAlert}
                   highlights={highlights}
                   disabled={inputLocked}
                   onCell={onCell}
@@ -788,7 +831,7 @@ export default function App() {
         </div>
       )}
 
-      {state.phase === 'result' && state.winner && (
+      {state.phase === 'result' && state.winner && resultRevealReady && (
         <Result winner={state.winner} onAgain={() => setState(startMatch())} />
       )}
 

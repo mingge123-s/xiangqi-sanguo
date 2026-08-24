@@ -1,5 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { BattleAlert, type BattleAlertData } from './BattleAlert';
 import { PieceView } from './Piece';
 import { GanglieDice } from './GanglieDice';
 import { CapturedRail } from './CapturedRail';
@@ -127,6 +128,7 @@ export function Board({
   selected,
   legal,
   lastMove,
+  battleAlert,
   highlights,
   capturedRed,
   capturedBlack,
@@ -156,6 +158,7 @@ export function Board({
   selected: Pos | Pos[] | null;
   legal: Pos[];
   lastMove: LastMove | null;
+  battleAlert?: BattleAlertData | null;
   highlights: Pos[];
   capturedRed?: Piece[];
   capturedBlack?: Piece[];
@@ -391,6 +394,16 @@ export function Board({
                   const isLast = isLastFrom || isLastTo;
                   const isEnemyLastFrom = !!(enemyLastMove && posEq(enemyLastMove.from, pos));
                   const isEnemyLastTo = !!(enemyLastMove && posEq(enemyLastMove.to, pos));
+                  const isAlertKing = !!(
+                    battleAlert &&
+                    piece?.type === 'K' &&
+                    piece.side === battleAlert.victim
+                  );
+                  const isFatalLanding = !!(
+                    battleAlert?.kind === 'mate' &&
+                    lastMove &&
+                    posEq(lastMove.to, pos)
+                  );
                   const enemyMoveOffset =
                     !reduceMotion &&
                     isEnemyLastTo &&
@@ -453,6 +466,20 @@ export function Board({
                           <span className="enemy-last-seal">动</span>
                         </span>
                       )}
+                      {isAlertKing && (
+                        <span
+                          className="combat-alert-king-ring pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                          style={{ width: pieceSize + 18, height: pieceSize + 18, zIndex: 5 }}
+                          aria-hidden
+                        />
+                      )}
+                      {isFatalLanding && (
+                        <span
+                          className="combat-alert-fatal-ring pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                          style={{ width: pieceSize + 14, height: pieceSize + 14, zIndex: 5 }}
+                          aria-hidden
+                        />
+                      )}
                       {isHi && (
                         <div
                           className="skill-target-ring pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
@@ -513,6 +540,9 @@ export function Board({
                 }),
               )}
             </div>
+            <AnimatePresence mode="wait">
+              {battleAlert && <BattleAlert key={battleAlert.id} alert={battleAlert} />}
+            </AnimatePresence>
             {ganglieDice && (
               <GanglieDice
                 key={diceKey}
