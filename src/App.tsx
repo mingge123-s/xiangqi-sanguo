@@ -9,6 +9,7 @@ import { GeneralPanel } from './components/GeneralPanel';
 import { Home } from './components/Home';
 import { Result } from './components/Result';
 import { SkillBroadcast } from './components/SkillBroadcast';
+import { SkillPromptPiece } from './components/SkillPromptPiece';
 import { TurnBroadcast } from './components/TurnBroadcast';
 import { applyAITurn } from './game/ai';
 import { posEq } from './game/core';
@@ -32,7 +33,7 @@ import {
   whyPieceStuck,
 } from './game/engine';
 import { sideHasSkill } from './game/generals';
-import type { GameState, GeneralRuntime, Pos, Side, SkillPayload, SkillRuntime } from './game/types';
+import type { GameState, GeneralRuntime, Piece, Pos, Side, SkillPayload, SkillRuntime } from './game/types';
 import { CHAR } from './game/types';
 import { pieceStatusEffect } from './components/pieceStatus';
 
@@ -46,6 +47,21 @@ const AI_THINK_DELAY_MS = 420;
 const AI_MOVE_ANIMATION_MS = 760;
 const CHECK_ALERT_MS = 1550;
 const RESULT_PRELUDE_MS = 2600;
+
+interface PromptPieceToken {
+  side: Side;
+  label: string;
+}
+
+function commanderToken(side: Side): PromptPieceToken {
+  return { side, label: CHAR[side].K };
+}
+
+function targetToken(piece?: Piece | null): PromptPieceToken {
+  if (!piece) return { side: 'black', label: '敌' };
+  if (piece.type === 'K') return commanderToken(piece.side);
+  return piece.side === 'red' ? commanderToken('red') : { side: 'black', label: '敌' };
+}
 
 function hintFor(id: string): string {
   switch (id) {
@@ -122,6 +138,26 @@ function broadcastTargetIdFor(state: GameState, skillId: string, wushuangKingId?
     case 'lvbu-wushuang': return wushuangKingId;
     default: return undefined;
   }
+}
+
+const ENEMY_TARGET_SKILLS = new Set([
+  'simayi-guicai',
+  'simayi-yingshi',
+  'zhouyu-fanjian',
+  'diaochan-lijian',
+  'xiahoudun-danjing',
+]);
+
+function targetingPromptToken(targeting: Targeting | null, state: GameState): PromptPieceToken {
+  if (!targeting) return commanderToken('red');
+  if (targeting.skillId === 'guanyu-yijue' && targeting.picks.length > 0) {
+    const first = state.board[targeting.picks[0].r][targeting.picks[0].c];
+    if (first?.side === 'red') return { side: 'black', label: '敌' };
+    if (first?.side === 'black') return commanderToken('red');
+  }
+  return ENEMY_TARGET_SKILLS.has(targeting.skillId)
+    ? { side: 'black', label: '敌' }
+    : commanderToken('red');
 }
 
 export default function App() {
@@ -212,6 +248,16 @@ export default function App() {
   const danjingMarkId = state.pending.danjing?.pieceId;
   const kongchengMarkId = state.pending.kongcheng?.pieceId;
   const wushengMarkId = state.pending.wushengGuard?.pieceId;
+  const promptPieceById = (id?: string) => id
+    ? state.board.flat().find((piece) => piece?.id === id)
+    : undefined;
+  const targetingPieceToken = targetingPromptToken(targeting, state);
+  const fanjianPieceToken = targetToken(promptPieceById(fanjianMarkId));
+  const lijianPieceToken = targetToken(promptPieceById(lijianMarkId));
+  const guicaiPieceToken = targetToken(promptPieceById(guicaiMarkId));
+  const qingnangPieceToken = targetToken(promptPieceById(qingnangMarkId));
+  const danjingPieceToken = targetToken(promptPieceById(danjingMarkId));
+  const paoxiaoPieceToken = targetToken(promptPieceById(state.pending.zhangFeiPieceId));
 
   const fanjianBanner = (() => {
     const mark = state.pending.fanjianMark;
@@ -675,7 +721,8 @@ export default function App() {
                           initial={{ opacity: 0, y: 4 }}
                           animate={{ opacity: 1, y: 0 }}
                         >
-                          <div className="skill-center-mask skill-center-mask-inline ganglie-choice-mask">
+                          <div className="skill-center-mask skill-center-mask-inline skill-center-mask-has-piece ganglie-choice-mask">
+                            <SkillPromptPiece side="red" label="帅" />
                             <span className="skill-center-text ganglie-choice-copy">
                               <strong>刚烈</strong> · 消耗{ganglieCost}战气发动？
                             </span>
@@ -704,6 +751,7 @@ export default function App() {
                           targetPiece={broadcastTargetPiece}
                           targetMark={broadcastTargetEffect?.mark}
                           targetTone={broadcastTargetEffect?.tone}
+                          sourceSide={broadcastMineSkillId ? 'red' : 'black'}
                           onDone={dismissBroadcast}
                         />
                       ) : turnSplash ? (
@@ -736,7 +784,8 @@ export default function App() {
                             </motion.div>
                           ) : awaitGuanxing && !state.skillBroadcast ? (
                             <div key="guanxing" className="skill-slot-prompt">
-                              <div className="skill-center-mask">
+                              <div className="skill-center-mask skill-center-mask-has-piece">
+                                <SkillPromptPiece side="red" label="帅" />
                                 <span className="skill-center-text">
                                   {targeting?.hint ?? '观星：点选五枚暗棋'}
                                 </span>
@@ -744,7 +793,8 @@ export default function App() {
                             </div>
                           ) : awaitYingshi && !state.skillBroadcast ? (
                             <div key="yingshi" className="skill-slot-prompt">
-                              <div className="skill-center-mask">
+                              <div className="skill-center-mask skill-center-mask-has-piece">
+                                <SkillPromptPiece side="black" label="敌" />
                                 <span className="skill-center-text">
                                   鹰视：点选对方一枚暗棋，标记并观看其真实身份
                                 </span>
@@ -752,7 +802,8 @@ export default function App() {
                             </div>
                           ) : kongchengReady ? (
                             <div key="kongcheng" className="skill-slot-prompt">
-                              <div className="skill-center-mask skill-center-mask-inline">
+                              <div className="skill-center-mask skill-center-mask-inline skill-center-mask-has-piece">
+                                <SkillPromptPiece side="red" label="帅" />
                                 <span className="skill-center-text">空城 · 点己方一子护到下回合</span>
                                 <button
                                   type="button"
@@ -769,7 +820,8 @@ export default function App() {
                             </div>
                           ) : targeting ? (
                             <div key="targeting" className="skill-slot-prompt">
-                              <div className="skill-center-mask skill-center-mask-inline">
+                              <div className="skill-center-mask skill-center-mask-inline skill-center-mask-has-piece">
+                                <SkillPromptPiece side={targetingPieceToken.side} label={targetingPieceToken.label} />
                                 <span className="skill-center-text">{targeting.hint}</span>
                                 <button
                                   type="button"
@@ -785,43 +837,50 @@ export default function App() {
                             </div>
                           ) : fanjianBanner ? (
                             <div key="fanjian" className="skill-slot-prompt">
-                              <div className="skill-center-mask">
+                              <div className="skill-center-mask skill-center-mask-has-piece">
+                                <SkillPromptPiece side={fanjianPieceToken.side} label={fanjianPieceToken.label} />
                                 <span className="skill-center-text">{fanjianBanner}</span>
                               </div>
                             </div>
                           ) : lijianBanner ? (
                             <div key="lijian" className="skill-slot-prompt">
-                              <div className="skill-center-mask">
+                              <div className="skill-center-mask skill-center-mask-has-piece">
+                                <SkillPromptPiece side={lijianPieceToken.side} label={lijianPieceToken.label} />
                                 <span className="skill-center-text">{lijianBanner}</span>
                               </div>
                             </div>
                           ) : guicaiBanner ? (
                             <div key="guicai" className="skill-slot-prompt">
-                              <div className="skill-center-mask">
+                              <div className="skill-center-mask skill-center-mask-has-piece">
+                                <SkillPromptPiece side={guicaiPieceToken.side} label={guicaiPieceToken.label} />
                                 <span className="skill-center-text">{guicaiBanner}</span>
                               </div>
                             </div>
                           ) : qingnangBanner ? (
                             <div key="qingnang" className="skill-slot-prompt">
-                              <div className="skill-center-mask">
+                              <div className="skill-center-mask skill-center-mask-has-piece">
+                                <SkillPromptPiece side={qingnangPieceToken.side} label={qingnangPieceToken.label} />
                                 <span className="skill-center-text">{qingnangBanner}</span>
                               </div>
                             </div>
                           ) : danjingBanner ? (
                             <div key="danjing" className="skill-slot-prompt">
-                              <div className="skill-center-mask">
+                              <div className="skill-center-mask skill-center-mask-has-piece">
+                                <SkillPromptPiece side={danjingPieceToken.side} label={danjingPieceToken.label} />
                                 <span className="skill-center-text">{danjingBanner}</span>
                               </div>
                             </div>
                           ) : qixiBanner ? (
                             <div key="qixi" className="skill-slot-prompt">
-                              <div className="skill-center-mask">
+                              <div className="skill-center-mask skill-center-mask-has-piece">
+                                <SkillPromptPiece {...commanderToken(state.side)} />
                                 <span className="skill-center-text">{qixiBanner}</span>
                               </div>
                             </div>
                           ) : state.pending.zhangFeiPieceId && state.movesLeft > 0 ? (
                             <div key="paoxiao" className="skill-slot-prompt">
-                              <div className="skill-center-mask">
+                              <div className="skill-center-mask skill-center-mask-has-piece">
+                                <SkillPromptPiece side={paoxiaoPieceToken.side} label={paoxiaoPieceToken.label} />
                                 <span className="skill-center-text">咆哮 · 还可再走一步</span>
                               </div>
                             </div>

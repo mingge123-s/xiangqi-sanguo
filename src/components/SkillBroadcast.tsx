@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import type { Piece, SkillBroadcast as SB } from '../game/types';
+import type { Piece, Side, SkillBroadcast as SB } from '../game/types';
 import type { PieceStatusTone } from './pieceStatus';
 import { PieceView } from './Piece';
+import { SkillPromptPiece } from './SkillPromptPiece';
 import tasselUrl from '../assets/command-tassel.webp';
 import targetStreakUrl from '../assets/skill-target-streak.webp';
 
@@ -13,6 +14,7 @@ export function SkillBroadcast({
   targetPiece,
   targetMark,
   targetTone,
+  sourceSide,
   onDone,
 }: {
   data: SB | null;
@@ -20,6 +22,7 @@ export function SkillBroadcast({
   targetPiece?: Piece;
   targetMark?: string;
   targetTone?: PieceStatusTone;
+  sourceSide: Side;
   onDone: () => void;
 }) {
   const reduceMotion = useReducedMotion();
@@ -52,7 +55,11 @@ export function SkillBroadcast({
               transition={{ delay: reduceMotion ? 0 : 0.12, duration: 0.24 }}
             >
               <strong>{data.skill}</strong>
-              <span>技</span>
+              <SkillPromptPiece
+                side={sourceSide}
+                label={sourceSide === 'red' ? '帅' : '敌'}
+                compact
+              />
             </motion.div>
             <motion.div
               className="skill-broadcast-copy"

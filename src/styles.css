@@ -210,7 +210,7 @@ body {
   letter-spacing: 0.08em;
 }
 
-.skill-broadcast-title span {
+.skill-broadcast-title > span {
   width: 24px;
   height: 24px;
   display: grid;
@@ -336,6 +336,55 @@ body {
 .skill-center-mask > * {
   position: relative;
   z-index: 1;
+}
+
+.skill-center-mask-has-piece {
+  gap: 7px;
+  padding-left: 11px;
+  padding-right: 17px;
+}
+
+.skill-prompt-piece {
+  --prompt-piece-ink: #2a2520;
+  position: relative;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  border: 2px solid var(--prompt-piece-ink);
+  border-radius: 50%;
+  color: var(--prompt-piece-ink);
+  background:
+    radial-gradient(circle at 32% 27%, #fffaf0 0%, #f2e7d1 54%, #d9c7a7 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 250, 238, 0.78),
+    inset 0 0 0 3px color-mix(in srgb, var(--prompt-piece-ink) 32%, transparent),
+    0 1px 4px rgba(24, 18, 12, 0.42),
+    0 0 8px color-mix(in srgb, var(--prompt-piece-ink) 24%, transparent);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgba(255, 248, 231, 0.72);
+}
+
+.skill-prompt-piece-red { --prompt-piece-ink: #b8332a; }
+.skill-prompt-piece-black { --prompt-piece-ink: #29251f; }
+
+.skill-prompt-piece > span {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.skill-prompt-piece-compact {
+  width: 24px;
+  height: 24px;
+  flex-basis: 24px;
+  font-size: 12px;
 }
 
 /* 水墨云晕：比文字大一圈的椭圆，边缘虚掉；绝不 100% 100% 拉伸 SVG */
@@ -2318,7 +2367,7 @@ a:focus-visible {
   .battle-status-log { min-width: 44px; }
   .skill-broadcast-scroll { height: 62px; grid-template-columns: 55px minmax(0, 1fr) 52px; gap: 4px; padding-inline: 9px 7px; }
   .skill-broadcast-title strong { font-size: 18px; }
-  .skill-broadcast-title span { width: 20px; height: 20px; font-size: 12px; }
+  .skill-broadcast-title > span { width: 20px; height: 20px; font-size: 12px; }
   .skill-broadcast-copy { font-size: 10px; line-height: 1.32; }
   .skill-broadcast-target { width: 46px; height: 46px; }
   .skill-broadcast-target-piece { width: 40px; height: 40px; }
