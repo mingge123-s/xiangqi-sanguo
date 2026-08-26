@@ -74,6 +74,12 @@ function cloneState(s: GameState): GameState {
       wushuang: s.pending.wushuang ? { ...s.pending.wushuang } : undefined,
       lijianMark: s.pending.lijianMark ? { ...s.pending.lijianMark } : undefined,
       lijianWalkedId: s.pending.lijianWalkedId,
+      awaitGanglie: s.pending.awaitGanglie
+        ? {
+            ...s.pending.awaitGanglie,
+            capturerPos: { ...s.pending.awaitGanglie.capturerPos },
+          }
+        : undefined,
       ganglieDice: s.pending.ganglieDice
         ? {
             ...s.pending.ganglieDice,
@@ -308,6 +314,7 @@ function pendingBlocksPlay(s: GameState): boolean {
     s.pending.awaitGuanxing ||
     s.pending.awaitKongcheng ||
     s.pending.awaitYingshi ||
+    s.pending.awaitGanglie ||
     s.pending.ganglieDice
   );
 }
@@ -746,9 +753,37 @@ function isJiangshuaiCapturer(cap: Piece): boolean {
   return trueGroup(cap) === 'jiangshuai' || cap.type === 'K';
 }
 
+type GanglieTrigger = NonNullable<GameState['pending']['awaitGanglie']>;
+
+function armGanglie(s: GameState, trigger: GanglieTrigger, forcedRoll?: number): boolean {
+  const cap = getPiece(s.board, trigger.capturerPos);
+  if (!cap || cap.id !== trigger.capturerId || isJiangshuaiCapturer(cap)) {
+    ganglieRollOverride = undefined;
+    return false;
+  }
+  const ganglie = findOwnedSkill(sideGens(s, trigger.victimSide), 'xiahoudun-ganglie')?.skill;
+  const cost = ganglie?.qiCost ?? 8;
+  if ((s.qi[trigger.victimSide] ?? 0) < cost) {
+    ganglieRollOverride = undefined;
+    return false;
+  }
+  spendQi(s, trigger.victimSide, cost);
+  const roll = forcedRoll ?? rollGanglieDie();
+  s.pending = {
+    ...s.pending,
+    awaitGanglie: undefined,
+    ganglieDice: {
+      ...trigger,
+      roll,
+    },
+  };
+  s.skillBroadcast = { name: '夏侯惇', skill: '刚烈', faction: 'wei' };
+  return true;
+}
+
 /**
- * 刚烈：对方吃掉夏侯惇方棋子后。揭示（若仍隐藏）；非将帅且战气≥5 则立刻耗 5 并挂起 d6。
- * @returns true if `pending.ganglieDice` was set (caller must defer endTurn).
+ * 刚烈触发窗口：红方由玩家确认，黑方由 AI 选择发动。
+ * @returns true when a choice/dice window was opened and the caller must defer endTurn.
  */
 function applyXiahou(
   s: GameState,
@@ -778,21 +813,47 @@ function applyXiahou(
     ganglieRollOverride = undefined;
     return false;
   }
-  spendQi(s, victimSide, cost);
-
-  const roll = opts?.roll ?? rollGanglieDie();
-  s.pending = {
-    ...s.pending,
-    ganglieDice: {
-      victimSide,
-      capturerPos: { ...capturerPos },
-      capturerId: cap.id,
-      roll,
-      resumeTurn: opts?.resumeTurn !== false,
-    },
+  const trigger: GanglieTrigger = {
+    victimSide,
+    capturerPos: { ...capturerPos },
+    capturerId: cap.id,
+    resumeTurn: opts?.resumeTurn !== false,
   };
-  s.skillBroadcast = { name: '夏侯惇', skill: '刚烈', faction: 'wei' };
+
+  if (victimSide === 'black') {
+    // Black is the AI side: it owns this optional decision and currently values
+    // the retaliation whenever it can legally pay the cost.
+    return armGanglie(s, trigger, opts?.roll);
+  }
+  s.pending = { ...s.pending, awaitGanglie: trigger };
   return true;
+}
+
+function resumeAfterGanglie(s: GameState, resumeTurn: boolean): GameState {
+  finishIfOver(s, s.side);
+  if (s.winner || !resumeTurn) return s;
+
+  const opp = opposite(s.side);
+  if (!findKing(s.board, 'red') || !findKing(s.board, 'black') || sideHasNoMove(s, opp)) {
+    endTurn(s);
+    return s;
+  }
+  if (maybeAwaitKongcheng(s)) return s;
+  endTurn(s);
+  return s;
+}
+
+/** Player decision for the red-side 刚烈 trigger window. */
+export function resolveGanglieChoice(s0: GameState, activate: boolean): GameState {
+  const trigger = s0.pending.awaitGanglie;
+  if (!trigger) return s0;
+  const s = cloneState(s0);
+  s.pending = { ...s.pending, awaitGanglie: undefined };
+
+  if (activate && armGanglie(s, trigger)) return s;
+  ganglieRollOverride = undefined;
+  if (!activate) pushLog(s, '夏侯惇选择不发动【刚烈】', trigger.victimSide);
+  return resumeAfterGanglie(s, trigger.resumeTurn);
 }
 
 /** Resolve pending 刚烈 d6: odd destroys capturer; even restores 2 战气. Then resume turn if needed. */
@@ -820,17 +881,7 @@ export function resolveGanglie(s0: GameState): GameState {
     pushLog(s, `刚烈判定：${pip}点，恢复2点战气`, victimSide);
   }
 
-  finishIfOver(s, s.side);
-  if (s.winner || !resumeTurn) return s;
-
-  const opp = opposite(s.side);
-  if (!findKing(s.board, 'red') || !findKing(s.board, 'black') || sideHasNoMove(s, opp)) {
-    endTurn(s);
-    return s;
-  }
-  if (maybeAwaitKongcheng(s)) return s;
-  endTurn(s);
-  return s;
+  return resumeAfterGanglie(s, resumeTurn);
 }
 
 function afterBoardMutation(s: GameState, mover: Side, events: {
@@ -1192,7 +1243,7 @@ function consumeSkill(s: GameState, g: GeneralRuntime, skill: SkillRuntime): voi
 
 export function canUseSkill(s: GameState, skillId: string): boolean {
   if (s.phase !== 'playing' || s.winner) return false;
-  if (s.pending.ganglieDice) return false;
+  if (s.pending.awaitGanglie || s.pending.ganglieDice) return false;
   if (s.pending.awaitGuanxing) {
     return skillId === 'zhuge-guanxing' && !!findOwnedSkill(sideGens(s, s.side), skillId);
   }
@@ -1207,7 +1258,8 @@ export function canUseSkill(s: GameState, skillId: string): boolean {
   if (
     skillId === 'zhuge-guanxing' ||
     skillId === 'zhuge-kongcheng' ||
-    skillId === 'simayi-yingshi'
+    skillId === 'simayi-yingshi' ||
+    skillId === 'xiahoudun-ganglie'
   ) {
     return false;
   }
@@ -1781,7 +1833,7 @@ export function makeMove(s0: GameState, from: Pos, to: Pos): GameState {
 
   maybeClearWushengGuard(s);
 
-  if (s.pending.ganglieDice) {
+  if (s.pending.awaitGanglie || s.pending.ganglieDice) {
     finishIfOver(s, s.side);
     return s;
   }

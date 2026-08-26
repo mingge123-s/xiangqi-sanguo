@@ -1,6 +1,6 @@
 import { applyMove, createInitialBoard, createStandardBoard, emptyBoard, evaluateBoard, getPiece, inCheck, knownIdsOn, revealAll } from './core';
 import { applyAITurn } from './ai';
-import { canUseSkill, createHomeState, isKongchengCaptureAttempt, isWushengCaptureAttempt, isWushuangCaptureAttempt, isWushuangCheckAttempt, listLegalFrom, listLegalMoves, makeMove, peekDark, peekedOf, resolveGanglie, sideInCheck, skipKongcheng, skillLiveState, startMatch, useSkill, validSkillTargets, whyIllegalDest, whyPieceStuck, __testEndTurn, __testSetFanjianDest, __testSetGanglieRoll, __testSetLijianLoss } from './engine';
+import { canUseSkill, createHomeState, isKongchengCaptureAttempt, isWushengCaptureAttempt, isWushuangCaptureAttempt, isWushuangCheckAttempt, listLegalFrom, listLegalMoves, makeMove, peekDark, peekedOf, resolveGanglie, resolveGanglieChoice, sideInCheck, skipKongcheng, skillLiveState, startMatch, useSkill, validSkillTargets, whyIllegalDest, whyPieceStuck, __testEndTurn, __testSetFanjianDest, __testSetGanglieRoll, __testSetLijianLoss } from './engine';
 import { defToRuntime, GENERALS, skillPhaseOf, skillTypeLabel } from './generals';
 import type { GameState, GeneralRuntime, Piece, PieceType, Side, SkillDef, SkillRuntime } from './types';
 
@@ -1463,12 +1463,48 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   const ganglie = GENERALS.find((d) => d.id === 'xiahoudun')!.skills.find((sk) => sk.id === 'xiahoudun-ganglie')!;
   assert(
     ganglie.desc ===
-      '主动技。每当对方以非将帅棋吃掉己方棋子时，消耗8点战气，抛一枚六面骰。奇数则该子与被吃子同归于尽；偶数则恢复2点战气。对方第一次吃掉己方棋子时，揭示此武将。',
+      '主动技。每当对方以非将帅棋吃掉己方棋子时，你可以消耗8点战气，抛一枚六面骰。奇数则该子与被吃子同归于尽；偶数则恢复2点战气。对方第一次吃掉己方棋子时，揭示此武将。',
     '刚烈 desc exact',
   );
-  assert(ganglie.qiCost === 8, '刚烈 qiCost 8 (wiki badge; still passive)');
+  assert(ganglie.qiCost === 8, '刚烈 qiCost 8');
   assert(ganglie.nature === '主动技' && ganglie.phase === null, '刚烈 stays 主动技 / phase null');
-  assert(ganglie.kind === 'passive' && ganglie.engineKind === 'passive', '刚烈 not click-to-cast');
+  assert(ganglie.kind === 'active' && ganglie.engineKind === 'window', '刚烈 uses an active trigger window');
+}
+
+{
+  // Red is the human side: triggering only opens a choice and never spends automatically.
+  let s = base();
+  s.redGenerals = [defToRuntime(GENERALS.find((d) => d.id === 'xiahoudun')!, true)];
+  s.blackGenerals = [];
+  s.side = 'black';
+  s.movesLeft = 1;
+  s.board = emptyBoard();
+  s.board[9][4] = P('K', 'red', 'rk');
+  s.board[0][4] = P('K', 'black', 'bk');
+  s.board[5][4] = P('P', 'red', 'block');
+  s.board[2][0] = P('R', 'black', 'br');
+  s.board[7][0] = P('A', 'red', 'ra');
+  s.qi = { red: 10, black: 0 };
+  s.skillBroadcast = null;
+
+  s = makeMove(s, { r: 2, c: 0 }, { r: 7, c: 0 });
+  assert(!!s.pending.awaitGanglie, 'human 刚烈 opens an activation choice');
+  assert(!s.pending.ganglieDice, 'human 刚烈 does not roll before confirmation');
+  assert(s.qi.red === 10, 'human 刚烈 does not auto-spend qi');
+  assert(s.side === 'black', 'capture turn pauses while human chooses 刚烈');
+  assert(s.skillBroadcast?.skill !== '刚烈', 'human 刚烈 does not broadcast before confirmation');
+
+  const declined = resolveGanglieChoice(s, false);
+  assert(!declined.pending.awaitGanglie && !declined.pending.ganglieDice, 'declining clears 刚烈 choice');
+  assert(declined.qi.red === 11, 'declining 刚烈 spends no qi (only red turn-start +1)');
+  assert(declined.side === 'red', 'declining resumes and ends the capture turn');
+  assert(declined.board[7][0]?.id === 'br', 'declining leaves the capturer alive');
+
+  __testSetGanglieRoll(3);
+  const activated = resolveGanglieChoice(s, true);
+  assert(!activated.pending.awaitGanglie && activated.pending.ganglieDice?.roll === 3, 'confirming 刚烈 arms the die');
+  assert(activated.qi.red === 2, 'confirming 刚烈 spends 8 qi');
+  assert(activated.skillBroadcast?.skill === '刚烈', 'confirming 刚烈 broadcasts after the choice');
 }
 
 {

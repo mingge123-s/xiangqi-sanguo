@@ -1455,6 +1455,51 @@ a:focus-visible {
   font-size: 13px;
 }
 
+.ganglie-choice-mask {
+  width: 100%;
+  flex-wrap: nowrap;
+  gap: 5px;
+  padding: 4px 8px;
+}
+
+.ganglie-choice-copy {
+  min-width: 0;
+  color: #f7ead0;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.ganglie-choice-copy strong {
+  color: #f0bd70;
+  font-family: var(--font-display);
+  font-size: 14px;
+}
+
+.ganglie-choice-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.ganglie-choice-actions .skill-slot-action {
+  min-width: 43px;
+  min-height: 27px;
+  padding: 3px 5px;
+  font-size: 11px;
+}
+
+.ganglie-choice-confirm {
+  border-color: rgba(155, 51, 39, 0.72);
+  color: #fff0d8;
+  background: rgba(145, 43, 34, 0.9);
+}
+
+.ganglie-choice-skip {
+  color: #544531;
+  background: rgba(241, 229, 203, 0.9);
+}
+
 .play-generals-me {
   flex: 1 1 auto;
   min-height: 0;

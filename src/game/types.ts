@@ -120,6 +120,13 @@ export interface PendingEffects {
    * 技能换位/传送不写入；用于避免陈旧 lastMove + movedThisTurn 误罚。
    */
   lijianWalkedId?: string;
+  /** 夏侯惇刚烈：己方棋子被吃后的主动发动确认窗口。 */
+  awaitGanglie?: {
+    victimSide: Side;
+    capturerPos: Pos;
+    capturerId: string;
+    resumeTurn: boolean;
+  };
   /**
    * 夏侯惇刚烈：吃子落地后抛 d6，动画结束前阻塞行棋。
    * resumeTurn：resolve 后是否继续 makeMove 的结束回合流程。

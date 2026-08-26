@@ -1,9 +1,10 @@
 import { applyAITurn } from './ai';
-import { listLegalMoves, makeMove, resolveGanglie, skipKongcheng, startMatch, useSkill } from './engine';
+import { listLegalMoves, makeMove, resolveGanglie, resolveGanglieChoice, skipKongcheng, startMatch, useSkill } from './engine';
 import { isSkillReady } from './generals';
 import type { GameState } from './types';
 
 function settlePending(s: GameState): GameState {
+  if (s.pending.awaitGanglie) s = resolveGanglieChoice(s, true);
   if (s.pending.ganglieDice) s = resolveGanglie(s);
   return s;
 }
@@ -13,8 +14,8 @@ function playOnce(seedLabel: string): { turns: number; winner: string | null; la
   let guard = 0;
   while (!s.winner && s.phase === 'playing' && guard < 180) {
     guard += 1;
-    if (s.pending.ganglieDice) {
-      s = resolveGanglie(s);
+    if (s.pending.awaitGanglie || s.pending.ganglieDice) {
+      s = settlePending(s);
       continue;
     }
     if (s.side === 'black') {

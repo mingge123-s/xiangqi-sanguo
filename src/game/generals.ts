@@ -249,9 +249,9 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'xiahoudun-ganglie',
         name: '刚烈',
-        desc: '主动技。每当对方以非将帅棋吃掉己方棋子时，消耗8点战气，抛一枚六面骰。奇数则该子与被吃子同归于尽；偶数则恢复2点战气。对方第一次吃掉己方棋子时，揭示此武将。',
-        kind: 'passive',
-        engineKind: 'passive',
+        desc: '主动技。每当对方以非将帅棋吃掉己方棋子时，你可以消耗8点战气，抛一枚六面骰。奇数则该子与被吃子同归于尽；偶数则恢复2点战气。对方第一次吃掉己方棋子时，揭示此武将。',
+        kind: 'active',
+        engineKind: 'window',
         nature: '主动技',
         phase: null,
         labelKind: '主动技',

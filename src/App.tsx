@@ -21,6 +21,7 @@ import {
   peekDark,
   peekedOf,
   resolveGanglie,
+  resolveGanglieChoice,
   sideInCheck,
   skipKongcheng,
   skillLiveState,
@@ -182,7 +183,11 @@ export default function App() {
   const awaitYingshi = !!state.pending.awaitYingshi && state.side === 'red';
   const awaitKongcheng = !!state.pending.awaitKongcheng && state.side === 'red';
   const kongchengReady = awaitKongcheng && !state.skillBroadcast;
-  const gangliePending = !!state.pending.ganglieDice;
+  const ganglieChoice = state.pending.awaitGanglie?.victimSide === 'red';
+  const gangliePending = ganglieChoice || !!state.pending.ganglieDice;
+  const ganglieCost = state.redGenerals
+    .flatMap((general) => general.skills)
+    .find((skill) => skill.id === 'xiahoudun-ganglie')?.qiCost ?? 8;
   const inputLocked =
     thinking ||
     aiMoveAnimating ||
@@ -286,14 +291,25 @@ export default function App() {
   }, [checked, state.moveSerial, state.side, state.winner]);
 
   useEffect(() => {
-    if (state.phase !== 'result' || !state.winner) {
+    if (
+      state.phase !== 'result' ||
+      !state.winner ||
+      state.pending.awaitGanglie ||
+      state.pending.ganglieDice
+    ) {
       setResultRevealReady(false);
       return;
     }
     setResultRevealReady(false);
     const timer = window.setTimeout(() => setResultRevealReady(true), RESULT_PRELUDE_MS);
     return () => window.clearTimeout(timer);
-  }, [state.phase, state.winner, state.moveSerial]);
+  }, [
+    state.phase,
+    state.winner,
+    state.moveSerial,
+    state.pending.awaitGanglie,
+    state.pending.ganglieDice,
+  ]);
 
   useEffect(() => {
     if (state.phase !== 'playing') setLogOpen(false);
@@ -352,6 +368,7 @@ export default function App() {
     const aiShouldPlay =
       state.phase === 'playing' &&
       !state.winner &&
+      !state.pending.awaitGanglie &&
       !state.pending.ganglieDice &&
       state.side === 'black';
     if (!aiShouldPlay) {
@@ -379,6 +396,7 @@ export default function App() {
     state.winner,
     state.moveSerial,
     state.turnCount,
+    state.pending.awaitGanglie,
     state.pending.ganglieDice,
   ]);
 
@@ -650,7 +668,36 @@ export default function App() {
                   onGanglieSettled={onGanglieSettled}
                   bottomSlot={
                     <div className="skill-slot skill-slot-bottom" aria-live="polite">
-                      {state.skillBroadcast ? (
+                      {ganglieChoice ? (
+                        <motion.div
+                          key="ganglie-choice"
+                          className="skill-slot-prompt"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                        >
+                          <div className="skill-center-mask skill-center-mask-inline ganglie-choice-mask">
+                            <span className="skill-center-text ganglie-choice-copy">
+                              <strong>刚烈</strong> · 消耗{ganglieCost}战气发动？
+                            </span>
+                            <span className="ganglie-choice-actions">
+                              <button
+                                type="button"
+                                className="skill-slot-action ganglie-choice-skip"
+                                onClick={() => setState((s) => resolveGanglieChoice(s, false))}
+                              >
+                                不发动
+                              </button>
+                              <button
+                                type="button"
+                                className="skill-slot-action ganglie-choice-confirm"
+                                onClick={() => setState((s) => resolveGanglieChoice(s, true))}
+                              >
+                                发动
+                              </button>
+                            </span>
+                          </div>
+                        </motion.div>
+                      ) : state.skillBroadcast ? (
                         <SkillBroadcast
                           data={state.skillBroadcast}
                           lines={broadcastLines}

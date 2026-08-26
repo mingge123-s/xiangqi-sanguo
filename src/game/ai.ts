@@ -428,8 +428,8 @@ function resolveYingshi(s: GameState): GameState {
 export function applyAITurn(s0: GameState): GameState {
   if (s0.phase !== 'playing' || s0.winner) return s0;
   if (s0.side !== 'black') return s0;
-  // UI owns 刚烈 dice animation; do not advance while pending.
-  if (s0.pending.ganglieDice) return s0;
+  // UI owns the red-side 刚烈 choice and dice animation; do not advance while pending.
+  if (s0.pending.awaitGanglie || s0.pending.ganglieDice) return s0;
   let s = s0;
 
   if (s.pending.awaitYingshi) {
