@@ -1301,10 +1301,14 @@ a:focus-visible {
 }
 
 .board-captured .wood-token {
-  width: min(26px, calc(100% - 3px));
-  height: min(26px, calc(100% - 3px));
-  font-size: 12px;
+  width: min(24px, calc(100% - 5px));
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 1 / 1;
+  flex: 0 0 auto;
+  font-size: clamp(9px, 2.8vw, 12px);
   border: 1px solid currentColor;
+  box-sizing: border-box;
 }
 
 .board-captured-label {

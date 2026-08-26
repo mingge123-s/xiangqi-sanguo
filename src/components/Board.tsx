@@ -14,6 +14,9 @@ const ROWS = 10;
 const COLS = 9;
 /** Visible disc ≤ this fraction of the smaller cell so neighbors never overlap. */
 const PIECE_RATIO = 0.82;
+/** Side prisoner rails need enough width for a legible circular captured token. */
+const RAIL_RATIO = 0.66;
+const BOARD_WIDTH_CELLS = 8 + PIECE_RATIO + RAIL_RATIO * 2;
 const EDGE_SLACK = 2;
 /** Vertical reserve per announce slot — must match .skill-slot height in styles.css. */
 const SLOT_RESERVE = 44;
@@ -225,14 +228,14 @@ export function Board({
   const cell = Math.max(
     8,
     Math.min(
-      availW > 4 ? (availW - 4) / 9.82 : 24,
+      availW > 4 ? (availW - 4) / BOARD_WIDTH_CELLS : 24,
       availH > 4 ? (availH - 4) / 10.18 : 24,
     ),
   );
   const cellY = cell * 1.04;
   const pieceSize = PIECE_RATIO * cell;
   const pad = pieceSize / 2 + EDGE_SLACK;
-  const rail = Math.max(14, cell * 0.5);
+  const rail = Math.max(16, cell * RAIL_RATIO);
   const boardW = rail * 2 + pad * 2 + 8 * cell;
   const boardH = pad * 2 + 9 * cellY;
   const ready = box.w > 0 && box.h > 0;
