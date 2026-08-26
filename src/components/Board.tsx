@@ -7,6 +7,7 @@ import { CapturedRail } from './CapturedRail';
 import type { LastMove, Piece, PieceType, Pos } from '../game/types';
 import { posEq } from '../game/core';
 import { pieceStatusEffect } from './pieceStatus';
+import { isLastMovedPieceAt } from './lastMoveHighlight';
 import targetStreakUrl from '../assets/skill-target-streak.webp';
 
 const ROWS = 10;
@@ -393,7 +394,7 @@ export function Board({
                   const isLastTo = !!(lastMove && posEq(lastMove.to, pos));
                   const isLast = isLastFrom || isLastTo;
                   const isEnemyLastFrom = !!(enemyLastMove && posEq(enemyLastMove.from, pos));
-                  const isEnemyLastTo = !!(enemyLastMove && posEq(enemyLastMove.to, pos));
+                  const isEnemyLastTo = isLastMovedPieceAt(piece, pos, enemyLastMove);
                   const isAlertKing = !!(
                     battleAlert &&
                     piece?.type === 'K' &&
@@ -406,13 +407,13 @@ export function Board({
                   );
                   const enemyMoveOffset =
                     !reduceMotion &&
-                    isEnemyLastTo &&
-                    piece?.id === enemyLastMove?.piece.id
-                      ? {
-                          x: (enemyLastMove.from.c - enemyLastMove.to.c) * cell,
-                          y: (enemyLastMove.from.r - enemyLastMove.to.r) * cellY,
-                        }
-                      : undefined;
+                    enemyLastMove &&
+                    isEnemyLastTo
+                    ? {
+                        x: (enemyLastMove.from.c - enemyLastMove.to.c) * cell,
+                        y: (enemyLastMove.from.r - enemyLastMove.to.r) * cellY,
+                      }
+                    : undefined;
                   const showKillBloom = !!(killBloom && posEq(killBloom, pos));
                   const statusEffect = piece ? pieceStatusEffect(piece.id, statusSources) : undefined;
                   const isBroadcastTarget = !!(piece && accentPieceId === piece.id);
