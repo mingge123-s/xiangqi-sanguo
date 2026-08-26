@@ -91,7 +91,7 @@ body {
   width: 30px;
   display: flex;
   flex-direction: column;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-content: center;
   align-items: center;
   gap: 2px;

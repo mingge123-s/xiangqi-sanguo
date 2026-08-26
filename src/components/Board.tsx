@@ -238,6 +238,18 @@ export function Board({
   const rail = Math.max(16, cell * RAIL_RATIO);
   const boardW = rail * 2 + pad * 2 + 8 * cell;
   const boardH = pad * 2 + 9 * cellY;
+  const capturedTokenSize = (count: number) => {
+    const railTop = 78;
+    const railBottom = 8;
+    const railGap = 3;
+    const usableHeight = Math.max(0, boardH - railTop - railBottom);
+    const fitHeight = count > 0
+      ? (usableHeight - railGap * Math.max(0, count - 1)) / count
+      : 24;
+    return Math.max(10, Math.min(24, rail - 5, fitHeight));
+  };
+  const capturedRedSize = capturedTokenSize(capturedRed?.length ?? 0);
+  const capturedBlackSize = capturedTokenSize(capturedBlack?.length ?? 0);
   const ready = box.w > 0 && box.h > 0;
   const hit = Math.min(cell * 0.94, pieceSize + 10);
   const lastTint = pieceSize * 1.06;
@@ -378,11 +390,11 @@ export function Board({
             )}
             <div className="board-captured board-captured-left" style={{ width: rail }}>
               <span className="board-captured-label" aria-hidden>我方俘子</span>
-              <CapturedRail pieces={capturedRed ?? []} align="top" />
+              <CapturedRail pieces={capturedRed ?? []} align="top" size={capturedRedSize} />
             </div>
             <div className="board-captured board-captured-right" style={{ width: rail }}>
               <span className="board-captured-label" aria-hidden>敌方俘子</span>
-              <CapturedRail pieces={capturedBlack ?? []} align="bottom" />
+              <CapturedRail pieces={capturedBlack ?? []} align="bottom" size={capturedBlackSize} />
             </div>
             <div className="absolute inset-0">
               {Array.from({ length: ROWS }, (_, r) =>

@@ -4,11 +4,13 @@ import type { Piece } from '../game/types';
 export function CapturedRail({
   pieces,
   align,
+  size,
   clickableIds,
   onPick,
 }: {
   pieces: Piece[];
   align: 'top' | 'bottom';
+  size?: number;
   clickableIds?: string[];
   onPick?: (id: string) => void;
 }) {
@@ -29,7 +31,13 @@ export function CapturedRail({
             className={`wood-token flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-full text-[11px] font-bold leading-none ${
               clickable ? 'ring-1 ring-amber-300/85' : ''
             }`}
-            style={{ color, pointerEvents: clickable ? 'auto' : 'none' }}
+            style={{
+              color,
+              pointerEvents: clickable ? 'auto' : 'none',
+              width: size,
+              height: size,
+              fontSize: size ? Math.max(8, size * 0.46) : undefined,
+            }}
           >
             {label}
           </button>
