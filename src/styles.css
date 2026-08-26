@@ -667,25 +667,6 @@ body {
   animation: enemy-last-destination-pulse 1.15s ease-in-out infinite alternate;
 }
 
-.enemy-last-seal {
-  position: absolute;
-  right: -7px;
-  top: -9px;
-  width: 18px;
-  height: 18px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(119, 35, 31, 0.82);
-  border-radius: 50%;
-  color: #f8edd6;
-  background: rgba(159, 47, 40, 0.94);
-  box-shadow: 0 1px 5px rgba(69, 37, 22, 0.34);
-  font-family: var(--font-display);
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
-}
-
 @keyframes enemy-last-destination-pulse {
   from {
     border-color: rgba(196, 137, 44, 0.78);

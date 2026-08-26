@@ -462,9 +462,7 @@ export function Board({
                           className="enemy-last-destination pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
                           style={{ width: pieceSize + 13, height: pieceSize + 13, zIndex: 4 }}
                           aria-hidden
-                        >
-                          <span className="enemy-last-seal">动</span>
-                        </span>
+                        />
                       )}
                       {isAlertKing && (
                         <span
