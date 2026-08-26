@@ -105,7 +105,6 @@ export interface PendingEffects {
   /** 咆哮：锁定本回合可连走的棋子；步数预算见 GameState.movesLeft。 */
   zhangFeiPieceId?: string;
   kongcheng?: { pieceId: string; untilSide: Side };
-  danjing?: { pieceId: string; untilSide: Side };
   bridgeDown?: { owner: Side; enemyTurnsLeft: number };
   awaitYingshi?: boolean;
   yingshiMark?: { owner: Side; pieceId: string };
@@ -120,7 +119,7 @@ export interface PendingEffects {
    * 技能换位/传送不写入；用于避免陈旧 lastMove + movedThisTurn 误罚。
    */
   lijianWalkedId?: string;
-  /** 夏侯惇刚烈：己方棋子被吃后的主动发动确认窗口。 */
+  /** 夏侯惇刚烈：己方棋子被俘虏后的主动发动确认窗口。 */
   awaitGanglie?: {
     victimSide: Side;
     capturerPos: Pos;
@@ -128,7 +127,7 @@ export interface PendingEffects {
     resumeTurn: boolean;
   };
   /**
-   * 夏侯惇刚烈：吃子落地后抛 d6，动画结束前阻塞行棋。
+   * 夏侯惇刚烈：俘虏落地后抛 d6，动画结束前阻塞行棋。
    * resumeTurn：resolve 后是否继续 makeMove 的结束回合流程。
    */
   ganglieDice?: {

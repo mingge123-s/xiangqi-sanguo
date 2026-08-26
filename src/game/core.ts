@@ -640,8 +640,8 @@ export function describeMove(opts: {
   let eat = '';
   if (captured) {
     eat = captured.revealed
-      ? `，吃掉了对方的${CHAR[captured.side][captured.type]}`
-      : '，吃掉了对方的暗子';
+      ? `，俘虏了对方的${CHAR[captured.side][captured.type]}`
+      : '，俘虏了对方的暗子';
   }
 
   const who = side === 'red' ? '红' : '黑';

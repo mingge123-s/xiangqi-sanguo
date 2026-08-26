@@ -176,7 +176,7 @@ function set(b: Board, r: number, c: number, type: PieceType, side: Side, id?: s
     piece: cannon,
     captured: dark,
   });
-  assert(line === '红方的炮往前走了3格，吃掉了对方的暗子', 'cannon captures dark');
+  assert(line === '红方的炮往前走了3格，俘虏了对方的暗子', 'cannon captures dark');
 }
 
 {
@@ -189,7 +189,7 @@ function set(b: Board, r: number, c: number, type: PieceType, side: Side, id?: s
     piece: horse,
     captured: pawn,
   });
-  assert(line === '红方的馬往右前跳了一日，吃掉了对方的卒', 'horse captures pawn');
+  assert(line === '红方的馬往右前跳了一日，俘虏了对方的卒', 'horse captures pawn');
 }
 
 {

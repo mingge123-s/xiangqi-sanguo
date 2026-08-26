@@ -23,7 +23,6 @@ import {
   pieceLabel,
   posEq,
   squareName,
-  trueGroup,
 } from './core';
 import { dealGenerals, findOwnedSkill, isSkillReady, sideHasSkill } from './generals';
 import type {
@@ -65,7 +64,6 @@ function cloneState(s: GameState): GameState {
       qingnangMark: s.pending.qingnangMark ? { ...s.pending.qingnangMark } : undefined,
       zhangFeiPieceId: s.pending.zhangFeiPieceId,
       kongcheng: s.pending.kongcheng ? { ...s.pending.kongcheng } : undefined,
-      danjing: s.pending.danjing ? { ...s.pending.danjing } : undefined,
       bridgeDown: s.pending.bridgeDown ? { ...s.pending.bridgeDown } : undefined,
       awaitYingshi: s.pending.awaitYingshi,
       yingshiMark: s.pending.yingshiMark ? { ...s.pending.yingshiMark } : undefined,
@@ -283,10 +281,7 @@ export function legalOptions(s: GameState, side: Side) {
   const ids = protectedIds(s);
   const protectedPieceId = ids[0];
   const protectedPieceIds = ids.length > 1 ? ids : undefined;
-  const noCapturePieceId =
-    s.pending.danjing && s.pending.danjing.untilSide === side
-      ? s.pending.danjing.pieceId
-      : undefined;
+  const noCapturePieceId: string | undefined = undefined;
   const blockRiverCross = !!(
     s.pending.bridgeDown && s.pending.bridgeDown.owner !== side
   );
@@ -537,7 +532,7 @@ export function whyPieceStuck(s: GameState, pos: Pos): string | null {
       mustNotCheck: opt.mustNotCheck,
       ignoreOwnCheck: opt.ignoreOwnCheck,
     });
-    if (withCap.length > 0) return '啖睛：该子本回合不能吃子';
+    if (withCap.length > 0) return '该子本回合不能俘虏棋子';
   }
 
   // 奇袭: only river-crossing dests were possible
@@ -651,7 +646,7 @@ export function whyIllegalDest(s: GameState, from: Pos, to: Pos): string | null 
       mustNotCheck: opt.mustNotCheck,
       ignoreOwnCheck: opt.ignoreOwnCheck,
     });
-    if (withCap.some((d) => posEq(d, to))) return '啖睛：该子本回合不能吃子';
+    if (withCap.some((d) => posEq(d, to))) return '该子本回合不能俘虏棋子';
   }
 
   if (
@@ -749,15 +744,24 @@ function rollGanglieDie(): number {
   return 1 + Math.floor(Math.random() * 6);
 }
 
-function isJiangshuaiCapturer(cap: Piece): boolean {
-  return trueGroup(cap) === 'jiangshuai' || cap.type === 'K';
-}
-
 type GanglieTrigger = NonNullable<GameState['pending']['awaitGanglie']>;
+
+function revealXiahou(s: GameState, owner: Side): boolean {
+  const gens = sideGens(s, owner);
+  const xh = gens.find((general) => general.id === 'xiahoudun');
+  if (!xh || !xh.hidden) return !!xh;
+  setSideGens(
+    s,
+    owner,
+    gens.map((general) => (general.id === 'xiahoudun' ? { ...general, hidden: false } : general)),
+  );
+  pushLog(s, `${owner === 'red' ? '红' : '黑'}方 夏侯惇 亮相！`, owner);
+  return true;
+}
 
 function armGanglie(s: GameState, trigger: GanglieTrigger, forcedRoll?: number): boolean {
   const cap = getPiece(s.board, trigger.capturerPos);
-  if (!cap || cap.id !== trigger.capturerId || isJiangshuaiCapturer(cap)) {
+  if (!cap || cap.id !== trigger.capturerId) {
     ganglieRollOverride = undefined;
     return false;
   }
@@ -791,19 +795,9 @@ function applyXiahou(
   capturerPos: Pos,
   opts?: { resumeTurn?: boolean; roll?: number },
 ): boolean {
-  const gens = sideGens(s, victimSide);
-  const xh = gens.find((g) => g.id === 'xiahoudun');
-  if (!xh) return false;
-  if (xh.hidden) {
-    setSideGens(
-      s,
-      victimSide,
-      gens.map((g) => (g.id === 'xiahoudun' ? { ...g, hidden: false } : g)),
-    );
-    pushLog(s, `${victimSide === 'red' ? '红' : '黑'}方 夏侯惇 亮相！`, victimSide);
-  }
+  if (!revealXiahou(s, victimSide)) return false;
   const cap = getPiece(s.board, capturerPos);
-  if (!cap || isJiangshuaiCapturer(cap)) {
+  if (!cap) {
     ganglieRollOverride = undefined;
     return false;
   }
@@ -856,7 +850,24 @@ export function resolveGanglieChoice(s0: GameState, activate: boolean): GameStat
   return resumeAfterGanglie(s, trigger.resumeTurn);
 }
 
-/** Resolve pending 刚烈 d6: odd destroys capturer; even restores 2 战气. Then resume turn if needed. */
+function applyOwnedDiePassives(s: GameState, owner: Side, roll: number): void {
+  if (roll % 2 !== 0) return;
+  if (!sideHasSkill(sideGens(s, owner), 'xiahoudun-danjing')) return;
+  revealXiahou(s, owner);
+  addQi(s, owner, 2);
+  const pip = GANGLIE_PIP[roll] ?? String(roll);
+  pushLog(s, `啖睛：我方骰面为${pip}点（偶数），战气+2`, owner);
+  s.skillBroadcast = { name: '夏侯惇', skill: '啖睛', faction: 'wei' };
+}
+
+/** Public dice-event entry used by any current or future hero skill. */
+export function resolveOwnedDieResult(s0: GameState, owner: Side, roll: number): GameState {
+  const s = cloneState(s0);
+  applyOwnedDiePassives(s, owner, roll);
+  return s;
+}
+
+/** Resolve pending 刚烈 d6: odd destroys the capturer, then all owned-die passives resolve. */
 export function resolveGanglie(s0: GameState): GameState {
   const dice = s0.pending.ganglieDice;
   if (!dice) return s0;
@@ -871,15 +882,15 @@ export function resolveGanglie(s0: GameState): GameState {
       s.board = cloneBoard(s.board);
       s.board[capturerPos.r][capturerPos.c] = null;
       s.captured[cap.side] = [...s.captured[cap.side], asCaptured(cap)];
-      pushLog(s, `刚烈！${pieceLabel(cap)} 同归于尽`, victimSide);
+      pushLog(s, `刚烈：摧毁俘虏者${pieceLabel(cap)}`, victimSide);
       charge(s, cap.side, 'ownLoss', 1);
       maybeTriggerYingshi(s, { capturedId: cap.id });
     }
   } else {
-    addQi(s, victimSide, 2);
     const pip = GANGLIE_PIP[roll] ?? String(roll);
-    pushLog(s, `刚烈判定：${pip}点，恢复2点战气`, victimSide);
+    pushLog(s, `刚烈判定：${pip}点（偶数）`, victimSide);
   }
+  applyOwnedDiePassives(s, victimSide, roll);
 
   return resumeAfterGanglie(s, resumeTurn);
 }
@@ -1070,9 +1081,6 @@ function endTurn(s: GameState): void {
   if (s.pending.qingnangMark && s.pending.qingnangMark.untilSide === endingSide) {
     s.pending = { ...s.pending, qingnangMark: undefined };
   }
-  if (s.pending.danjing && s.pending.danjing.untilSide === endingSide) {
-    s.pending = { ...s.pending, danjing: undefined };
-  }
   if (s.pending.guicaiLock && s.pending.guicaiLock.untilSide === endingSide) {
     s.pending = { ...s.pending, guicaiLock: undefined };
   }
@@ -1086,7 +1094,7 @@ function endTurn(s: GameState): void {
   }
   if (s.capturedThisTurn && sideHasSkill(sideGens(s, endingSide), 'diaochan-biyue')) {
     addQi(s, endingSide, 1);
-    pushLog(s, '闭月：本回合有吃子，战气+1', endingSide);
+    pushLog(s, '闭月：本回合有俘虏棋子，战气+1', endingSide);
   }
 
   s.pending = { ...s.pending, zhangFeiPieceId: undefined };
@@ -1259,7 +1267,8 @@ export function canUseSkill(s: GameState, skillId: string): boolean {
     skillId === 'zhuge-guanxing' ||
     skillId === 'zhuge-kongcheng' ||
     skillId === 'simayi-yingshi' ||
-    skillId === 'xiahoudun-ganglie'
+    skillId === 'xiahoudun-ganglie' ||
+    skillId === 'xiahoudun-danjing'
   ) {
     return false;
   }
@@ -1344,7 +1353,7 @@ export function validSkillTargets(s: GameState, skillId: string): {
       .map((x) => x.pos);
     return { mode: 'dark', positions };
   }
-  if (skillId === 'zhouyu-fanjian' || skillId === 'xiahoudun-danjing') {
+  if (skillId === 'zhouyu-fanjian') {
     return { mode: 'enemy', positions: allPieces(s.board, opposite(side)).map((x) => x.pos) };
   }
   if (skillId === 'sunshangxiang-lianyin') {
@@ -1690,7 +1699,7 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
   if (skillId === 'lvbu-wushuang') {
     consumeSkill(s, g, skill);
     s.pending = { ...s.pending, wushuang: { owner: side, turnsLeft: 3 } };
-    pushLog(s, '无双：之后3个敌方回合内将帅不可被吃、不可被将军');
+    pushLog(s, '无双：之后3个敌方回合内将帅不可被俘虏、不可被将军');
     return s;
   }
 
@@ -1741,16 +1750,6 @@ export function useSkill(s0: GameState, skillId: string, payload: SkillPayload):
     };
     pushLog(s, `空城：${pieceLabel(p)} 受到庇护，直至己方下回合`);
     endTurn(s);
-    return s;
-  }
-
-  if (skillId === 'xiahoudun-danjing') {
-    if (payload.kind !== 'pos') return s0;
-    const p = getPiece(s.board, payload.pos);
-    if (!p || p.side === side) return s0;
-    consumeSkill(s, g, skill);
-    s.pending = { ...s.pending, danjing: { pieceId: p.id, untilSide: opposite(side) } };
-    pushLog(s, `啖睛：${pieceLabel(p)} 下一回合无法吃子`);
     return s;
   }
 
@@ -1885,7 +1884,7 @@ export function capturedOf(s: GameState, side: Side): Piece[] {
 export function skillLiveState(s: GameState, skillId: string, viewer: Side = 'red'): string | null {
   const trueLabel = (p: Piece) => CHAR[p.side][p.type];
   const fmt = (p: Piece, pos: Pos) => `${trueLabel(p)} ${squareName(pos)}`;
-  /** 未揭示子用「暗棋」+坐标，避免 liveState 露真身（啖睛/空城/武圣等）。 */
+  /** 未揭示子用「暗棋」+坐标，避免 liveState 露真身（空城/武圣等）。 */
   const fmtHiddenSafe = (p: Piece, pos: Pos) =>
     `${p.revealed ? trueLabel(p) : '暗棋'} ${squareName(pos)}`;
 
@@ -1931,13 +1930,6 @@ export function skillLiveState(s: GameState, skillId: string, viewer: Side = 're
     const hit = allPieces(s.board).find((x) => x.piece.id === g.pieceId);
     if (!hit) return '受护之子已不在棋盘';
     return `受护中：${fmtHiddenSafe(hit.piece, hit.pos)}`;
-  }
-  if (skillId === 'xiahoudun-danjing') {
-    const d = s.pending.danjing;
-    if (!d) return null;
-    const hit = allPieces(s.board).find((x) => x.piece.id === d.pieceId);
-    if (!hit) return '标记之子已不在棋盘';
-    return `已标记${fmtHiddenSafe(hit.piece, hit.pos)}`;
   }
   if (skillId === 'ganning-chaiqiao') {
     const bd = s.pending.bridgeDown;

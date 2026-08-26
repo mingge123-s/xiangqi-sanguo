@@ -12,7 +12,6 @@ const cases: Array<[keyof PieceStatusSources, string, string]> = [
   ['guicaiMarkId', '鬼', 'control'],
   ['lijianMarkId', '离', 'threat'],
   ['fanjianMarkId', '反', 'threat'],
-  ['danjingMarkId', '啖', 'threat'],
   ['zhangfeiMarkId', '咆', 'command'],
   ['kongchengMarkId', '空', 'guard'],
   ['wushengMarkId', '武', 'guard'],

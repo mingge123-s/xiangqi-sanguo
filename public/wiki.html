@@ -696,7 +696,7 @@
           <ul>
             <li>将帅明置原位；其余十五子按己方原位随机暗放。</li>
             <li>暗子第一步按所在原位（coverType）走，走完翻开。</li>
-            <li>被吃暗子由吃子方扣着，被吃方不能看。</li>
+            <li>被俘虏的暗子由俘虏方扣着，被俘虏方不能查看。</li>
             <li>明仕、明相可过河；暗仕仍不能出九宫。</li>
           </ul>
         </article>
@@ -737,7 +737,7 @@
           <ul>
             <li>限定技 — 整局一次，由你发动</li>
             <li>主动技 — 由你选择发动，不限一次</li>
-            <li>被动技 — 由事件触发（吃子、被吃、过河等），无需点选</li>
+            <li>被动技 — 由事件触发（俘虏、被俘虏、过河等），无需点选</li>
             <li>锁定技 — 阶段到点即自动结算（如回合开始检查），无需点选</li>
           </ul>
           <h4>阶段</h4>
@@ -796,7 +796,7 @@
                 <span class="badge limited">限定技</span>
                 <span class="badge phase">走棋阶段</span>
               </div>
-              <p>限定技。走棋阶段，指定己方一枚位于己方河界内的非将帅明棋。该子如处于己方河界内，则无法被吃。</p>
+              <p>限定技。走棋阶段，指定己方一枚位于己方河界内的非将帅明棋。该子如处于己方河界内，则无法被俘虏。</p>
             </div>
           </div>
         </article>
@@ -829,7 +829,7 @@
                 <span class="badge phase">回合结束</span>
                 <span class="qi"><i></i>5 战气</span>
               </div>
-              <p>主动技。回合结束时，你可以消耗5点战气，指定己方一枚棋子。直至你的下个回合开始，该子无法被吃。</p>
+              <p>主动技。回合结束时，你可以消耗5点战气，指定己方一枚棋子。直至你的下个回合开始，该子无法被俘虏。</p>
             </div>
           </div>
         </article>
@@ -861,7 +861,7 @@
                 <strong>破军</strong>
                 <span class="badge passive">被动技</span>
               </div>
-              <p>被动技。每当你吃一子，你的战气+1。</p>
+              <p>被动技。每当你俘虏一枚棋子时，战气+1。</p>
             </div>
           </div>
         </article>
@@ -933,7 +933,7 @@
                 <strong>奸雄</strong>
                 <span class="badge passive">被动技</span>
               </div>
-              <p>被动技。当你吃掉一枚暗棋，且其真实身份为车、炮或马时，战气+3。</p>
+              <p>被动技。当你俘虏一枚暗棋，且其真实身份为车、炮或马时，战气+3。</p>
             </div>
           </div>
         </article>
@@ -966,7 +966,7 @@
                 <span class="badge active">主动技</span>
                 <span class="badge phase">游戏开始</span>
               </div>
-              <p>主动技。游戏开始时，你可以标记对方一枚暗棋并观看其真实身份。该子成为明棋或被吃后，你的下个回合开始时再次标记。</p>
+              <p>主动技。游戏开始时，你可以标记对方一枚暗棋并观看其真实身份。该子成为明棋或被俘虏后，你的下个回合开始时再次标记。</p>
             </div>
           </div>
         </article>
@@ -993,16 +993,14 @@
                 <span class="badge active">主动技</span>
                 <span class="qi"><i></i>8 战气</span>
               </div>
-              <p>主动技。每当对方以非将帅棋吃掉己方棋子时，你可以消耗8点战气，抛一枚六面骰。奇数则该子与被吃子同归于尽；偶数则恢复2点战气。对方第一次吃掉己方棋子时，揭示此武将。</p>
+              <p>主动技。每当我方棋子被俘虏时，你可以消耗8点战气，抛掷一枚六面骰。若骰子正面为奇数，摧毁俘虏该棋子的敌方棋子。</p>
             </div>
             <div class="skill">
               <div class="skill-head">
                 <strong>啖睛</strong>
-                <span class="badge active">主动技</span>
-                <span class="badge phase">走棋阶段</span>
-                <span class="qi"><i></i>5 战气</span>
+                <span class="badge lock">锁定技</span>
               </div>
-              <p>主动技。走棋阶段，你可以消耗5点战气，指定对方一枚棋子。该子于其下个回合不能吃子。</p>
+              <p>锁定技。每当我方掷出的骰子正面为偶数时，我方战气+2。</p>
             </div>
           </div>
         </article>
@@ -1041,7 +1039,7 @@
                 <strong>神医</strong>
                 <span class="badge passive">被动技</span>
               </div>
-              <p>被动技。每当你的棋子被吃，战气+1。</p>
+              <p>被动技。每当我方棋子被俘虏时，战气+1。</p>
             </div>
           </div>
         </article>
@@ -1073,7 +1071,7 @@
                 <strong>火攻</strong>
                 <span class="badge passive">被动技</span>
               </div>
-              <p>被动技。己方以明炮棋吃子时，战气+2。</p>
+              <p>被动技。己方以明炮棋俘虏敌方棋子时，战气+2。</p>
             </div>
           </div>
         </article>
@@ -1105,7 +1103,7 @@
                 <strong>枭姬</strong>
                 <span class="badge passive">被动技</span>
               </div>
-              <p>被动技。己方一枚已过河的棋子被吃时，战气+2。</p>
+              <p>被动技。己方一枚已过河的棋子被俘虏时，战气+2。</p>
             </div>
           </div>
         </article>
@@ -1183,7 +1181,7 @@
                 <span class="badge limited">限定技</span>
                 <span class="badge phase">走棋阶段</span>
               </div>
-              <p>限定技。走棋阶段，你可以发动无双：在你之后的3个敌方回合内，己方将帅棋无法被吃，且无法被将军。</p>
+              <p>限定技。走棋阶段，你可以发动无双：在你之后的3个敌方回合内，己方将帅棋无法被俘虏，且无法被将军。</p>
             </div>
           </div>
         </article>
@@ -1216,7 +1214,7 @@
                 <span class="badge lock">锁定技</span>
                 <span class="badge phase">回合结束</span>
               </div>
-              <p>锁定技。回合结束时，若本回合至少吃过一子，战气+1。</p>
+              <p>锁定技。回合结束时，若本回合至少俘虏过一枚棋子，战气+1。</p>
             </div>
           </div>
         </article>

@@ -52,7 +52,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'guanyu-wusheng',
         name: '武圣',
-        desc: '限定技。走棋阶段，指定己方一枚位于己方河界内的非将帅明棋。该子如处于己方河界内，则无法被吃。',
+        desc: '限定技。走棋阶段，指定己方一枚位于己方河界内的非将帅明棋。该子如处于己方河界内，则无法被俘虏。',
         kind: 'active',
         engineKind: 'limited',
         nature: '限定技',
@@ -86,7 +86,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhuge-kongcheng',
         name: '空城',
-        desc: '主动技。回合结束时，你可以消耗5点战气，指定己方一枚棋子。直至你的下个回合开始，该子无法被吃。',
+        desc: '主动技。回合结束时，你可以消耗5点战气，指定己方一枚棋子。直至你的下个回合开始，该子无法被俘虏。',
         kind: 'active',
         engineKind: 'active',
         nature: '主动技',
@@ -122,7 +122,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhangfei-pojun',
         name: '破军',
-        desc: '被动技。每当你吃一子，你的战气+1。',
+        desc: '被动技。每当你俘虏一枚棋子时，战气+1。',
         kind: 'passive',
         engineKind: 'passive',
         nature: '被动技',
@@ -192,7 +192,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'caocao-jianxiong',
         name: '奸雄',
-        desc: '被动技。当你吃掉一枚暗棋，且其真实身份为车、炮或马时，战气+3。',
+        desc: '被动技。当你俘虏一枚暗棋，且其真实身份为车、炮或马时，战气+3。',
         kind: 'passive',
         engineKind: 'passive',
         nature: '被动技',
@@ -227,7 +227,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'simayi-yingshi',
         name: '鹰视',
-        desc: '主动技。游戏开始时，你可以标记对方一枚暗棋并观看其真实身份。该子成为明棋或被吃后，你的下个回合开始时再次标记。',
+        desc: '主动技。游戏开始时，你可以标记对方一枚暗棋并观看其真实身份。该子成为明棋或被俘虏后，你的下个回合开始时再次标记。',
         kind: 'passive',
         engineKind: 'start',
         nature: '主动技',
@@ -249,7 +249,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'xiahoudun-ganglie',
         name: '刚烈',
-        desc: '主动技。每当对方以非将帅棋吃掉己方棋子时，你可以消耗8点战气，抛一枚六面骰。奇数则该子与被吃子同归于尽；偶数则恢复2点战气。对方第一次吃掉己方棋子时，揭示此武将。',
+        desc: '主动技。每当我方棋子被俘虏时，你可以消耗8点战气，抛掷一枚六面骰。若骰子正面为奇数，摧毁俘虏该棋子的敌方棋子。',
         kind: 'active',
         engineKind: 'window',
         nature: '主动技',
@@ -263,16 +263,15 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'xiahoudun-danjing',
         name: '啖睛',
-        desc: '主动技。走棋阶段，你可以消耗5点战气，指定对方一枚棋子。该子于其下个回合不能吃子。',
-        kind: 'active',
-        engineKind: 'active',
-        nature: '主动技',
-        phase: '走棋阶段',
-        labelKind: '主动技',
-        maxUses: 999,
+        desc: '锁定技。每当我方掷出的骰子正面为偶数时，我方战气+2。',
+        kind: 'passive',
+        engineKind: 'passive',
+        nature: '锁定技',
+        phase: null,
+        labelKind: '锁定技',
+        maxUses: 0,
         rechargeNeed: 0,
         rechargeTrigger: 'none',
-        qiCost: 5,
       },
     ],
   },
@@ -299,7 +298,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'huatuo-shenyi',
         name: '神医',
-        desc: '被动技。每当你的棋子被吃，战气+1。',
+        desc: '被动技。每当我方棋子被俘虏时，战气+1。',
         kind: 'passive',
         engineKind: 'passive',
         nature: '被动技',
@@ -334,7 +333,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'zhouyu-huogong',
         name: '火攻',
-        desc: '被动技。己方以明炮棋吃子时，战气+2。',
+        desc: '被动技。己方以明炮棋俘虏敌方棋子时，战气+2。',
         kind: 'passive',
         engineKind: 'passive',
         nature: '被动技',
@@ -369,7 +368,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'sunshangxiang-xiaoji',
         name: '枭姬',
-        desc: '被动技。己方一枚已过河的棋子被吃时，战气+2。',
+        desc: '被动技。己方一枚已过河的棋子被俘虏时，战气+2。',
         kind: 'passive',
         engineKind: 'passive',
         nature: '被动技',
@@ -441,7 +440,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'lvbu-wushuang',
         name: '无双',
-        desc: '限定技。走棋阶段，你可以发动无双：在你之后的3个敌方回合内，己方将帅棋无法被吃，且无法被将军。',
+        desc: '限定技。走棋阶段，你可以发动无双：在你之后的3个敌方回合内，己方将帅棋无法被俘虏，且无法被将军。',
         kind: 'active',
         engineKind: 'limited',
         nature: '限定技',
@@ -476,7 +475,7 @@ export const GENERALS: GeneralDef[] = [
       {
         id: 'diaochan-biyue',
         name: '闭月',
-        desc: '锁定技。回合结束时，若本回合至少吃过一子，战气+1。',
+        desc: '锁定技。回合结束时，若本回合至少俘虏过一枚棋子，战气+1。',
         kind: 'passive',
         engineKind: 'passive',
         nature: '锁定技',

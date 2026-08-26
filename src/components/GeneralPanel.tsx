@@ -232,7 +232,7 @@ export function GeneralPanel({
 
       {showCaptured && captured && (
         <div className="revive-list">
-          {captured.length === 0 && <div className="revive-empty">无被吃子可复活</div>}
+          {captured.length === 0 && <div className="revive-empty">无被俘虏棋子可复活</div>}
           {captured.map((piece) => (
             <button
               key={piece.id}

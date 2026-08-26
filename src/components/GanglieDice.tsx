@@ -93,7 +93,7 @@ export function GanglieDice({
 }) {
   const [phase, setPhase] = useState<'fly' | 'settle' | 'done'>('fly');
   const odd = roll % 2 === 1;
-  const caption = odd ? `${PIP_CN[roll]} · 刚烈` : `${PIP_CN[roll]} · 未触发`;
+  const caption = odd ? `${PIP_CN[roll]} · 刚烈` : `${PIP_CN[roll]} · 啖睛`;
   const half = size / 2;
   const settle = SETTLE[roll] ?? SETTLE[1];
 

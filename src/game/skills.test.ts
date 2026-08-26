@@ -1,6 +1,6 @@
 import { applyMove, createInitialBoard, createStandardBoard, emptyBoard, evaluateBoard, getPiece, inCheck, knownIdsOn, revealAll } from './core';
 import { applyAITurn } from './ai';
-import { canUseSkill, createHomeState, isKongchengCaptureAttempt, isWushengCaptureAttempt, isWushuangCaptureAttempt, isWushuangCheckAttempt, listLegalFrom, listLegalMoves, makeMove, peekDark, peekedOf, resolveGanglie, resolveGanglieChoice, sideInCheck, skipKongcheng, skillLiveState, startMatch, useSkill, validSkillTargets, whyIllegalDest, whyPieceStuck, __testEndTurn, __testSetFanjianDest, __testSetGanglieRoll, __testSetLijianLoss } from './engine';
+import { canUseSkill, createHomeState, isKongchengCaptureAttempt, isWushengCaptureAttempt, isWushuangCaptureAttempt, isWushuangCheckAttempt, listLegalFrom, listLegalMoves, makeMove, peekDark, peekedOf, resolveGanglie, resolveGanglieChoice, resolveOwnedDieResult, sideInCheck, skipKongcheng, skillLiveState, startMatch, useSkill, validSkillTargets, whyIllegalDest, whyPieceStuck, __testEndTurn, __testSetFanjianDest, __testSetGanglieRoll, __testSetLijianLoss } from './engine';
 import { defToRuntime, GENERALS, skillPhaseOf, skillTypeLabel } from './generals';
 import type { GameState, GeneralRuntime, Piece, PieceType, Side, SkillDef, SkillRuntime } from './types';
 
@@ -848,12 +848,12 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(s.crossedRiverIds.includes('bp'), 'black pawn marked crossed');
 }
 
-// 吕布 无双：保护将帅 3 个敌方回合；不可被吃、不可被将军
+// 吕布 无双：保护将帅 3 个敌方回合；不可被俘虏、不可被将军
 {
   const wushuang = GENERALS.find((d) => d.id === 'lvbu')!.skills.find((x) => x.id === 'lvbu-wushuang')!;
   assert(
     wushuang.desc ===
-      '限定技。走棋阶段，你可以发动无双：在你之后的3个敌方回合内，己方将帅棋无法被吃，且无法被将军。',
+      '限定技。走棋阶段，你可以发动无双：在你之后的3个敌方回合内，己方将帅棋无法被俘虏，且无法被将军。',
     '无双 desc exact',
   );
   let s = base();
@@ -986,17 +986,6 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
     s.pending = { ...s.pending, lijianMark: { pieceId: 'dark-p', untilSide: 'black' } };
     assert(whyPieceStuck(s, { r: 0, c: 4 }) === null || whyPieceStuck(s, { r: 0, c: 4 }) !== '离间', '离间 does not lock other pieces');
     assert(listLegalFrom(s, { r: 0, c: 4 }).length > 0, 'king still movable under 离间 mark');
-  }
-  // 啖睛：点吃子落点
-  {
-    let s = base();
-    s.board = emptyBoard();
-    s.board[9][4] = P('K', 'red', 'rk');
-    s.board[0][3] = P('K', 'black', 'bk');
-    s.board[6][0] = P('R', 'red', 'rr');
-    s.board[3][0] = P('P', 'black', 'bp');
-    s.pending = { ...s.pending, danjing: { pieceId: 'rr', untilSide: 'red' } };
-    assert(whyIllegalDest(s, { r: 6, c: 0 }, { r: 3, c: 0 }) === '啖睛：该子本回合不能吃子', 'illegal: 啖睛 capture');
   }
   // 奇袭：过河
   {
@@ -1458,12 +1447,12 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(JSON.stringify(s.board) !== boardBefore, 'stale-flag: board changed');
 }
 
-// 夏侯惇 · 刚烈 d6（耗 8 战气抛骰；偶恢复 2）
+// 夏侯惇 · 刚烈 d6（耗 8 战气抛骰；奇数摧毁俘虏者）
 {
   const ganglie = GENERALS.find((d) => d.id === 'xiahoudun')!.skills.find((sk) => sk.id === 'xiahoudun-ganglie')!;
   assert(
     ganglie.desc ===
-      '主动技。每当对方以非将帅棋吃掉己方棋子时，你可以消耗8点战气，抛一枚六面骰。奇数则该子与被吃子同归于尽；偶数则恢复2点战气。对方第一次吃掉己方棋子时，揭示此武将。',
+      '主动技。每当我方棋子被俘虏时，你可以消耗8点战气，抛掷一枚六面骰。若骰子正面为奇数，摧毁俘虏该棋子的敌方棋子。',
     '刚烈 desc exact',
   );
   assert(ganglie.qiCost === 8, '刚烈 qiCost 8');
@@ -1535,13 +1524,13 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(!s.pending.ganglieDice, 'resolve clears ganglieDice');
   assert(!s.board[0][0], 'odd roll destroys capturer');
   assert(s.captured.red.some((p) => p.id === 'rr'), 'capturer goes to captured');
-  assert(s.log.some((l) => l.text.includes('同归于尽')), 'odd log 同归于尽');
+  assert(s.log.some((l) => l.text.includes('摧毁俘虏者')), 'odd log destroys the capturer');
   assert(s.qi.black === qiAfterSpend + 1, 'odd does not restore qi (only turn-start +1)');
   assert(s.side === 'black', 'resolve ends turn after makeMove-style capture');
 }
 
 {
-  // Even roll leaves capturer and restores 2 战气 (net start−8+2)
+  // Even roll leaves capturer; locked 啖睛 independently grants +2.
   let s = base();
   s.redGenerals = [];
   s.blackGenerals = [defToRuntime(GENERALS.find((d) => d.id === 'xiahoudun')!, false)];
@@ -1558,10 +1547,10 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(s.qi.black === qiStart - 8, 'even path also spends 8 before resolve');
   s = resolveGanglie(s);
   assert(s.board[0][0]?.id === 'rr', 'even roll leaves capturer');
-  // resolve ends turn → victim turn-start +1 on top of even restore +2
-  assert(s.qi.black === qiStart - 8 + 2 + 1, 'even restores 2 (qi = start−8+2, then turn-start +1)');
-  assert(s.log.some((l) => l.text.includes('四点') && l.text.includes('恢复2点战气')), 'even log 恢复2点战气');
-  assert(!s.log.some((l) => l.text.includes('未触发')), 'even log no longer says 未触发');
+  // resolve ends turn → 啖睛 +2, then victim turn-start +1.
+  assert(s.qi.black === qiStart - 8 + 2 + 1, 'even triggers 啖睛 +2, then turn-start +1');
+  assert(s.log.some((l) => l.text.includes('啖睛') && l.text.includes('战气+2')), 'even die triggers 啖睛 log');
+  assert(s.skillBroadcast?.skill === '啖睛', 'even die broadcasts 啖睛');
 }
 
 {
@@ -1588,7 +1577,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
 }
 
 {
-  // King capturer: no dice, no kill (still reveals if hidden)
+  // A king that captures is still the capturer and can be destroyed by odd 刚烈.
   let s = base();
   s.redGenerals = [];
   s.blackGenerals = [defToRuntime(GENERALS.find((d) => d.id === 'xiahoudun')!, true)];
@@ -1600,10 +1589,12 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   __testSetGanglieRoll(1);
   s = makeMove(s, { r: 9, c: 4 }, { r: 8, c: 4 });
   assert(!s.blackGenerals[0].hidden, 'king capture still reveals 夏侯惇');
-  assert(!s.pending.ganglieDice, 'king capturer does not roll');
-  assert(s.qi.black === qiStart + 1, 'king capturer does not spend qi (only turn-start +1)');
-  assert(s.board[8][4]?.id === 'rk', 'king capturer not destroyed');
-  assert(!s.captured.red.some((p) => p.id === 'rk'), 'king not in captured');
+  assert(s.pending.ganglieDice?.roll === 1, 'king capturer still rolls');
+  assert(s.qi.black === qiStart - 8, 'king capturer path spends 8 qi');
+  s = resolveGanglie(s);
+  assert(!s.board[8][4], 'odd 刚烈 destroys the king capturer');
+  assert(s.captured.red.some((p) => p.id === 'rk'), 'destroyed king capturer enters captured rail');
+  assert(s.winner === 'black', 'destroying the red king ends the game');
 }
 
 {
@@ -1626,8 +1617,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
 }
 
 {
-  // Dark piece that is actually king? Kings are always revealed — simulate type K dark impossible;
-  // coverType P with type R already covered. Ensure type K never rolls even if somehow dark.
+  // Even an impossible dark-faced K still follows the same no-exemption capturer rule.
   let s = base();
   s.redGenerals = [];
   s.blackGenerals = [defToRuntime(GENERALS.find((d) => d.id === 'xiahoudun')!, false)];
@@ -1637,38 +1627,40 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   s.board[8][4] = P('A', 'black', 'victim');
   __testSetGanglieRoll(5);
   s = makeMove(s, { r: 9, c: 4 }, { r: 8, c: 4 });
-  assert(!s.pending.ganglieDice, 'type K capturer never rolls even if unrevealed flag set');
-  assert(s.board[8][4]?.type === 'K', 'K capturer survives');
+  assert(s.pending.ganglieDice?.roll === 5, 'type K capturer also rolls');
+  s = resolveGanglie(s);
+  assert(!s.board[8][4], 'odd roll destroys type K capturer');
 }
 
 {
-  // 啖睛：desc / qiCost 5；仍标记对方子不可吃子
+  // 啖睛：独立监听我方所有骰子；偶数 +2，奇数无效果。
   const danjing = GENERALS.find((d) => d.id === 'xiahoudun')!.skills.find((sk) => sk.id === 'xiahoudun-danjing')!;
   assert(
     danjing.desc ===
-      '主动技。走棋阶段，你可以消耗5点战气，指定对方一枚棋子。该子于其下个回合不能吃子。',
+      '锁定技。每当我方掷出的骰子正面为偶数时，我方战气+2。',
     '啖睛 desc exact',
   );
-  assert(danjing.qiCost === 5, '啖睛 qiCost 5');
+  assert(danjing.qiCost == null, '啖睛 has no qi cost');
+  assert(danjing.nature === '锁定技' && danjing.phase === null, '啖睛 is a phase-less locked skill');
+  assert(danjing.kind === 'passive' && danjing.engineKind === 'passive', '啖睛 is not click-to-cast');
   let s = base();
-  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'xiahoudun')!, false))];
-  s.board = emptyBoard();
-  s.board[9][4] = P('K', 'red', 'rk');
-  s.board[0][3] = P('K', 'black', 'bk');
-  s.board[0][0] = P('R', 'black', 'br');
-  s.board[5][0] = P('P', 'red', 'rp');
-  s.qi = { ...s.qi, red: 10 };
-  const qiBefore = s.qi.red;
-  const cost = danjing.qiCost!;
-  assert(canUseSkill(s, 'xiahoudun-danjing'), '啖睛 usable');
-  s = useSkill(s, 'xiahoudun-danjing', { kind: 'pos', pos: { r: 0, c: 0 } });
-  assert(s.pending.danjing?.pieceId === 'br', '啖睛 arms on target');
-  assert(s.qi.red === qiBefore - cost, '啖睛 spends qiCost');
-  s.side = 'black';
-  s.skillUsedThisTurn = false;
-  const after = listLegalFrom(s, { r: 0, c: 0 });
-  assert(!after.some((d) => d.r === 5 && d.c === 0), '啖睛 blocks capture');
-  assert(after.some((d) => d.c === 0 && d.r > 0 && d.r < 5), '啖睛 still allows non-capture moves');
+  s.redGenerals = [defToRuntime(GENERALS.find((d) => d.id === 'xiahoudun')!, true)];
+  s.qi = { ...s.qi, red: 5 };
+  assert(!canUseSkill(s, 'xiahoudun-danjing'), '啖睛 cannot be clicked');
+
+  const even = resolveOwnedDieResult(s, 'red', 4);
+  assert(even.qi.red === 7, 'an even die from any source grants +2 qi');
+  assert(!even.redGenerals[0].hidden, 'an external even die reveals 夏侯惇 when 啖睛 triggers');
+  assert(even.skillBroadcast?.skill === '啖睛', 'external even die broadcasts 啖睛');
+  assert(even.log.some((line) => line.text.includes('啖睛') && line.text.includes('战气+2')), 'external even die logs 啖睛');
+
+  const odd = resolveOwnedDieResult(s, 'red', 3);
+  assert(odd.qi.red === 5, 'an odd die does not trigger 啖睛');
+  assert(odd.redGenerals[0].hidden, 'odd die does not reveal hidden 夏侯惇');
+
+  s.redGenerals = [];
+  const withoutXiahou = resolveOwnedDieResult(s, 'red', 6);
+  assert(withoutXiahou.qi.red === 5, 'even die grants nothing without 啖睛');
 }
 
 // 武圣 5: protect a red 车 on r=9; black cannot capture; after 车 crosses to r=4, capturable
@@ -1747,7 +1739,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(!s.pending.kongcheng, 'skip does not arm a guard');
 }
 
-// 闭月：回合结束时若本回合有吃子 → +1 战气（不再叠加回合结束回复）
+// 闭月：回合结束时若本回合有俘虏棋子 → +1 战气（不再叠加回合结束回复）
 {
   let s = base();
   s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'diaochan')!, false))];
@@ -1833,7 +1825,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(s.qi.red === 3, '龙胆 +2 plus turn-start +1 when starting in check');
 }
 
-// 奸雄：吃掉暗车/炮/马 → +3（无回合结束回复）
+// 奸雄：俘虏暗车/炮/马 → +3（无回合结束回复）
 {
   let s = base();
   s.qi = { red: 0, black: 0 };
@@ -1848,7 +1840,7 @@ function setSkill(s: GameState, generalId: string, skillId: string, patch: Parti
   assert(s.qi.red === 3, '奸雄 +3 only');
 }
 
-// 神医：己方子被吃 → +1（对方交回后己方再拿回合开始 +1）
+// 神医：己方棋子被俘虏 → +1（对方交回后己方再拿回合开始 +1）
 {
   let s = base();
   s.qi = { red: 0, black: 0 };
@@ -1986,7 +1978,7 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
 // 鹰视: only unrevealed enemies are legal marks
 {
   const yingshi = GENERALS.find((d) => d.id === 'simayi')!.skills.find((x) => x.id === 'simayi-yingshi')!;
-  assert(yingshi.desc === '主动技。游戏开始时，你可以标记对方一枚暗棋并观看其真实身份。该子成为明棋或被吃后，你的下个回合开始时再次标记。', '鹰视 desc exact');
+  assert(yingshi.desc === '主动技。游戏开始时，你可以标记对方一枚暗棋并观看其真实身份。该子成为明棋或被俘虏后，你的下个回合开始时再次标记。', '鹰视 desc exact');
   let s = base();
   s.pending = { ...s.pending, awaitYingshi: true };
   s.board[3][0] = P('P', 'black', 'dark-p', { revealed: false, coverType: 'P' });
@@ -2087,10 +2079,10 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
   assert(!s.skillBroadcast || s.skillBroadcast.skill !== '破军', 'no 破军 splash');
 }
 
-// 火攻: desc exact; 明炮吃子 +2; 暗棋自炮位翻开吃子不加; 被动技 / phase null
+// 火攻: desc exact; 明炮俘虏 +2; 暗棋自炮位翻开俘虏不加; 被动技 / phase null
 {
   const huogong = GENERALS.find((d) => d.id === 'zhouyu')!.skills.find((x) => x.id === 'zhouyu-huogong')!;
-  assert(huogong.desc === '被动技。己方以明炮棋吃子时，战气+2。', '火攻 desc exact');
+  assert(huogong.desc === '被动技。己方以明炮棋俘虏敌方棋子时，战气+2。', '火攻 desc exact');
   assert(huogong.nature === '被动技', '火攻 labeled 被动技');
   assert(skillPhaseOf(huogong) === null, '火攻 phase null');
   assert(skillTypeLabel(huogong) === '被动技', '火攻 skillTypeLabel 被动技');
@@ -2108,7 +2100,7 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
   s.board[5][0] = P('P', 'red', 'screen');
   s.board[0][0] = P('A', 'black', 'ba');
   s = settle(makeMove(s, { r: 7, c: 0 }, { r: 0, c: 0 }));
-  assert(s.qi.red === 2, '明炮吃子 火攻 +2');
+  assert(s.qi.red === 2, '明炮俘虏棋子 火攻 +2');
 }
 
 {
@@ -2124,7 +2116,7 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
   s.board[5][0] = P('P', 'red', 'screen');
   s.board[0][0] = P('A', 'black', 'ba');
   s = settle(makeMove(s, { r: 7, c: 0 }, { r: 0, c: 0 }));
-  assert(s.qi.red === 0, '暗棋自炮位翻开吃子 火攻不加');
+  assert(s.qi.red === 0, '暗棋自炮位翻开俘虏 火攻不加');
   assert(getPiece(s.board, { r: 0, c: 0 })?.revealed === true, '暗棋翻开成为明棋');
 }
 
@@ -2140,7 +2132,7 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
   s.board[6][0] = P('C', 'red', 'hidden-c', { revealed: false, coverType: 'P' });
   s.board[5][0] = P('A', 'black', 'ba');
   s = settle(makeMove(s, { r: 6, c: 0 }, { r: 5, c: 0 }));
-  assert(s.qi.red === 0, '暗炮以盖面走法吃子 火攻不加');
+  assert(s.qi.red === 0, '暗炮以盖面走法俘虏 火攻不加');
 }
 
 {
@@ -2155,7 +2147,7 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
   s.board[0][0] = P('A', 'black', 'ba');
   s.board[5][4] = P('P', 'red', 'block');
   s = settle(makeMove(s, { r: 7, c: 0 }, { r: 0, c: 0 }));
-  assert(s.qi.red === 0, '非炮吃子无火攻');
+  assert(s.qi.red === 0, '非炮俘虏无火攻');
 }
 
 // Nature + phase axes
@@ -2174,7 +2166,7 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
     'simayi-guicai': { nature: '主动技', phase: '走棋阶段' },
     'simayi-yingshi': { nature: '主动技', phase: '游戏开始' },
     'xiahoudun-ganglie': { nature: '主动技', phase: null },
-    'xiahoudun-danjing': { nature: '主动技', phase: '走棋阶段' },
+    'xiahoudun-danjing': { nature: '锁定技', phase: null },
     'huatuo-qingnang': { nature: '主动技', phase: '走棋阶段' },
     'huatuo-shenyi': { nature: '被动技', phase: null },
     'zhouyu-fanjian': { nature: '主动技', phase: '走棋阶段' },
@@ -2340,25 +2332,6 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
     s = settle(makeMove(s, { r: 3, c: 8 }, { r: 4, c: 8 }));
     assert(s.winner === 'black', '长将困毙：红方负');
   }
-}
-
-// 啖睛：skillLiveState 指出哪枚；暗棋写「暗棋」+坐标，禁止真身
-{
-  let s = base();
-  s.redGenerals = [readyAll(defToRuntime(GENERALS.find((d) => d.id === 'xiahoudun')!, false))];
-  s.board = emptyBoard();
-  s.board[9][4] = P('K', 'red', 'rk');
-  s.board[0][3] = P('K', 'black', 'bk');
-  s.board[0][0] = P('R', 'black', 'br');
-  s.qi = { ...s.qi, red: 10 };
-  assert(skillLiveState(s, 'xiahoudun-danjing', 'red') === null, '啖睛 liveState null before cast');
-  s = useSkill(s, 'xiahoudun-danjing', { kind: 'pos', pos: { r: 0, c: 0 } });
-  const live = skillLiveState(s, 'xiahoudun-danjing', 'red');
-  assert(!!live && live.includes('車') && live.includes('(0,0)'), '啖睛 liveState names revealed piece + coord');
-  s.board[0][0] = P('R', 'black', 'br', { revealed: false, coverType: 'P' });
-  const darkLive = skillLiveState(s, 'xiahoudun-danjing', 'red');
-  assert(!!darkLive && darkLive.includes('暗棋') && darkLive.includes('(0,0)'), '啖睛暗棋 liveState uses 暗棋+coord');
-  assert(!/[馬車炮仕相兵士象卒将帅]/.test(darkLive!), '啖睛暗棋 liveState hides true type');
 }
 
 // 奇袭：skillLiveState 含剩余回合；未发动则 null

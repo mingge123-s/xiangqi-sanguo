@@ -88,15 +88,13 @@ function hintFor(id: string): string {
     case 'lvbu-chitu':
       return '赤兔：点选己方一枚明棋兵卒棋，令其变为马';
     case 'lvbu-wushuang':
-      return '无双：之后3个敌方回合内，己方将帅棋无法被吃，且无法被将军';
+      return '无双：之后3个敌方回合内，己方将帅棋无法被俘虏，且无法被将军';
     case 'diaochan-lijian':
       return '离间：点选对方一枚暗棋；其下回合若行走其他棋子，则随机失去一枚非将帅棋';
     case 'zhuge-guanxing':
       return '观星：点选五枚暗棋，观看其真实身份';
     case 'zhuge-kongcheng':
-      return '空城：点选己方一枚棋子，直至下个回合开始无法被吃';
-    case 'xiahoudun-danjing':
-      return '啖睛：点选对方一枚棋子，该子于其下个回合不能吃子';
+      return '空城：点选己方一枚棋子，直至下个回合开始无法被俘虏';
     default:
       return '选择目标';
   }
@@ -105,21 +103,21 @@ function hintFor(id: string): string {
 function broadcastLinesFor(id: string): string[] {
   switch (id) {
     case 'guanyu-yijue': return ['对比双方各一枚暗棋', '同种毁敌；异种两者皆毁'];
-    case 'guanyu-wusheng': return ['守护己方一枚非将帅明棋', '过河前无法被吃'];
+    case 'guanyu-wusheng': return ['守护己方一枚非将帅明棋', '过河前无法被俘虏'];
     case 'zhangfei-paoxiao': return ['指定己方一枚暗棋', '本回合可额外走一步'];
     case 'zhaoyun-longhun': return ['交换己方两枚非将帅棋', '消耗一步与6点战气'];
     case 'caocao-guixin': return ['收服己方九宫内全部敌棋'];
     case 'simayi-guicai': return ['锁定对方一枚可走棋', '其下回合只能移动该棋'];
-    case 'simayi-yingshi': return ['标记并查看对方一枚暗棋', '翻开或被吃后可再次发动'];
+    case 'simayi-yingshi': return ['标记并查看对方一枚暗棋', '翻开或被俘虏后可再次发动'];
     case 'huatuo-qingnang': return ['随机挪动己方一枚非将帅棋', '移至己方半场空位'];
     case 'zhouyu-fanjian': return ['标记对方一枚棋', '下回合移动该棋将随机落点'];
     case 'sunshangxiang-lianyin': return ['传送己方一枚非将帅明棋', '移至对方半场随机空位'];
     case 'lvbu-chitu': return ['将己方一枚明兵卒', '永久转化为马'];
-    case 'lvbu-wushuang': return ['保护己方将帅三个敌方回合', '免于被吃与被将军'];
+    case 'lvbu-wushuang': return ['保护己方将帅三个敌方回合', '免于被俘虏与被将军'];
     case 'diaochan-lijian': return ['标记对方一枚暗棋', '若改走其他棋，随机失去一枚非将帅'];
     case 'zhuge-guanxing': return ['选择五枚暗棋', '查看其真实身份'];
-    case 'zhuge-kongcheng': return ['守护己方一枚棋', '直至下回合开始无法被吃'];
-    case 'xiahoudun-danjing': return ['标记对方一枚棋', '其下回合不能吃子'];
+    case 'zhuge-kongcheng': return ['守护己方一枚棋', '直至下回合开始无法被俘虏'];
+    case 'xiahoudun-danjing': return ['我方骰面为偶数', '锁定技：战气+2'];
     default: return [hintFor(id).replace(/^[^：]+：/, '')];
   }
 }
@@ -134,7 +132,6 @@ function broadcastTargetIdFor(state: GameState, skillId: string, wushuangKingId?
     case 'zhouyu-fanjian': return state.pending.fanjianMark?.pieceId;
     case 'diaochan-lijian': return state.pending.lijianMark?.pieceId;
     case 'zhuge-kongcheng': return state.pending.kongcheng?.pieceId;
-    case 'xiahoudun-danjing': return state.pending.danjing?.pieceId;
     case 'lvbu-wushuang': return wushuangKingId;
     default: return undefined;
   }
@@ -145,7 +142,6 @@ const ENEMY_TARGET_SKILLS = new Set([
   'simayi-yingshi',
   'zhouyu-fanjian',
   'diaochan-lijian',
-  'xiahoudun-danjing',
 ]);
 
 function targetingPromptToken(targeting: Targeting | null, state: GameState): PromptPieceToken {
@@ -245,7 +241,6 @@ export default function App() {
   const lijianMarkId = state.pending.lijianMark?.pieceId;
   const guicaiMarkId = state.pending.guicaiLock?.pieceId;
   const qingnangMarkId = state.pending.qingnangMark?.pieceId;
-  const danjingMarkId = state.pending.danjing?.pieceId;
   const kongchengMarkId = state.pending.kongcheng?.pieceId;
   const wushengMarkId = state.pending.wushengGuard?.pieceId;
   const promptPieceById = (id?: string) => id
@@ -256,7 +251,6 @@ export default function App() {
   const lijianPieceToken = targetToken(promptPieceById(lijianMarkId));
   const guicaiPieceToken = targetToken(promptPieceById(guicaiMarkId));
   const qingnangPieceToken = targetToken(promptPieceById(qingnangMarkId));
-  const danjingPieceToken = targetToken(promptPieceById(danjingMarkId));
   const paoxiaoPieceToken = targetToken(promptPieceById(state.pending.zhangFeiPieceId));
 
   const fanjianBanner = (() => {
@@ -302,16 +296,6 @@ export default function App() {
       return `青囊：该${name}已被随机挪到此处`;
     }
     return '青囊：这枚暗棋已被随机挪到此处';
-  })();
-
-  const danjingBanner = (() => {
-    const mark = state.pending.danjing;
-    if (!mark || mark.untilSide !== state.side) return null;
-    if (selected) {
-      const sel = state.board[selected.r][selected.c];
-      if (sel && sel.id === mark.pieceId) return '啖睛：此子本回合不能吃子';
-    }
-    return '啖睛：该子本回合不能吃子';
   })();
 
   const qixiBanner = (() => {
@@ -585,12 +569,6 @@ export default function App() {
         state.pending.fanjianMark.pieceId === piece.id
       ) {
         showCenterPrompt('反间：走此子将随机落点');
-      } else if (
-        state.pending.danjing &&
-        state.pending.danjing.untilSide === 'red' &&
-        state.pending.danjing.pieceId === piece.id
-      ) {
-        showCenterPrompt('啖睛：此子本回合不能吃子');
       }
       setSelected(pos);
       return;
@@ -625,7 +603,6 @@ export default function App() {
         lijianMarkId,
         guicaiMarkId,
         qingnangMarkId,
-        danjingMarkId,
         kongchengMarkId,
         wushengMarkId,
         zhangfeiMarkId: state.pending.zhangFeiPieceId,
@@ -684,7 +661,6 @@ export default function App() {
                   lijianMarkId={lijianMarkId}
                   guicaiMarkId={guicaiMarkId}
                   qingnangMarkId={qingnangMarkId}
-                  danjingMarkId={danjingMarkId}
                   kongchengMarkId={kongchengMarkId}
                   wushengMarkId={wushengMarkId}
                   zhangfeiMarkId={state.pending.zhangFeiPieceId}
@@ -861,13 +837,6 @@ export default function App() {
                               <div className="skill-center-mask skill-center-mask-has-piece">
                                 <SkillPromptPiece side={qingnangPieceToken.side} label={qingnangPieceToken.label} />
                                 <span className="skill-center-text">{qingnangBanner}</span>
-                              </div>
-                            </div>
-                          ) : danjingBanner ? (
-                            <div key="danjing" className="skill-slot-prompt">
-                              <div className="skill-center-mask skill-center-mask-has-piece">
-                                <SkillPromptPiece side={danjingPieceToken.side} label={danjingPieceToken.label} />
-                                <span className="skill-center-text">{danjingBanner}</span>
                               </div>
                             </div>
                           ) : qixiBanner ? (
