@@ -1,0 +1,154 @@
+/* Refine the existing parchment / cinnabar system, using the original art. */
+.home-screen {
+  height: 100%;
+  min-height: 100%;
+  overflow-y: auto;
+  padding: max(36px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+  gap: 22px;
+  scrollbar-width: thin;
+  scrollbar-color: #b49d76 transparent;
+}
+
+.home-screen > :not(.home-mountain) { flex-shrink: 0; }
+.home-title { margin-top: 12px; }
+.home-subtitle { margin-top: 9px; font-size: 14px; }
+.home-mountain-top { top: 168px; opacity: 0.7; }
+.home-screen .home-mountain-bottom { bottom: 0; }
+.home-generals {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(20px, 6vw, 30px);
+  width: 100%;
+  padding-top: 4px;
+}
+.home-general {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #493923;
+}
+.home-general-portrait {
+  width: 76px;
+  height: 76px;
+  padding: 3px;
+  border: 1px solid #8c7450;
+  border-radius: 50%;
+  background: #f1e5cb;
+  box-shadow: 0 0 0 4px #f4ead68c, 0 5px 13px #39261724;
+}
+.home-general-portrait img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.home-general strong { font: 700 19px/1.2 var(--font-display); letter-spacing: 0.12em; }
+.home-general > span { font-size: 11px; letter-spacing: 0.14em; color: #776448; }
+.home-general-lead .home-general-portrait {
+  width: 106px;
+  height: 106px;
+  border-color: #a73d2f;
+  box-shadow: 0 0 0 4px #f4ead6b8, 0 0 0 5px #af864947, 0 7px 18px #39261729;
+}
+.home-general-lead strong { color: #9e382d; font-size: 22px; }
+.home-command { gap: 7px; }
+.home-command-note { margin: 0 0 5px; font-size: 12px; letter-spacing: 0.16em; color: #776448; }
+.home-start {
+  color: #fff1d7;
+  border-color: #7d3028;
+  background: linear-gradient(115deg, #a84535, #893428);
+  box-shadow: 0 5px 13px #632b242e, inset 0 0 0 3px #e7b67666, inset 0 0 0 4px #642a2470;
+  cursor: pointer;
+  transition: background 180ms, box-shadow 180ms;
+}
+.home-start .home-start-seal { color: #fff1d7; background: none; border: 1px solid #f2d2aa80; border-radius: 50%; width: 34px; height: 34px; font-size: 23px; text-shadow: none; }
+.home-start > svg { margin-left: 5px; }
+.home-wiki { display: flex; justify-content: center; gap: 9px; color: #5c4931; padding-inline: 12px; }
+.home-rules { padding: 14px 14px 11px; }
+.home-rules p { font-size: 12px; }
+
+/* Reserve the command area's actual minimum height before sizing the board. */
+.play-board { flex: 1 1 0; }
+.play-generals-me { flex: 0 0 calc(244px + env(safe-area-inset-bottom)); }
+.general-command-panel { padding-top: 4px; }
+.general-command-panel .command-skills { margin-top: 8px; flex-shrink: 0; }
+.general-command-panel .player-qi-band,
+.general-command-panel .general-ribbon { flex-shrink: 0; }
+.general-command-panel .general-ribbon { min-height: 108px; padding-bottom: 3px; }
+.general-command-panel .general-portrait-focused .general-portrait {
+  box-shadow: 0 0 0 3px #ffefcbd9, 0 0 0 5px #aa472eb3, 0 3px 12px #7f3e2a40;
+}
+.general-portrait { transition: box-shadow 180ms, border-color 180ms; }
+.general-name { line-height: 1.15; }
+.board-captured .captured-rail {
+  overflow-y: auto;
+  overflow-x: hidden;
+  pointer-events: auto;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.board-captured .captured-rail::-webkit-scrollbar { display: none; }
+.board-captured .captured-rail-bottom { justify-content: flex-start; }
+.board-captured .captured-rail-bottom > :first-child { margin-top: auto; }
+.board-captured .captured-rail:focus-visible { outline: 1px solid #ead4ab; outline-offset: -1px; }
+/* A short viewport shrinks the board, not the readable announcement strip. */
+.skill-slot { width: min(420px, calc(100vw - 12px)); }
+.skill-center-mask { padding: 5px 18px; }
+.skill-center-mask::after { inset: -9px -22px; }
+.skill-slot .skill-center-text, .skill-slot .play-log-line { text-wrap: balance; }
+.command-skill-control .command-skill-copy strong { font-size: 19px; letter-spacing: 0.06em; }
+
+@media (hover: hover) {
+  .home-start:hover { background: linear-gradient(115deg, #b14c3c, #963c2f); box-shadow: 0 7px 18px #632b2438, inset 0 0 0 3px #e7b67680; }
+  .home-wiki:hover { color: #a13e31; text-decoration: underline; }
+  .general-portrait:hover { box-shadow: 0 0 0 3px #fff3d7, 0 0 0 5px #ae875a80; }
+}
+
+@media (max-height: 800px) {
+  .battle-status { flex-basis: 58px; }
+  .play-generals { flex-basis: 86px; }
+  .enemy-command-panel .general-portrait { width: 52px; height: 52px; }
+  .enemy-command-panel .general-name { font-size: 16px; }
+  .play-generals-me { flex-basis: calc(218px + env(safe-area-inset-bottom)); }
+  .general-command-panel { gap: 6px; }
+  .general-command-panel .command-skills { margin-top: 2px; }
+  .general-command-panel .general-ribbon { min-height: 94px; }
+  .general-command-panel .general-portrait { width: 56px; height: 56px; }
+  .general-command-panel .general-portrait-focused .general-portrait { width: 66px; height: 66px; }
+  .general-command-panel .general-name { font-size: 17px; }
+  .general-command-panel .general-portrait-focused .general-name { font-size: 19px; }
+  .home-screen { padding-top: max(26px, env(safe-area-inset-top)); gap: 18px; }
+  .home-title { font-size: 48px; }
+  .home-general-portrait { width: 66px; height: 66px; }
+  .home-general-lead .home-general-portrait { width: 90px; height: 90px; }
+}
+
+@media (max-height: 720px) {
+  .battle-status { flex-basis: 54px; }
+  .play-generals { flex-basis: 78px; }
+  .enemy-command-panel .general-portrait { width: 46px; height: 46px; }
+  .play-generals-me { flex-basis: calc(184px + env(safe-area-inset-bottom)); }
+  .general-command-panel { gap: 4px; padding-top: 0; }
+  .general-command-panel .general-ribbon { min-height: 83px; }
+  .general-command-panel .general-portrait { width: 48px; height: 48px; }
+  .general-command-panel .general-portrait-focused .general-portrait { width: 58px; height: 58px; }
+  .general-command-panel .general-name { font-size: 15px; }
+  .general-command-panel .general-portrait-focused .general-name { font-size: 17px; }
+  .skill-slot .skill-center-text, .skill-slot .play-log-line { font-size: 14px; }
+}
+
+@media (max-height: 660px) {
+  .phone-frame { overflow-y: auto; }
+  .play-screen { min-height: 660px; }
+}
+
+@media (max-width: 350px) {
+  .home-screen { padding-inline: 18px; }
+  .home-title { font-size: 44px; }
+  .home-subtitle { font-size: 12px; }
+  .home-generals { gap: 20px; }
+  .home-general-portrait { width: 62px; height: 62px; }
+  .home-general-lead .home-general-portrait { width: 88px; height: 88px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-start, .general-portrait { transition: none; }
+}

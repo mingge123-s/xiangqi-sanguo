@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { CaretDown } from '@phosphor-icons/react';
+import { CaretDown, Info } from '@phosphor-icons/react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { FACTION_COLOR } from '../game/types';
 import type { GeneralRuntime, Piece, SkillRuntime } from '../game/types';
 import { CHAR } from '../game/types';
 import { QiMeter } from './QiMeter';
+import './interaction-polish.css';
 
 function portraitSrc(id: string): string {
   return `${import.meta.env.BASE_URL}generals/${id}.webp`;
@@ -17,6 +18,7 @@ function SkillAction({
   skill,
   ready,
   selected,
+  qi,
   onCast,
   onInspect,
 }: {
@@ -24,13 +26,16 @@ function SkillAction({
   skill: SkillRuntime;
   ready: boolean;
   selected: boolean;
+  qi?: number;
   onCast?: () => void;
   onInspect?: () => void;
 }) {
   const reduceMotion = useReducedMotion();
   const timer = useRef<number | null>(null);
   const longPressed = useRef(false);
-  const passive = skill.kind === 'passive' || skill.engineKind === 'passive';
+  const pressStart = useRef<{ x: number; y: number } | null>(null);
+  const canceled = useRef(false);
+  const passive = (skill.engineKind ?? skill.kind) === 'passive';
 
   const clearTimer = () => {
     if (timer.current == null) return;
@@ -38,56 +43,82 @@ function SkillAction({
     timer.current = null;
   };
 
-  const startPress = () => {
+  useEffect(() => () => {
+    if (timer.current != null) window.clearTimeout(timer.current);
+  }, []);
+
+  const startPress = (x: number, y: number) => {
+    // A fresh gesture must not inherit cancellation from a dismissed long-press dialog.
     longPressed.current = false;
+    canceled.current = false;
+    pressStart.current = { x, y };
     clearTimer();
+    if (!onInspect) return;
     timer.current = window.setTimeout(() => {
       longPressed.current = true;
       onInspect?.();
     }, LONG_PRESS_MS);
   };
 
-  const endPress = (fireClick: boolean) => {
+  const cancelPress = () => {
     clearTimer();
-    if (fireClick && !longPressed.current && ready) onCast?.();
+    if (pressStart.current) canceled.current = true;
+    pressStart.current = null;
   };
 
-  const stateText = skill.nature === '锁定技'
-    ? '锁定'
+  const stateText = ready
+    ? (skill.qiCost ? `${skill.qiCost} 气` : '可发动')
+    : skill.nature === '锁定技'
+      ? '锁定'
     : skill.id === 'xiahoudun-ganglie'
-      ? '受俘虏时可发动'
+      ? '受俘虏时'
     : skill.engineKind === 'limited' && skill.uses >= skill.maxUses
       ? '已用尽'
+    : skill.engineKind === 'start'
+      ? '开局技'
     : passive
-    ? '被动'
-    : ready
-      ? (skill.qiCost ? `${skill.qiCost} 气` : '可发动')
-      : skill.engineKind === 'start'
-        ? '开局技'
-        : '蓄势中';
+      ? '被动'
+    : qi != null && (skill.qiCost ?? 0) > qi
+      ? `差${(skill.qiCost ?? 0) - qi}气`
+      : '蓄势中';
 
   return (
+    <div className="command-skill-control">
     <motion.button
       type="button"
       className={`command-skill${ready ? ' command-skill-ready' : ''}${selected ? ' command-skill-selected' : ''}`}
       animate={selected && !reduceMotion ? { y: -2, scale: 1.015 } : { y: 0, scale: 1 }}
       whileTap={ready && !reduceMotion ? { scale: 0.985 } : undefined}
       transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-      aria-disabled={!ready}
-      aria-label={`${general.name}技能${skill.name}，${stateText}。长按查看详情`}
-      onClick={(event) => { if (event.detail === 0 && ready) onCast?.(); }}
-      onPointerDown={(event) => {
-        if (event.button !== 0) return;
-        startPress();
+      aria-label={`${general.name}技能${skill.name}，${stateText}。${ready ? '点击发动，长按查看详情' : '点击查看详情'}`}
+      onClick={(event) => {
+        const suppressed = event.detail !== 0 && (longPressed.current || canceled.current);
+        longPressed.current = false;
+        canceled.current = false;
+        if (suppressed) return;
+        if (ready && onCast) onCast();
+        else onInspect?.();
       }}
-      onPointerUp={() => endPress(true)}
-      onPointerLeave={() => endPress(false)}
-      onPointerCancel={() => endPress(false)}
+      onPointerDown={(event) => {
+        if (event.button !== 0 || !event.isPrimary) return;
+        startPress(event.clientX, event.clientY);
+      }}
+      onPointerMove={(event) => {
+        if (!pressStart.current) return;
+        if (Math.hypot(event.clientX - pressStart.current.x, event.clientY - pressStart.current.y) > 10) cancelPress();
+      }}
+      onPointerUp={() => {
+        clearTimer();
+        pressStart.current = null;
+      }}
+      onPointerLeave={cancelPress}
+      onPointerCancel={cancelPress}
+      onBlur={cancelPress}
       onContextMenu={(event) => {
         event.preventDefault();
         clearTimer();
+        if (!longPressed.current) onInspect?.();
         longPressed.current = true;
-        onInspect?.();
       }}
     >
       <span className="command-skill-seal" aria-hidden>
@@ -98,6 +129,18 @@ function SkillAction({
         <small>{stateText}</small>
       </span>
     </motion.button>
+    {onInspect && (
+      <button
+        type="button"
+        className="command-skill-info"
+        onClick={onInspect}
+        aria-label={`查看${general.name}的${skill.name}技能说明`}
+        title="技能说明"
+      >
+        <Info size={18} weight="duotone" aria-hidden />
+      </button>
+    )}
+    </div>
   );
 }
 
@@ -200,8 +243,9 @@ export function GeneralPanel({
               skill={skill}
               ready={!!canCastSkill?.(skill.id)}
               selected={selectedSkillId === skill.id}
+              qi={qi}
               onCast={onCastSkill ? () => onCastSkill(focused, skill) : undefined}
-              onInspect={onInspectSkill ? () => onInspectSkill(focused, skill) : undefined}
+              onInspect={onInspectSkill ? () => onInspectSkill(focused, skill) : onPortrait ? () => onPortrait(focused) : undefined}
             />
           ))}
         </div>

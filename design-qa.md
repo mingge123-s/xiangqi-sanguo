@@ -224,3 +224,18 @@ final result: passed
 - Production build, engine tests, target-state tests, and layout tests passed.
 
 final result: passed
+
+## Round 10 — portrait integrity, home artwork and interaction polish
+
+- Before: `design-audit/round-10/01-home-before.png`, `02-board-before.png` (390 × 844).
+- After: `design-audit/round-10/10-final-home.png`, `09-final-board.png` (390 × 844); compact regression: `08-small-screen-after.png` (375 × 667).
+- Reused the existing mountain painting and three general portraits for the home composition; added a cinnabar primary action and book/arrow icons from the existing icon library. No unlicensed asset-library candidates were imported.
+- Replaced Windows-materialized Xiahou Dun symlink text with valid PNG/WebP files. Added `npm run test:assets` to validate the 13 general portraits, 13 Wiki references and all 28 raster files.
+- Reserved actual command-panel height before sizing the board; names remain visible at 390 × 844, 375 × 667 and desktop 1280 × 900. Very short viewports scroll instead of shrinking controls indefinitely. Captured rails also scroll when full, retaining circular single-column tokens.
+- Increased the stable announcement reservation from 44 to 64 px, widened its readable area independently of the board, and balanced wrapped text. The layout contract test still passes.
+- Unavailable skill cards open details on tap; independent 44 px information controls remain available when the primary action is ready. Labels distinguish ready/start/passive/locked skills and show missing qi. Long presses cancel on a swipe or unmount.
+- Detail/log dialogs constrain keyboard focus, support Escape and restore the opener. Verified by browser interaction, including the standalone log regression fixture (removed after testing).
+- A log with 100+ entries retained scrollTop 0 while new entries arrived; “回到最新” restored the exact bottom and kept keyboard focus in the list. No page-level scrollIntoView remains.
+- Build, existing engine/layout/status tests, asset checks and three AI playouts passed. No browser warnings/errors observed in the final local check.
+
+final result: passed for the tested viewports and interactions

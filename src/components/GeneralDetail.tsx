@@ -1,9 +1,10 @@
 import { X } from '@phosphor-icons/react';
-import { useEffect } from 'react';
 import type { CSSProperties } from 'react';
 import { FACTION_COLOR } from '../game/types';
 import type { GeneralRuntime } from '../game/types';
 import { skillPhaseOf, skillTypeLabel } from '../game/generals';
+import { useDialogFocus } from './useDialogFocus';
+import './interaction-polish.css';
 
 const FACTION_NAME = {
   shu: '蜀',
@@ -31,24 +32,20 @@ export function GeneralDetail({
 }) {
   const color = FACTION_COLOR[general.faction];
   const factionName = FACTION_NAME[general.faction];
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+  const dialogRef = useDialogFocus(true, onClose);
 
   return (
     <div className="general-detail-layer" onClick={onClose}>
       <div className="general-detail-backdrop" />
       <div
+        ref={dialogRef}
         className="general-detail-sheet"
         style={{ '--faction-color': color } as CSSProperties}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="general-detail-title"
+        tabIndex={-1}
       >
         <div className="general-detail-header">
           <div
@@ -75,7 +72,7 @@ export function GeneralDetail({
             className="general-detail-close"
             aria-label="关闭武将详情"
             title="关闭"
-            autoFocus
+            data-dialog-initial-focus
           >
             <X size={21} weight="bold" aria-hidden />
           </button>

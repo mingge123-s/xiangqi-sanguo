@@ -19,7 +19,7 @@ const RAIL_RATIO = 0.66;
 const BOARD_WIDTH_CELLS = 8 + PIECE_RATIO + RAIL_RATIO * 2;
 const EDGE_SLACK = 2;
 /** Vertical reserve per announce slot — must match .skill-slot height in styles.css. */
-const SLOT_RESERVE = 44;
+const SLOT_RESERVE = 64;
 
 function BoardArt({
   w,

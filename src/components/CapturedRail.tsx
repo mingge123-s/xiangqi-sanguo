@@ -15,7 +15,12 @@ export function CapturedRail({
   onPick?: (id: string) => void;
 }) {
   return (
-    <div className={`captured-rail captured-rail-${align}`}>
+    <div
+      className={`captured-rail captured-rail-${align}`}
+      tabIndex={pieces.length ? 0 : undefined}
+      role={pieces.length ? 'region' : undefined}
+      aria-label={pieces.length ? `被俘虏棋子，共${pieces.length}枚，可上下滚动` : undefined}
+    >
       {pieces.map((p) => {
         const clickable = !!clickableIds?.includes(p.id);
         const label = CHAR[p.side][p.type];
