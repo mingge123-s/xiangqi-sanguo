@@ -2327,6 +2327,31 @@ a:focus-visible {
 }
 
 .result-copy { text-align: center; }
+.result-review-controls {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  padding: 10px 0;
+  color: var(--ink-rich);
+  text-align: center;
+}
+.result-review-controls strong { color: var(--cinnabar); font-size: 21px; }
+.result-review-controls p { margin: 0; font-size: 14px; }
+.result-review-controls small { color: var(--ink-muted); }
+.result-review-controls > div { display: flex; justify-content: center; gap: 12px; }
+.result-review-controls button, .result-back {
+  min-height: 44px;
+  padding: 7px 14px;
+  border: 1px solid var(--line-warm);
+  background: rgba(247, 237, 216, .9);
+  color: var(--cinnabar);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.result-review-controls button:disabled { opacity: .5; cursor: default; }
+.battle-alert-mate strong { font-size: clamp(24px, 8vw, 34px); }
 .result-title {
   margin-top: 18px;
   color: var(--ink-rich);

@@ -2299,6 +2299,8 @@ assert(!inCheck(createInitialBoard(), 'red'), 'initial position red not in check
   // 剔除第 3 次长将后无其他合法着 → 长将方困毙负
   {
     let s = base();
+    // This fixture tests immobility without a remaining skill rescue.
+    s.redGenerals = [];
     s.board = emptyBoard();
     s.board[9][8] = P('K', 'red', 'rk');
     s.board[0][3] = P('K', 'black', 'bk');

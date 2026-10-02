@@ -52,7 +52,13 @@ function SkillAction({
     if (fireClick && !longPressed.current && ready) onCast?.();
   };
 
-  const stateText = passive
+  const stateText = skill.nature === '锁定技'
+    ? '锁定'
+    : skill.id === 'xiahoudun-ganglie'
+      ? '受俘虏时可发动'
+    : skill.engineKind === 'limited' && skill.uses >= skill.maxUses
+      ? '已用尽'
+    : passive
     ? '被动'
     : ready
       ? (skill.qiCost ? `${skill.qiCost} 气` : '可发动')
@@ -69,6 +75,7 @@ function SkillAction({
       transition={{ type: 'spring', stiffness: 380, damping: 28 }}
       aria-disabled={!ready}
       aria-label={`${general.name}技能${skill.name}，${stateText}。长按查看详情`}
+      onClick={(event) => { if (event.detail === 0 && ready) onCast?.(); }}
       onPointerDown={(event) => {
         if (event.button !== 0) return;
         startPress();

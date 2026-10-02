@@ -146,6 +146,7 @@ export interface SkillBroadcast {
 }
 
 export interface GameState {
+  resultReason?: 'checkmate' | 'stalemate' | 'king-captured' | 'king-destroyed';
   board: (Piece | null)[][];
   side: Side;
   redGenerals: GeneralRuntime[];

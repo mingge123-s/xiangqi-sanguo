@@ -18,6 +18,8 @@ import {
   clearBroadcast,
   createHomeState,
   listLegalFrom,
+  listLegalMoves,
+  findSkillRescue,
   makeMove,
   peekDark,
   peekedOf,
@@ -36,6 +38,7 @@ import { sideHasSkill } from './game/generals';
 import type { GameState, GeneralRuntime, Piece, Pos, Side, SkillPayload, SkillRuntime } from './game/types';
 import { CHAR } from './game/types';
 import { pieceStatusEffect } from './components/pieceStatus';
+import { resultDescription } from './game/resultDescription';
 
 interface Targeting {
   skillId: string;
@@ -118,6 +121,7 @@ function broadcastLinesFor(id: string): string[] {
     case 'zhuge-guanxing': return ['选择五枚暗棋', '查看其真实身份'];
     case 'zhuge-kongcheng': return ['守护己方一枚棋', '直至下回合开始无法被俘虏'];
     case 'xiahoudun-danjing': return ['我方骰面为偶数', '锁定技：战气+2'];
+    case 'xiahoudun-ganglie': return ['抛掷六面骰', '奇数：摧毁实施俘虏的敌棋'];
     default: return [hintFor(id).replace(/^[^：]+：/, '')];
   }
 }
@@ -156,16 +160,19 @@ function targetingPromptToken(targeting: Targeting | null, state: GameState): Pr
     : commanderToken('red');
 }
 
-export default function App() {
-  const [state, setState] = useState<GameState>(() => createHomeState());
+export default function App({ initialState }: { initialState?: GameState } = {}) {
+  const [state, setState] = useState<GameState>(() => initialState ?? createHomeState());
   const [selected, setSelected] = useState<Pos | null>(null);
   const [targeting, setTargeting] = useState<Targeting | null>(null);
   const [thinking, setThinking] = useState(false);
   const [aiMoveAnimating, setAiMoveAnimating] = useState(false);
-  const animatedAiMove = useRef('');
+  const aiMoveKey = state.phase !== 'home' && state.lastMove?.piece.side === 'black'
+    ? `${state.moveSerial}:${state.lastMove.piece.id}:${state.lastMove.from.r},${state.lastMove.from.c}>${state.lastMove.to.r},${state.lastMove.to.c}`
+    : '';
   const [checkAlert, setCheckAlert] = useState<BattleAlertData | null>(null);
   const seenCheckAlert = useRef('');
   const [resultRevealReady, setResultRevealReady] = useState(false);
+  const [resultScreenOpen, setResultScreenOpen] = useState(false);
   const [detail, setDetail] = useState<GeneralRuntime | null>(null);
   const [turnSplash, setTurnSplash] = useState<Side | null>(null);
   const turnSeen = useRef<{ phase: string; side: string } | null>(null);
@@ -211,6 +218,9 @@ export default function App() {
   }, []);
 
   const checked = state.phase === 'playing' && sideInCheck(state);
+  const rescue = useMemo(() => state.phase === 'playing' && state.side === 'red' &&
+    listLegalMoves(state).length === 0 ? findSkillRescue(state) : null, [state]);
+  const rescueName = rescue ? state.redGenerals.flatMap(g => g.skills).find(sk => sk.id === rescue.id)?.name : null;
   const awaitGuanxing = !!state.pending.awaitGuanxing && state.side === 'red';
   const awaitYingshi = !!state.pending.awaitYingshi && state.side === 'red';
   const awaitKongcheng = !!state.pending.awaitKongcheng && state.side === 'red';
@@ -328,6 +338,7 @@ export default function App() {
       state.pending.ganglieDice
     ) {
       setResultRevealReady(false);
+      setResultScreenOpen(false);
       return;
     }
     setResultRevealReady(false);
@@ -431,20 +442,14 @@ export default function App() {
   ]);
 
   useEffect(() => {
-    const move = state.lastMove;
-    if (state.phase === 'home' || !move) {
-      animatedAiMove.current = '';
+    if (!aiMoveKey) {
       setAiMoveAnimating(false);
       return;
     }
-    if (move.piece.side !== 'black') return;
-    const key = `${state.moveSerial}:${move.piece.id}:${move.from.r},${move.from.c}>${move.to.r},${move.to.c}`;
-    if (animatedAiMove.current === key) return;
-    animatedAiMove.current = key;
     setAiMoveAnimating(true);
     const timer = window.setTimeout(() => setAiMoveAnimating(false), AI_MOVE_ANIMATION_MS);
     return () => window.clearTimeout(timer);
-  }, [state.lastMove, state.moveSerial, state.phase]);
+  }, [aiMoveKey]);
 
   const onGanglieSettled = useCallback(() => {
     setState((s) => (s.pending.ganglieDice ? resolveGanglie(s) : s));
@@ -611,13 +616,14 @@ export default function App() {
     : undefined;
   const broadcastLines = broadcastSkillId ? broadcastLinesFor(broadcastSkillId) : [];
   const resultPrelude = state.phase === 'result' && !!state.winner && !resultRevealReady;
-  const showBattleBoard = state.phase === 'playing' || resultPrelude;
+  const showBattleBoard = state.phase === 'playing' || (state.phase === 'result' && !resultScreenOpen);
   const battleAlert: BattleAlertData | null = resultPrelude && state.winner
     ? {
         id: `mate-${state.moveSerial}-${state.winner}`,
         kind: 'mate',
         victim: state.winner === 'red' ? 'black' : 'red',
         winner: state.winner,
+        reason: state.resultReason,
       }
     : checkAlert;
 
@@ -629,6 +635,7 @@ export default function App() {
         <div className="play-screen">
           <BattleStatus
             side={state.side}
+            finished={state.phase === 'result'}
             enemyQi={state.qi?.black ?? 0}
             onOpenLog={() => setLogOpen(true)}
           />
@@ -690,7 +697,11 @@ export default function App() {
                   onGanglieSettled={onGanglieSettled}
                   bottomSlot={
                     <div className="skill-slot skill-slot-bottom" aria-live="polite">
-                      {ganglieChoice ? (
+                      {state.phase === 'result' && !gangliePending ? (
+                        <div className="skill-slot-prompt"><div className="skill-center-mask">
+                          <span className="skill-center-text">{state.log.filter(line => /俘虏|摧毁|走了|跳了/.test(line.text)).at(-1)?.text ?? '对局结束 · 可查看记录'}</span>
+                        </div></div>
+                      ) : ganglieChoice ? (
                         <motion.div
                           key="ganglie-choice"
                           className="skill-slot-prompt"
@@ -734,7 +745,13 @@ export default function App() {
                         <TurnBroadcast side={turnSplash} onDone={() => setTurnSplash(null)} />
                       ) : (
                         <AnimatePresence mode="wait">
-                          {checked ? (
+                          {rescueName ? (
+                            <div className="skill-slot-prompt">
+                              <div className="skill-center-mask"><span className="skill-center-text">
+                                {checked ? '被将军' : '暂无走法'} · 可尝试{rescueName}解围
+                              </span></div>
+                            </div>
+                          ) : checked ? (
                             <motion.div
                               key="check"
                               className="skill-slot-prompt"
@@ -886,16 +903,26 @@ export default function App() {
           </div>
 
           <div className="play-generals-me">
-            <GeneralPanel
+            {state.phase === 'result' && state.winner ? (
+              <section className="result-review-controls" aria-label="终局回看">
+                <strong>{state.winner === 'red' ? '红方胜' : '红方败'} · {resultDescription(state.resultReason).title}</strong>
+                <p>{resultDescription(state.resultReason).detail}</p>
+                <small>棋盘已保留，可打开记录查看最后行动。</small>
+                <div>
+                  <button type="button" disabled={!resultRevealReady} onClick={() => setResultScreenOpen(true)}>查看结算</button>
+                  <button type="button" disabled={!resultRevealReady} onClick={() => setState(startMatch())}>再来一局</button>
+                </div>
+              </section>
+            ) : <GeneralPanel
               generals={state.redGenerals}
               mine={true}
-              selectedSkillId={targeting?.skillId ?? broadcastMineSkillId}
+              selectedSkillId={targeting?.skillId ?? broadcastMineSkillId ?? rescue?.id}
               onPortrait={(g) => onPortrait(g, true)}
               onInspectSkill={(g, sk) => onInspectSkill(g, sk, true)}
               onCastSkill={onCastSkill}
               canCastSkill={(id) => !inputLocked && canUseSkill(state, id)}
               qi={state.qi?.red ?? 0}
-            />
+            />}
           </div>
 
           <BattleLogPanel
@@ -906,8 +933,8 @@ export default function App() {
         </div>
       )}
 
-      {state.phase === 'result' && state.winner && resultRevealReady && (
-        <Result winner={state.winner} onAgain={() => setState(startMatch())} />
+      {state.phase === 'result' && state.winner && resultScreenOpen && (
+        <Result winner={state.winner} reason={state.resultReason} onBack={() => setResultScreenOpen(false)} onAgain={() => setState(startMatch())} />
       )}
 
       {detail && (

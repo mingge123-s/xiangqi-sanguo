@@ -44,7 +44,7 @@ export function Home({ onStart }: { onStart: () => void }) {
         <h2 id="home-rule-title">入局须知</h2>
         <p><span>一</span>开局仅将帅明置，其余暗子依原位走法翻开。</p>
         <p><span>二</span>你执红先行，每方携三名将星，各有独门技能。</p>
-        <p><span>三</span>将死或无子可动即负，飞将照面视为将军。</p>
+          <p><span>三</span>无合法走法且技能无法解围时判负；飞将照面视为将军。</p>
       </section>
       <div className="home-mountain home-mountain-bottom" aria-hidden />
     </main>

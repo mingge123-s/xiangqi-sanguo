@@ -1,5 +1,5 @@
 import { applyAITurn } from './ai';
-import { listLegalMoves, makeMove, resolveGanglie, resolveGanglieChoice, skipKongcheng, startMatch, useSkill } from './engine';
+import { findSkillRescue, settlePosition, listLegalMoves, makeMove, resolveGanglie, resolveGanglieChoice, skipKongcheng, startMatch, useSkill } from './engine';
 import { isSkillReady } from './generals';
 import type { GameState } from './types';
 
@@ -52,7 +52,14 @@ function playOnce(seedLabel: string): { turns: number; winner: string | null; la
     }
     const moves = listLegalMoves(s);
     if (moves.length === 0) {
-      s = { ...s, winner: 'black', phase: 'result' };
+      if (s.winner) break;
+      const rescue = findSkillRescue(s);
+      if (rescue) {
+        s = settlePending(useSkill(s, rescue.id, rescue.payload));
+        continue;
+      }
+      s = settlePosition(s);
+      if (!s.winner) throw new Error('Unresolved turn without legal moves or a skill rescue');
       break;
     }
     const m = moves[Math.floor(Math.random() * moves.length)];

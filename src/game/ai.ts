@@ -16,6 +16,9 @@ import {
 } from './core';
 import {
   canUseSkill,
+  findSkillRescue,
+  settlePosition,
+  sideInCheck,
   listLegalFrom,
   listLegalMoves,
   makeMove,
@@ -115,6 +118,9 @@ function moveDesire(s: GameState, m: Move): number {
 function searchBestMove(s: GameState, depth: number, deadline: number): { move: Move; score: number } | null {
   const side = s.side;
   const knownIds = knownIdsOn(s.board, peekedOf(s, side));
+  // Search may reveal simulated pieces, so remove unknown identities up front.
+  const visibleBoard = s.board.map(row => row.map(piece => piece && !knownIds.includes(piece.id)
+    ? { ...piece, type: piece.coverType } : piece));
   const forced = lijianForcedMoves(s);
   const moves = forced ?? listLegalMoves(s, side);
   if (moves.length === 0) return null;
@@ -132,7 +138,7 @@ function searchBestMove(s: GameState, depth: number, deadline: number): { move: 
 
   for (const m of moves) {
     if (Date.now() > deadline) break;
-    const { board: nb } = applyMove(s.board, m.from, m.to);
+    const { board: nb } = applyMove(visibleBoard, m.from, m.to);
     let score = searchEval(nb, opposite(side), depth - 1, alpha, beta, side, deadline, undefined, knownIds);
     if (otherPenalty > 0) score -= otherPenalty;
     if (score > bestScore) {
@@ -171,79 +177,14 @@ function readyActiveIds(s: GameState): string[] {
 }
 
 function tryResolveCheckWithSkill(s: GameState): GameState | null {
-  if (!inCheck(s.board, s.side)) return null;
-  const ready = readyActiveIds(s);
-
-  const tryState = (ns: GameState): boolean => {
-    if (ns === s) return false;
-    if (ns.winner === s.side) return true;
-    if (!inCheck(ns.board, ns.side) && listLegalMoves(ns).length > 0) return true;
-    return listLegalMoves(ns).some((m) => {
-      const after = makeMove(ns, m.from, m.to);
-      return after.winner === s.side || (after.side !== s.side && !inCheck(after.board, s.side));
-    });
-  };
-
-  const order = [
-    'zhaoyun-longhun',
-    'sunshangxiang-lianyin',
-    'huatuo-qingnang',
-    'caocao-guixin',
-    'zhangfei-paoxiao',
-    'ganning-chaiqiao',
-    'lvbu-wushuang',
-    'lvbu-chitu',
-  ];
-  for (const id of order) {
-    if (!ready.includes(id)) continue;
-    if (id === 'caocao-guixin' || id === 'ganning-chaiqiao' || id === 'huatuo-qingnang' || id === 'lvbu-wushuang') {
-      const ns = useSkill(s, id, { kind: 'none' });
-      if (tryState(ns)) return ns;
-    }
-    if (id === 'zhangfei-paoxiao') {
-      const mine = allPieces(s.board, s.side).filter((m) => !m.piece.revealed);
-      const scored = mine
-        .map((m) => {
-          const dests = listLegalFrom(s, m.pos);
-          const canCap = dests.some((d) => !!s.board[d.r][d.c]);
-          return { pos: m.pos, dests, canCap };
-        })
-        .filter((x) => x.dests.length > 0)
-        .sort((a, b) => Number(b.canCap) - Number(a.canCap));
-      if (scored[0]) {
-        const ns = useSkill(s, 'zhangfei-paoxiao', { kind: 'pos', pos: scored[0].pos });
-        if (tryState(ns)) return ns;
-      }
-    }
-    if (id === 'zhaoyun-longhun') {
-      const mine = allPieces(s.board, s.side).filter((m) => m.piece.type !== 'K');
-      for (let i = 0; i < mine.length; i++) {
-        for (let j = i + 1; j < mine.length; j++) {
-          const ns = useSkill(s, 'zhaoyun-longhun', { kind: 'twoPos', a: mine[i].pos, b: mine[j].pos });
-          if (tryState(ns)) return ns;
-        }
-      }
-    }
-    if (id === 'sunshangxiang-lianyin') {
-      const t = validSkillTargets(s, 'sunshangxiang-lianyin');
-      for (const p of t.positions) {
-        const ns = useSkill(s, 'sunshangxiang-lianyin', { kind: 'pos', pos: p });
-        if (tryState(ns)) return ns;
-      }
-    }
-    if (id === 'lvbu-chitu') {
-      const t = validSkillTargets(s, 'lvbu-chitu');
-      for (const p of t.positions) {
-        const ns = useSkill(s, 'lvbu-chitu', { kind: 'pos', pos: p });
-        if (tryState(ns)) return ns;
-      }
-    }
-  }
-  return null;
+  if (!sideInCheck(s) && listLegalMoves(s).length > 0) return null;
+  const rescue = findSkillRescue(s);
+  return rescue ? useSkill(s, rescue.id, rescue.payload) : null;
 }
 
-function heuristicSkill(s: GameState): { id: string; payload: SkillPayload } | null {
+export function chooseAISkill(s: GameState): { id: string; payload: SkillPayload } | null {
   const ready = readyActiveIds(s);
+  const knownIds = knownIdsOn(s.board, peekedOf(s, s.side));
   if (ready.length === 0) return null;
 
   if (ready.includes('lvbu-wushuang')) {
@@ -325,13 +266,15 @@ function heuristicSkill(s: GameState): { id: string; payload: SkillPayload } | n
       (x) => !x.piece.revealed && x.piece.type !== 'K',
     );
     for (const m of mine) {
-      const match = theirs.find((e) => e.piece.type === m.piece.type);
+      const match = knownIds.includes(m.piece.id)
+        ? theirs.find((e) => knownIds.includes(e.piece.id) && e.piece.type === m.piece.type)
+        : undefined;
       if (match) {
         return { id: 'guanyu-yijue', payload: { kind: 'twoPos', a: m.pos, b: match.pos } };
       }
     }
     const bestEnemy = theirs
-      .map((e) => ({ e, v: pieceValueAt(e.piece, e.pos.r) }))
+      .map((e) => ({ e, v: pieceValueAt(e.piece, e.pos.r, knownIds) }))
       .sort((a, b) => b.v - a.v)[0];
     if (bestEnemy && bestEnemy.v >= 40 && mine[0] && Math.random() < 0.35) {
       return {
@@ -349,7 +292,7 @@ function heuristicSkill(s: GameState): { id: string; payload: SkillPayload } | n
     const enemies = allPieces(s.board, opposite(s.side));
     const shouldFire = enemies.some((e) => {
       if (crossedRiver(e.pos.r, e.piece.side)) return false;
-      if (e.piece.type === 'P') return true;
+      if ((knownIds.includes(e.piece.id) ? e.piece.type : e.piece.coverType) === 'P') return true;
       return e.piece.side === 'red' ? e.pos.r === 5 : e.pos.r === 4;
     });
     if (shouldFire) return { id: 'ganning-chaiqiao', payload: { kind: 'none' } };
@@ -381,7 +324,7 @@ function heuristicSkill(s: GameState): { id: string; payload: SkillPayload } | n
         .sort((a, b) => Number(b.canCap) - Number(a.canCap));
       if (scored[0]) return { id, payload: { kind: 'pos', pos: scored[0].pos } };
     }
-    if (id === 'sunshangxiang-lianyin' || id === 'xiahoudun-danjing') {
+    if (id === 'sunshangxiang-lianyin') {
       const t = validSkillTargets(s, id);
       if (t.positions[0]) return { id, payload: { kind: 'pos', pos: t.positions[0] } };
     }
@@ -445,7 +388,7 @@ export function applyAITurn(s0: GameState): GameState {
   const checkFix = tryResolveCheckWithSkill(s);
   if (checkFix) s = checkFix;
   else {
-    const skill = heuristicSkill(s);
+    const skill = chooseAISkill(s);
     if (skill) {
       const ns = useSkill(s, skill.id, skill.payload);
       if (ns !== s) s = ns;
@@ -454,21 +397,24 @@ export function applyAITurn(s0: GameState): GameState {
 
   if (s.winner) return s;
   if (s.side !== 'black') return s;
+  if (s.pending.awaitGanglie || s.pending.ganglieDice) return s;
   if (s.pending.awaitKongcheng) {
     s = resolveKongcheng(s);
     if (s.winner || s.side !== 'black') return s;
   }
 
   const doOne = (st: GameState): GameState => {
+    if (st.pending.awaitGanglie || st.pending.ganglieDice || st.pending.awaitYingshi || st.pending.awaitKongcheng) return st;
     const mv = pickBoardMove(st);
     if (!mv) {
-      return { ...st, winner: 'red', phase: 'result', log: [...st.log, { text: '黑方无子可动，红胜', side: st.side }] };
+      return settlePosition(st);
     }
     return makeMove(st, mv.from, mv.to);
   };
 
   s = doOne(s);
   if (s.winner) return s;
+  if (s.pending.awaitGanglie || s.pending.ganglieDice) return s;
   if (s.side === 'black' && s.pending.zhangFeiPieceId && (s.movesLeft ?? 0) > 0) {
     s = doOne(s);
   }

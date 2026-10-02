@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
-import type { Side } from '../game/types';
+import type { GameState, Side } from '../game/types';
+import { resultDescription } from '../game/resultDescription';
 
-export function Result({ winner, onAgain }: { winner: Side; onAgain: () => void }) {
+export function Result({ winner, reason, onAgain, onBack }: { winner: Side; reason?: GameState['resultReason']; onAgain: () => void; onBack: () => void }) {
   return (
     <main className="result-screen">
       <motion.div
@@ -14,7 +15,7 @@ export function Result({ winner, onAgain }: { winner: Side; onAgain: () => void 
           {winner === 'red' ? '红胜' : '黑胜'}
         </div>
         <div className="result-subtitle">
-          {winner === 'red' ? '河山尽入君手' : '将星黯淡，再整旗鼓'}
+          {resultDescription(reason).title} · {resultDescription(reason).detail}
         </div>
       </motion.div>
       <motion.button
@@ -24,6 +25,7 @@ export function Result({ winner, onAgain }: { winner: Side; onAgain: () => void 
       >
         再来一局
       </motion.button>
+      <button type="button" className="result-back" onClick={onBack}>返回棋盘查看</button>
     </main>
   );
 }

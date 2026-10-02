@@ -4,10 +4,12 @@ import { QiMeter } from './QiMeter';
 
 export function BattleStatus({
   side,
+  finished = false,
   enemyQi,
   onOpenLog,
 }: {
   side: Side;
+  finished?: boolean;
   enemyQi: number;
   onOpenLog: () => void;
 }) {
@@ -15,7 +17,7 @@ export function BattleStatus({
     <header className="battle-status" aria-label="对局状态">
       <div className={`turn-marker turn-marker-${side}`}>
         <Diamond className="turn-marker-diamond" size={12} weight="fill" aria-hidden />
-        <span>{side === 'red' ? '红方回合' : '黑方回合'}</span>
+        <span>{finished ? '对局结束' : side === 'red' ? '红方回合' : '黑方回合'}</span>
       </div>
 
       <div className="battle-status-enemy-qi">

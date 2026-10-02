@@ -1,23 +1,23 @@
 import { motion, useReducedMotion } from 'framer-motion';
-import type { Side } from '../game/types';
+import type { GameState, Side } from '../game/types';
+import { resultDescription } from '../game/resultDescription';
 
 export interface BattleAlertData {
   id: string;
   kind: 'check' | 'mate';
   victim: Side;
   winner?: Side;
+  reason?: GameState['resultReason'];
 }
 
 export function BattleAlert({ alert }: { alert: BattleAlertData }) {
   const reduceMotion = useReducedMotion();
   const playerThreatened = alert.victim === 'red';
   const isMate = alert.kind === 'mate';
-  const title = isMate ? '绝杀' : playerThreatened ? '被将军' : '将军';
+  const title = isMate ? resultDescription(alert.reason).title : playerThreatened ? '被将军' : '将军';
   const kicker = isMate ? '一击定局' : playerThreatened ? '敌锋压境' : '将锋已至';
   const subtitle = isMate
-    ? alert.winner === 'red'
-      ? '敌方将帅无路可走 · 红方胜'
-      : '我方将帅陷落 · 红方败'
+    ? `${title} · ${alert.winner === 'red' ? '红方胜' : '红方败'}`
     : playerThreatened
       ? '将帅受制 · 请立即解围'
       : '敌方将帅已受制';
